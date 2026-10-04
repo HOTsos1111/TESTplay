@@ -28,8 +28,8 @@ export interface LevelLayout {
 
 const LEAD_IN = 1200;
 const GROUND_PIECE = 1024;
-/** Flat street after the gate where the encounter takes place. */
-const ENCOUNTER_RUNWAY = 120_000;
+/** Flat street after the gate; GameScene keeps extending it for as long as the encounter lasts. */
+const ENCOUNTER_RUNWAY = 4_000;
 
 function bonePositions(p: BonePattern): { x: number; h: number }[] {
   const out: { x: number; h: number }[] = [];

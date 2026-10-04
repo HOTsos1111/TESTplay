@@ -98,6 +98,7 @@ export class GameScene extends Phaser.Scene {
     this.paused = false;
     this.pendingHints = [];
     this.pitFall = false;
+    this.groundEnd = -Infinity;
 
     const startX = this.startAt === 'encounter' ? this.layout.encounterX + 160 : this.layout.startX;
     this.pc = new PlayerController(startX, WORLD.groundY, statsFromUpgrades());
@@ -294,8 +295,18 @@ export class GameScene extends Phaser.Scene {
       if (initial && it.type === 'hint' && it.x < this.pc.x) continue;
       const e = this.createEntity(it);
       if (e) this.entities.push(e);
+      if (it.type === 'ground') this.groundEnd = Math.max(this.groundEnd, it.x + it.w);
+    }
+    // Past the authored content the street simply continues (the encounter has no length limit).
+    if (this.cursor >= this.layout.items.length) {
+      while (this.groundEnd < limit) {
+        this.entities.push(new GroundPiece(this, this.groundEnd, 1024, false, false));
+        this.groundEnd += 1024;
+      }
     }
   }
+
+  private groundEnd = -Infinity;
 
   private layoutCamera(): void {
     this.cameras.main.scrollX = Math.round(this.pc.x - VIEW.width * VIEW.heroScreenX);

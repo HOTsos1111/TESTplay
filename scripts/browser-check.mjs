@@ -250,7 +250,7 @@ try {
         lastHearts = s.hearts;
         w.__bot.minHearts = Math.min(w.__bot.minHearts, s.hearts);
         // Bark at anything barkable inside reach (cardboard, squirrels, acorns, the latch).
-        const reachable = s.barkTargetsAhead.find((b) => b.dx > 55 && b.dx < 60 + s.barkRange - 25 && b.bottom < s.height + 70);
+        const reachable = s.barkTargetsAhead.find((b) => b.dx > 55 && b.dx < 60 + s.barkRange - 25 && b.bottom < s.height + 105 && b.top > s.height - 15);
         if (reachable && s.barkCooldown <= 0) {
           input.touchDown('bark', 78);
           input.touchUp(78);
