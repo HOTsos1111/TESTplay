@@ -1,0 +1,169 @@
+import Phaser from 'phaser';
+import { DEPTH, TUNING } from '../data/config';
+import { ART_SCALE } from '../systems/AssetRegistry';
+import { COLOR, CSS, textStyle } from './theme';
+
+export interface HudState {
+  hearts: number;
+  bones: number;
+  metres: number;
+  wagFraction: number;
+  hovering: boolean;
+  barkCooldown: number;
+  bossHits: number | null;
+  bossMax: number;
+}
+
+/** In-game HUD. All text is live; icons come from the asset registry. */
+export class Hud {
+  private hearts: Phaser.GameObjects.Image[] = [];
+  private boneText: Phaser.GameObjects.Text;
+  private distText: Phaser.GameObjects.Text;
+  private wagIcon: Phaser.GameObjects.Image;
+  private wagBar: Phaser.GameObjects.Graphics;
+  private barkIcon: Phaser.GameObjects.Image;
+  private barkDial: Phaser.GameObjects.Graphics;
+  private bossLabel: Phaser.GameObjects.Text;
+  private bossPips: Phaser.GameObjects.Graphics;
+  private hint: Phaser.GameObjects.Container;
+  private hintText: Phaser.GameObjects.Text;
+  private hintBg: Phaser.GameObjects.Graphics;
+  private hintT = 0;
+  readonly pauseButton: Phaser.GameObjects.Image;
+  private lastHearts = -1;
+  private heartFlash = 0;
+
+  constructor(private scene: Phaser.Scene, onPause: () => void) {
+    const fixed = <T extends Phaser.GameObjects.Components.ScrollFactor & Phaser.GameObjects.Components.Depth>(o: T): T => {
+      o.setScrollFactor(0);
+      o.setDepth(DEPTH.hud);
+      return o;
+    };
+    for (let i = 0; i < TUNING.maxHearts; i++) {
+      this.hearts.push(fixed(scene.add.image(44 + i * 46, 42, 'heart_full').setScale(ART_SCALE * 1.1)));
+    }
+    fixed(scene.add.image(48, 94, 'bone').setScale(ART_SCALE * 1.05));
+    this.boneText = fixed(scene.add.text(76, 94, '0', textStyle(26)).setOrigin(0, 0.5));
+    this.distText = fixed(scene.add.text(26, 132, '0 m', textStyle(22, CSS.cream)).setOrigin(0, 0.5));
+
+    this.wagIcon = fixed(scene.add.image(880, 42, 'icon_tail').setScale(ART_SCALE * 1.2));
+    this.wagBar = fixed(scene.add.graphics());
+    this.barkIcon = fixed(scene.add.image(1140, 42, 'icon_bark').setScale(ART_SCALE * 1.2));
+    this.barkDial = fixed(scene.add.graphics());
+    this.pauseButton = fixed(scene.add.image(1228, 42, 'icon_pause').setScale(ART_SCALE * 1.4));
+    this.pauseButton.setInteractive({ useHandCursor: true }).on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) => {
+      e.stopPropagation();
+      onPause();
+    });
+
+    this.bossLabel = fixed(scene.add.text(640, 34, 'LATCH', textStyle(20, CSS.butter)).setOrigin(0.5).setVisible(false));
+    this.bossPips = fixed(scene.add.graphics());
+
+    this.hintBg = scene.add.graphics();
+    this.hintText = scene.add.text(0, 0, '', textStyle(28)).setOrigin(0.5);
+    this.hint = fixed(scene.add.container(640, 160, [this.hintBg, this.hintText]).setVisible(false));
+  }
+
+  showHint(text: string, seconds = 3.2): void {
+    this.hintText.setText(text);
+    const w = this.hintText.width + 48;
+    const h = this.hintText.height + 22;
+    this.hintBg.clear();
+    this.hintBg.fillStyle(COLOR.outline, 0.78);
+    this.hintBg.fillRoundedRect(-w / 2, -h / 2, w, h, 18);
+    this.hintBg.lineStyle(3, COLOR.cream, 0.9);
+    this.hintBg.strokeRoundedRect(-w / 2, -h / 2, w, h, 18);
+    this.hint.setVisible(true).setAlpha(1).setScale(0.9);
+    this.hintT = seconds;
+  }
+
+  /** Big centred chapter card / banner that fades on its own. */
+  banner(title: string, sub: string, seconds = 2.4): void {
+    const t1 = this.scene.add.text(640, 300, title, textStyle(56, CSS.butter, 10)).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH.hud + 1);
+    const t2 = this.scene.add.text(640, 366, sub, textStyle(28, CSS.white)).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH.hud + 1);
+    for (const t of [t1, t2]) {
+      t.setAlpha(0);
+      this.scene.tweens.add({ targets: t, alpha: 1, duration: 250 });
+      this.scene.tweens.add({ targets: t, alpha: 0, delay: seconds * 1000, duration: 400, onComplete: () => t.destroy() });
+    }
+  }
+
+  update(dt: number, s: HudState): void {
+    if (this.lastHearts !== s.hearts) {
+      if (this.lastHearts > s.hearts) this.heartFlash = 0.5;
+      this.lastHearts = s.hearts;
+    }
+    this.heartFlash = Math.max(0, this.heartFlash - dt);
+    this.hearts.forEach((h, i) => {
+      const key = i < s.hearts ? 'heart_full' : i === s.hearts && this.heartFlash > 0 ? 'heart_lost' : 'heart_empty';
+      if (h.texture.key !== key) h.setTexture(key);
+      h.setScale(ART_SCALE * (1.1 + (i === s.hearts && this.heartFlash > 0 ? this.heartFlash * 0.6 : 0)));
+    });
+    this.boneText.setText(String(s.bones));
+    this.distText.setText(`${s.metres} m`);
+
+    // Wag meter.
+    const empty = s.wagFraction <= 0.001;
+    this.wagIcon.setTexture(empty ? 'icon_tail_empty' : 'icon_tail');
+    if (s.hovering) this.wagIcon.rotation -= dt * 20;
+    else this.wagIcon.rotation *= 0.9;
+    const bx = 906;
+    const by = 32;
+    const bw = 170;
+    const bh = 20;
+    const g = this.wagBar;
+    g.clear();
+    g.fillStyle(COLOR.outline, 0.85);
+    g.fillRoundedRect(bx - 3, by - 3, bw + 6, bh + 6, 12);
+    g.fillStyle(0x5c4560, 1);
+    g.fillRoundedRect(bx, by, bw, bh, 9);
+    if (!empty) {
+      g.fillStyle(s.wagFraction > 0.3 ? COLOR.teal : COLOR.coral, 1);
+      g.fillRoundedRect(bx, by, Math.max(18, bw * s.wagFraction), bh, 9);
+      g.fillStyle(0xffffff, 0.3);
+      g.fillRoundedRect(bx + 4, by + 3, Math.max(10, bw * s.wagFraction - 8), 5, 3);
+    } else {
+      // Empty state uses a hatch pattern so it reads without colour.
+      g.lineStyle(2, 0x9a8e9c, 1);
+      for (let x = bx + 6; x < bx + bw; x += 12) g.lineBetween(x, by + bh - 3, x + 8, by + 3);
+    }
+
+    // Bark cooldown dial.
+    const d = this.barkDial;
+    d.clear();
+    const ready = s.barkCooldown <= 0;
+    this.barkIcon.setAlpha(ready ? 1 : 0.45);
+    d.lineStyle(5, COLOR.outline, 0.9);
+    d.strokeCircle(1140, 42, 26);
+    if (!ready) {
+      const k = 1 - s.barkCooldown / TUNING.barkCooldown;
+      d.lineStyle(5, COLOR.coral, 1);
+      d.beginPath();
+      d.arc(1140, 42, 26, -Math.PI / 2, -Math.PI / 2 + k * Math.PI * 2);
+      d.strokePath();
+    } else {
+      d.lineStyle(3, COLOR.butter, 1);
+      d.strokeCircle(1140, 42, 26);
+    }
+
+    // Boss pips.
+    this.bossPips.clear();
+    this.bossLabel.setVisible(s.bossHits !== null);
+    if (s.bossHits !== null) {
+      for (let i = 0; i < s.bossMax; i++) {
+        const x = 640 + (i - (s.bossMax - 1) / 2) * 40;
+        this.bossPips.fillStyle(COLOR.outline, 1);
+        this.bossPips.fillCircle(x, 68, 14);
+        this.bossPips.fillStyle(i < s.bossHits ? COLOR.butter : 0x5c4560, 1);
+        this.bossPips.fillCircle(x, 68, 10);
+      }
+    }
+
+    if (this.hintT > 0) {
+      this.hintT -= dt;
+      this.hint.setScale(Math.min(1, this.hint.scale + dt * 2));
+      if (this.hintT < 0.4) this.hint.setAlpha(Math.max(0, this.hintT / 0.4));
+      if (this.hintT <= 0) this.hint.setVisible(false);
+    }
+  }
+}
