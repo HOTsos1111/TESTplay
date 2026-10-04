@@ -7,7 +7,7 @@ import { progress } from '../systems/ProgressStore';
 import { Backdrop } from '../ui/Backdrop';
 import { Button, MenuNav } from '../ui/Button';
 import { COLOR, CSS, textStyle } from '../ui/theme';
-import { autoFullscreen, isFullscreen, toggleFullscreen } from '../ui/fullscreen';
+import { autoFullscreen, fullscreenAllowed, isFullscreen, NOT_ALLOWED_MSG, toggleFullscreen } from '../ui/fullscreen';
 
 export class TitleScene extends Phaser.Scene {
   private backdrop!: Backdrop;
@@ -41,12 +41,15 @@ export class TitleScene extends Phaser.Scene {
     buttons.push(primary);
     buttons.push(new Button(this, 640, 448, COPY.shop, () => this.scene.start('Upgrade', { from: 'Title' }), { width: 340, height: 62, fontSize: 26 }));
     buttons.push(new Button(this, 640, 530, COPY.settings, () => this.scene.start('Settings', { from: 'Title' }), { width: 340, height: 62, fontSize: 26, color: 0x6f86a8 }));
-    const fsLabel = () => (isFullscreen(this) ? 'Exit full screen' : 'Full screen');
+    const fsLabel = () => (isFullscreen() ? 'Exit full screen' : 'Full screen');
     const fs = new Button(this, 1130, 44, fsLabel(), () => {
       toggleFullscreen(this);
       this.time.delayedCall(400, () => fs.setText(fsLabel()));
     }, { width: 230, height: 54, fontSize: 22, color: 0x6f86a8 });
     buttons.push(fs);
+    if (!fullscreenAllowed() && this.sys.game.device.input.touch) {
+      this.add.text(640, 660, NOT_ALLOWED_MSG, { ...textStyle(18, CSS.cream, 4), wordWrap: { width: 900 } }).setOrigin(0.5).setDepth(DEPTH.hud);
+    }
     for (const b of buttons) b.setDepth(DEPTH.hud);
     new MenuNav(this, buttons);
 

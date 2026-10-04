@@ -2,54 +2,87 @@ import Phaser from 'phaser';
 import { DEPTH } from '../data/config';
 import { CSS, textStyle } from './theme';
 
+type FsDoc = Document & { webkitFullscreenEnabled?: boolean; webkitFullscreenElement?: Element | null };
+type FsEl = HTMLElement & { webkitRequestFullscreen?: () => void };
+
 /**
- * Full screen must start from a tap or click. Some hosts (an app's in-app
- * viewer, iPhone Safari) refuse it; then we say so instead of failing silently.
+ * Full screen must start from a tap. Embedded viewers (an iframe without the
+ * fullscreen permission) and iPhone browsers refuse it, so we check up front and
+ * explain instead of failing silently.
  */
-export function isFullscreen(scene: Phaser.Scene): boolean {
-  return scene.scale.isFullscreen;
+export function fullscreenAllowed(): boolean {
+  const d = document as FsDoc;
+  const el = document.documentElement as FsEl;
+  const api = typeof el.requestFullscreen === 'function' || typeof el.webkitRequestFullscreen === 'function';
+  const enabled = d.fullscreenEnabled ?? d.webkitFullscreenEnabled ?? false;
+  return api && enabled;
 }
 
+export function isFullscreen(): boolean {
+  const d = document as FsDoc;
+  return !!(d.fullscreenElement ?? d.webkitFullscreenElement);
+}
+
+function lockLandscape(): void {
+  const o = screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> };
+  o?.lock?.('landscape').catch(() => undefined);
+}
+
+/** Request full screen on the whole page (call from a tap/click handler). */
+export function enterFullscreen(): Promise<boolean> {
+  const el = document.documentElement as FsEl;
+  try {
+    if (el.requestFullscreen) {
+      return el
+        .requestFullscreen({ navigationUI: 'hide' })
+        .then(() => {
+          lockLandscape();
+          return true;
+        })
+        .catch(() => false);
+    }
+    if (el.webkitRequestFullscreen) {
+      el.webkitRequestFullscreen();
+      return Promise.resolve(true);
+    }
+  } catch {
+    // fall through
+  }
+  return Promise.resolve(false);
+}
+
+export function exitFullscreen(): void {
+  const d = document as FsDoc & { webkitExitFullscreen?: () => void };
+  if (d.exitFullscreen) void d.exitFullscreen().catch(() => undefined);
+  else d.webkitExitFullscreen?.();
+}
+
+export const NOT_ALLOWED_MSG = 'This viewer blocks full screen. Open the link in Chrome or Safari, or ask for the standalone version.';
+
 export function toggleFullscreen(scene: Phaser.Scene): void {
-  const sm = scene.scale;
-  if (sm.isFullscreen) {
-    sm.stopFullscreen();
+  if (isFullscreen()) {
+    exitFullscreen();
     return;
   }
-  if (!sm.fullscreen.available) {
-    toast(scene, 'Full screen is not available here. Try opening the link in Chrome or Safari.');
+  if (!fullscreenAllowed()) {
+    toast(scene, NOT_ALLOWED_MSG);
     return;
   }
-  const onFail = () => toast(scene, 'Full screen was blocked here. Try opening the link in Chrome or Safari.');
-  sm.once(Phaser.Scale.Events.FULLSCREEN_FAILED, onFail);
-  sm.once(Phaser.Scale.Events.ENTER_FULLSCREEN, () => {
-    sm.off(Phaser.Scale.Events.FULLSCREEN_FAILED, onFail);
-    const orientation = screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> };
-    orientation?.lock?.('landscape').catch(() => undefined);
+  void enterFullscreen().then((ok) => {
+    if (!ok) toast(scene, NOT_ALLOWED_MSG);
   });
-  sm.startFullscreen({ navigationUI: 'hide' });
 }
 
 /** Try full screen once on phones when play starts (a tap is in progress). */
 export function autoFullscreen(scene: Phaser.Scene): void {
-  const sm = scene.scale;
-  if (!sm.isFullscreen && sm.fullscreen.available && scene.sys.game.device.input.touch) {
-    try {
-      sm.startFullscreen({ navigationUI: 'hide' });
-      const orientation = screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> };
-      orientation?.lock?.('landscape').catch(() => undefined);
-    } catch {
-      // Ignored: the host refused; the game still fills the window.
-    }
-  }
+  if (!isFullscreen() && fullscreenAllowed() && scene.sys.game.device.input.touch) void enterFullscreen();
 }
 
-function toast(scene: Phaser.Scene, text: string): void {
+export function toast(scene: Phaser.Scene, text: string): void {
   const cam = scene.cameras.main;
   const t = scene.add
-    .text(cam.scrollX + scene.scale.width / 2, 690, text, textStyle(20, CSS.cream, 4))
+    .text(cam.scrollX + scene.scale.width / 2, 700, text, { ...textStyle(20, CSS.cream, 4), wordWrap: { width: 1100 } })
     .setOrigin(0.5, 1)
-    .setDepth(DEPTH.overlay + 10)
-    .setScrollFactor(1);
-  scene.tweens.add({ targets: t, alpha: 0, delay: 3200, duration: 400, onComplete: () => t.destroy() });
+    .setDepth(DEPTH.overlay + 10);
+  scene.tweens.add({ targets: t, alpha: 0, delay: 4200, duration: 400, onComplete: () => t.destroy() });
 }

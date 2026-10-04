@@ -38,7 +38,7 @@ export class PauseScene extends Phaser.Scene {
       audioBtn.setText(audioLabel());
     }, { width: 340, height: 64, fontSize: 26, color: 0x6f86a8 });
     buttons.push(audioBtn);
-    const fsLabel = () => (isFullscreen(this) ? 'Exit full screen' : 'Full screen');
+    const fsLabel = () => (isFullscreen() ? 'Exit full screen' : 'Full screen');
     const fs = new Button(this, 640, 505, fsLabel(), () => {
       toggleFullscreen(this);
       this.time.delayedCall(400, () => fs.setText(fsLabel()));

@@ -49,6 +49,14 @@ export class HeroView {
   /** Burst animation clock (-1 when idle) and whether the rear has snapped yet. */
   private burstAnimT = -1;
   private snapped = false;
+  /** Elastic body: how far the front half (F) and rear half (R) are pulled ahead, in px. */
+  private elF = 0;
+  private elR = 0;
+  private elRV = 0;
+  private frontParts: { o: Phaser.GameObjects.Components.Transform; x: number }[] = [];
+  private rearParts: { o: Phaser.GameObjects.Components.Transform; x: number }[] = [];
+  static readonly STRETCH_TIME = 0.24;
+  static readonly STRETCH_PX = 135;
   /** Fired when the stretched rear end snaps forward (for the sound). */
   onSnap?: () => void;
   /** Fired roughly once per stride while running on the ground (for footstep audio). */
@@ -91,6 +99,8 @@ export class HeroView {
       { img: legFarRear, offset: Math.PI + 0.7, front: false },
     ];
     this.rig.setScale(HeroView.BASE_SCALE);
+    this.frontParts = [legNearFront, legFarFront, collar].map((o) => ({ o, x: o.x }));
+    this.rearParts = [legNearRear, legFarRear, this.tail, this.propeller].map((o) => ({ o, x: o.x }));
   }
 
   setPosition(x: number, y: number): void {
@@ -113,6 +123,44 @@ export class HeroView {
   burst(): void {
     this.burstAnimT = 0;
     this.snapped = false;
+    this.elRV = 0;
+  }
+
+  /**
+   * Over-the-top rubber band: the front half shoots ahead while the rear digs in,
+   * then the rear springs after it, overshoots into a squash and wobbles.
+   */
+  private updateElastic(dt: number): void {
+    if (this.burstAnimT < 0) return;
+    this.burstAnimT += dt;
+    const t = this.burstAnimT;
+    const T = HeroView.STRETCH_TIME;
+    if (t < T) {
+      const k = t / T;
+      // Ease out with a little overshoot so the head "twangs" at full stretch.
+      this.elF = HeroView.STRETCH_PX * (1 + 0.12 * Math.sin(k * Math.PI)) * (1 - Math.pow(1 - k, 3));
+      this.elR = 0;
+      return;
+    }
+    if (!this.snapped) {
+      this.snapped = true;
+      this.elRV = 2600;
+      this.sqY = 1.25;
+      this.sqX = 0.85;
+      this.onSnap?.();
+    }
+    // Afterwards the whole dog eases back to its normal place on screen.
+    if (t > 0.6) this.elF -= this.elF * Math.min(1, dt * 5);
+    // Underdamped spring: the rear overshoots past the front, then wobbles.
+    const [n, h] = HeroView.substeps(dt);
+    for (let i = 0; i < n; i++) {
+      this.elRV += ((this.elF - this.elR) * 900 - this.elRV * 9) * h;
+      this.elR += this.elRV * h;
+    }
+    if (t > 1.6) {
+      this.burstAnimT = -1;
+      this.elF = this.elR = this.elRV = 0;
+    }
   }
 
   bark(): void {
@@ -309,23 +357,13 @@ export class HeroView {
     }
 
     if (this.mode === 'play') {
-      const STRETCH = 0.16;
-      if (this.burstAnimT >= 0) {
-        this.burstAnimT += dt;
-        if (this.burstAnimT < STRETCH) {
-          const k = this.burstAnimT / STRETCH;
-          stretch = 0.42 * (1 - (1 - k) * (1 - k));
-          earTarget = 2.6;
-          eye = 'determined';
-        } else if (!this.snapped) {
-          this.snapped = true;
-          // Rear end catches up: compress hard, the spring overshoots for a wobble.
-          this.sqX = 0.74;
-          this.sqY = 1.2;
-          this.sqVX = -2;
-          this.onSnap?.();
-        }
-        if (this.burstAnimT > 0.7) this.burstAnimT = -1;
+      this.updateElastic(dt);
+      if (this.burstAnimT >= 0 && this.burstAnimT < HeroView.STRETCH_TIME) {
+        eye = this.burstAnimT < 0.1 ? 'surprised' : 'determined';
+        earTarget = 2.8;
+        mouth = true;
+        // Rear legs scrabble frantically while the front pulls away.
+        for (let i = 0; i < 4; i++) if (!this.legs[i].front) legAngles[i] = Math.sin(this.t * 60 + i) * 1.2;
       }
       if (s.bursting) {
         rigRot += 0.07;
@@ -344,12 +382,18 @@ export class HeroView {
 
     const B = HeroView.BASE_SCALE;
     this.rig.setScale(B * this.sqX * (1 + stretch), B * this.sqY * (1 - stretch * 0.22));
-    // Shift forward while stretched so the rear stays planted and only the front reaches out.
-    this.rig.x = stretch * 58;
+    // Elastic body: front and rear halves move separately; the body stretches between them.
+    const F = this.elF;
+    const R = this.elR;
+    for (const p of this.frontParts) p.o.x = p.x + F;
+    for (const p of this.rearParts) p.o.x = p.x + R;
+    const ext = (F - R) / 112;
+    this.body.x = -6 + (F + R) / 2;
+    this.body.setScale(ART_SCALE * Math.max(0.45, 1 + ext), ART_SCALE * Phaser.Math.Clamp(1 - ext * 0.35, 0.6, 1.5));
     this.rig.y = rigY;
     this.rig.rotation = rigRot;
     this.body.rotation = bodyRot;
-    this.head.setPosition(headX, headY);
+    this.head.setPosition(headX + this.elF, headY);
     this.head.rotation = headRot;
     this.headImg.setScale(ART_SCALE * headScale);
     this.ear.rotation = this.earSpring.a;

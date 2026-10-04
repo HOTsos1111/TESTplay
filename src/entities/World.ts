@@ -5,6 +5,15 @@ import { ART_SCALE } from '../systems/AssetRegistry';
 import { Audio } from '../systems/AudioManager';
 import type { Fx } from '../systems/Fx';
 import type { Rect, Solid } from '../systems/PlayerController';
+import { CARDBOARD_SKINS, CRATE_SKINS, LOW_HAZARD_SKINS, PLATFORM_SKINS } from '../systems/art/decorArt';
+
+/** Deterministic pick so a given spot in the level always looks the same. */
+export function pickSkin<T>(list: readonly T[], seed: number | string): T {
+  const str = String(seed);
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619);
+  return list[(h >>> 0) % list.length];
+}
 
 /** Services the game scene provides to entities. */
 export interface GameContext {
@@ -73,6 +82,8 @@ export class GroundPiece extends Entity {
 
 export class Platform extends Entity {
   private c: Phaser.GameObjects.Container;
+  private belt!: Phaser.GameObjects.TileSprite;
+  private conveyor = false;
   constructor(scene: Phaser.Scene, private x: number, private w: number, top: number) {
     super();
     this.c = scene.add.container(x, top).setDepth(DEPTH.platform);
@@ -81,13 +92,21 @@ export class Platform extends Entity {
       this.c.add(scene.add.image(lx, 10, 'platform_leg').setOrigin(0.5, 0).setDisplaySize(16, legH));
     }
     this.c.add(scene.add.image(w - 30, 10, 'platform_leg').setOrigin(0.5, 0).setDisplaySize(16, legH));
-    this.c.add(scene.add.tileSprite(14, 0, w - 28, 18, 'platform_mid').setOrigin(0, 0).setTileScale(ART_SCALE));
+    const skin = pickSkin(PLATFORM_SKINS, x);
+    const mid = skin === 'conveyor' ? 'platform_mid_conveyor' : skin === 'plank' ? 'platform_mid_plank' : 'platform_mid';
+    this.belt = scene.add.tileSprite(14, 0, w - 28, 18, mid).setOrigin(0, 0).setTileScale(ART_SCALE);
+    this.conveyor = skin === 'conveyor';
+    this.c.add(this.belt);
     this.c.add(scene.add.image(0, 0, 'platform_left').setOrigin(0, 0).setScale(ART_SCALE));
     this.c.add(scene.add.image(w, 0, 'platform_right').setOrigin(1, 0).setScale(ART_SCALE));
     this.solid = { x, y: top, w, h: OBJECT_SIZE.platformThickness, oneWay: true, kind: 'platform' };
   }
   get right(): number {
     return this.x + this.w;
+  }
+  update(dt: number): void {
+    // Conveyor platforms visibly run (cosmetic only; they do not move the hero).
+    if (this.conveyor) this.belt.tilePositionX += dt * 60;
   }
   destroy(): void {
     this.c.destroy();
@@ -99,7 +118,7 @@ export class Crate extends Entity {
   constructor(scene: Phaser.Scene, private x: number, top: number) {
     super();
     const { w, h } = OBJECT_SIZE.crate;
-    this.img = scene.add.image(x, top, 'crate').setOrigin(0, 0).setScale(ART_SCALE).setDepth(DEPTH.prop);
+    this.img = scene.add.image(x, top, pickSkin(CRATE_SKINS, `${x}:${top}`)).setOrigin(0, 0).setScale(ART_SCALE).setDepth(DEPTH.prop);
     this.solid = { x, y: top, w, h, oneWay: false, kind: 'crate', ref: this };
   }
   get right(): number {
@@ -112,13 +131,15 @@ export class Crate extends Entity {
 
 export class Cardboard extends Entity {
   private img: Phaser.GameObjects.Image;
+  private skin: string;
   private breakT = -1;
   private wobble = Math.random() * 6;
   private flat: Phaser.GameObjects.Image | null = null;
   constructor(scene: Phaser.Scene, private x: number, private top: number, readonly stack: string, private onStackBreak: (stack: string) => void) {
     super();
     const { w, h } = OBJECT_SIZE.cardboard;
-    this.img = scene.add.image(x + w / 2, top + h, 'cardboard').setOrigin(0.5, 1).setScale(ART_SCALE).setDepth(DEPTH.prop);
+    this.skin = pickSkin(CARDBOARD_SKINS, `${stack}:${top}`);
+    this.img = scene.add.image(x + w / 2, top + h, this.skin).setOrigin(0.5, 1).setScale(ART_SCALE).setDepth(DEPTH.prop);
     this.solid = { x, y: top, w, h, oneWay: false, kind: 'cardboard', ref: this };
   }
   get right(): number {
@@ -147,7 +168,7 @@ export class Cardboard extends Entity {
     }
     if (this.breakT >= 0) {
       this.breakT -= dt;
-      if (this.breakT < 0.08 && this.img.texture.key === 'cardboard') this.img.setTexture('cardboard_breaking');
+      if (this.breakT < 0.08 && this.img.texture.key === this.skin) this.img.setTexture('cardboard_breaking');
       if (this.breakT <= 0 && this.solid) {
         this.solid = null;
         this.img.setVisible(false);
@@ -172,7 +193,7 @@ export class Tyre extends Entity {
   private img: Phaser.GameObjects.Image;
   constructor(scene: Phaser.Scene, private x: number, private bottom: number) {
     super();
-    this.img = scene.add.image(x + OBJECT_SIZE.tyre.w / 2, bottom, 'tyre').setOrigin(0.5, 1).setScale(ART_SCALE).setDepth(DEPTH.prop);
+    this.img = scene.add.image(x + OBJECT_SIZE.tyre.w / 2, bottom, pickSkin(LOW_HAZARD_SKINS, x)).setOrigin(0.5, 1).setScale(ART_SCALE).setDepth(DEPTH.prop);
   }
   get right(): number {
     return this.x + OBJECT_SIZE.tyre.w;
@@ -426,6 +447,50 @@ export class Acorn extends Entity {
     this.img.setPosition(this.x, this.y);
     this.img.rotation += (this.vx * dt) / r;
     if (this.x < ctx.cameraLeft - 100 || this.y > WORLD.pitDeathY + 100) this.alive = false;
+  }
+  destroy(): void {
+    this.img.destroy();
+  }
+}
+
+/** Barrel that starts rolling toward the hero once he gets close. Jump it. */
+export class Barrel extends Entity {
+  private img: Phaser.GameObjects.Image;
+  private rolling = false;
+  private vx = 0;
+  private t = 0;
+  static readonly TRIGGER = 900;
+  constructor(scene: Phaser.Scene, private x: number) {
+    super();
+    this.img = scene.add.image(x, WORLD.groundY - 24, 'barrel').setScale(ART_SCALE).setDepth(DEPTH.enemy);
+  }
+  get right(): number {
+    return this.x + 24;
+  }
+  hazard(): Rect {
+    return { x: this.x - 17, y: WORLD.groundY - 40, w: 34, h: 38 };
+  }
+  update(dt: number, ctx: GameContext): void {
+    this.t += dt;
+    if (!this.rolling && this.x - ctx.heroX < Barrel.TRIGGER) {
+      this.rolling = true;
+      Audio.play('parcel');
+    }
+    if (this.rolling) {
+      this.vx = Math.max(-170, this.vx - 600 * dt);
+      this.x += this.vx * dt;
+      this.img.rotation += (this.vx * dt) / 22;
+      if (Math.random() < dt * 6) ctx.fx.dust(this.x + 20, WORLD.groundY, 1);
+    } else {
+      this.img.rotation = Math.sin(this.t * 6) * 0.05;
+    }
+    this.img.x = this.x;
+    // Fell into a pit or rolled off screen.
+    if (ctx.surfaceBelow(this.x, WORLD.groundY - 1) === null) {
+      this.img.y += 600 * dt;
+      if (this.img.y > WORLD.pitDeathY) this.alive = false;
+    }
+    if (this.x < ctx.cameraLeft - 100) this.alive = false;
   }
   destroy(): void {
     this.img.destroy();

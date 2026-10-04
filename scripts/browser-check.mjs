@@ -67,6 +67,28 @@ try {
   await page.screenshot({ path: 'screenshots/01-title.png' });
   check('title scene loads', (await scenes(page)).includes('Title'));
 
+  // Every sound effect and music track synthesises without errors.
+  await page.mouse.click(5, 5);
+  const audioErr = await page.evaluate(async () => {
+    const a = window.__HH__.audio();
+    a.unlock();
+    await new Promise((r) => setTimeout(r, 200));
+    const keys = ['bark', 'jump', 'land', 'step', 'bone', 'hit', 'defeat', 'box_break', 'boss_hit', 'boss_clear', 'ui_select', 'ui_confirm', 'ui_back', 'whistle', 'squirrel', 'throw', 'parcel', 'squeak', 'retreat', 'burst_stretch', 'burst_snap', 'burst_ready'];
+    try {
+      for (const k of keys) a.play(k);
+      a.startTail();
+      a.stopTail();
+      for (const m of ['depot', 'chase', 'home', 'title']) {
+        a.playMusic(m);
+        await new Promise((r) => setTimeout(r, 300));
+      }
+      return a.unlocked ? null : 'audio context not running';
+    } catch (e) {
+      return String(e);
+    }
+  });
+  check('all sound effects and music tracks play without errors', audioErr === null, audioErr ?? '');
+
   await page.keyboard.press('Enter');
   await waitScene(page, 'Story');
   await sleep(1200);

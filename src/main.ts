@@ -12,6 +12,7 @@ import { UpgradeScene } from './scenes/UpgradeScene';
 import { Audio } from './systems/AudioManager';
 import { registerTestHook } from './systems/debug';
 import { gameWidthFor } from './ui/layout';
+import { enterFullscreen, fullscreenAllowed, isFullscreen } from './ui/fullscreen';
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,
@@ -40,6 +41,14 @@ window.addEventListener('resize', fitWidth);
 window.addEventListener('orientationchange', () => setTimeout(fitWidth, 200));
 game.events.once(Phaser.Core.Events.READY, fitWidth);
 
+// On phones, snap to full screen on the first tap (it must happen inside the tap itself).
+const firstTap = () => {
+  window.removeEventListener('touchend', firstTap);
+  if (!isFullscreen() && fullscreenAllowed()) void enterFullscreen();
+};
+window.addEventListener('touchend', firstTap, { passive: true });
+document.addEventListener('fullscreenchange', () => setTimeout(fitWidth, 150));
+
 // Browsers only allow audio after a user gesture.
 const unlock = () => Audio.unlock();
 for (const ev of ['pointerdown', 'keydown', 'touchend']) window.addEventListener(ev, unlock, { passive: true });
@@ -57,6 +66,7 @@ window.addEventListener('keydown', (e) => {
 
 registerTestHook('scenes', () => game.scene.getScenes(true).map((s) => s.scene.key));
 registerTestHook('manager', () => game.scene);
+registerTestHook('audio', () => Audio);
 registerTestHook('listeners', () => {
   const g = game.scene.getScene('Game');
   return {

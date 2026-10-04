@@ -53,6 +53,8 @@ export interface ValidationIssue {
 
 /** Safety margins: authored challenges may use at most this fraction of measured reach. */
 const MARGIN = 0.85;
+/** Approximate roll distance of a barrel before it reaches the hero (trigger 900 px, 170 vs ~350 px/s). */
+const BARREL_TRAVEL = 280;
 
 /**
  * Checks one chunk against the abilities it declares, at the slowest and
@@ -94,6 +96,12 @@ export function validateChunk(c: ChunkDef, minSpeed: number, maxSpeed: number): 
     if (top > apex * MARGIN && !canBark) add(`cardboard wall at ${cb.x} needs bark but chunk does not declare it`);
   }
 
+  for (const b of c.barrels ?? []) {
+    const meet = b.x - BARREL_TRAVEL;
+    const blocked = (c.gaps ?? []).some(([gx, gw]) => gx < b.x && gx + gw > meet - 150);
+    if (blocked) add(`barrel at ${b.x} would roll into a gap before reaching the hero`);
+  }
+
   for (const p of c.platforms ?? []) {
     if (p.h > apex * 2) add(`platform at ${p.x} is very high (${p.h}px)`);
   }
@@ -103,6 +111,8 @@ export function validateChunk(c: ChunkDef, minSpeed: number, maxSpeed: number): 
     ...(c.tyres ?? []).filter((t) => !t.h).map((t) => ({ x: t.x, w: OBJECT_SIZE.tyre.w })),
     ...(c.cardboard ?? []).filter((b) => !b.h).map((b) => ({ x: b.x, w: OBJECT_SIZE.cardboard.w })),
     ...(c.gaps ?? []).map(([x, w]) => ({ x, w })),
+    // Barrels roll about this far toward the hero before they meet him.
+    ...(c.barrels ?? []).map((b) => ({ x: b.x - BARREL_TRAVEL, w: 48 })),
   ].sort((a, b) => a.x - b.x);
   const minClear = TUNING.barkCooldown * maxSpeed;
   for (let i = 1; i < hazards.length; i++) {

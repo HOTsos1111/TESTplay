@@ -33,6 +33,8 @@ export interface ChunkDef {
   /** Low hazards that hurt on contact. */
   tyres?: { x: number; h?: number }[];
   squirrels?: { x: number; h?: number }[];
+  /** Barrels that roll toward the hero when he approaches (x = resting spot). */
+  barrels?: { x: number }[];
   bones?: BonePattern[];
   /** Scent wisps marking the main route: start x, height, count, spacing. */
   scent?: { x: number; h: number; n: number; spacing: number }[];
@@ -108,10 +110,11 @@ export const CHUNKS: Record<string, ChunkDef> = {
     ],
   },
   squirrel_intro: {
-    id: 'squirrel_intro', length: 2300, entryHeight: 0, exitHeight: 0, requires: ['jump'], recovery: 400,
+    id: 'squirrel_intro', length: 2300, entryHeight: 0, exitHeight: 0, requires: ['jump'], recovery: 300,
     hint: { id: 'squirrel', x: 0 },
     tyres: [{ x: 500 }],
     squirrels: [{ x: 1400 }],
+    barrels: [{ x: 2200 }],
     bones: [{ kind: 'line', x: 700, h: 30, n: 6, spacing: 60 }],
   },
   depot_mix_a: {
@@ -176,6 +179,7 @@ export const CHUNKS: Record<string, ChunkDef> = {
   mixed_hover: {
     id: 'mixed_hover', length: 2700, entryHeight: 0, exitHeight: 0, requires: ['jump', 'hover', 'bark'], recovery: 400,
     platforms: [{ x: 450, w: 320, h: 90 }],
+    barrels: [{ x: 420 }],
     gaps: [[950, 480]],
     cardboard: [{ x: 1850, stack: 3 }],
     tyres: [{ x: 2250 }],
@@ -233,8 +237,9 @@ export const CHUNKS: Record<string, ChunkDef> = {
     scent: [{ x: 1080, h: 120, n: 8, spacing: 80 }],
   },
   exit_gate: {
-    id: 'exit_gate', length: 1600, entryHeight: 0, exitHeight: 0, requires: [], recovery: 1600,
+    id: 'exit_gate', length: 1600, entryHeight: 0, exitHeight: 0, requires: ['jump'], recovery: 1000,
     bones: [{ kind: 'line', x: 300, h: 30, n: 8, spacing: 60 }],
+    barrels: [{ x: 800 }],
     exitGate: { x: 1150 },
   },
 };

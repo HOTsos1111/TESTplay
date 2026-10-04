@@ -6,11 +6,12 @@ import { TROLLEY } from '../data/encounters';
 import { HeroView } from '../entities/HeroView';
 import { TrolleyBoss } from '../entities/TrolleyBoss';
 import {
-  Bone, BurstMarker, Cardboard, Crate, Entity, Gate, GroundPiece, Platform, Scent, Squirrel, Tyre, type GameContext,
+  Barrel, Bone, BurstMarker, Cardboard, Crate, Entity, Gate, GroundPiece, Platform, Scent, Squirrel, Tyre, type GameContext,
 } from '../entities/World';
 import { ART_SCALE } from '../systems/AssetRegistry';
 import { Audio } from '../systems/AudioManager';
 import { Fx } from '../systems/Fx';
+import { Scenery } from '../systems/Scenery';
 import { InputManager } from '../systems/InputManager';
 import { buildLevel, type LevelLayout, type Spawnable } from '../systems/LevelBuilder';
 import { PlayerController, type FrameInput, type PlayerStats, type Rect, type Solid } from '../systems/PlayerController';
@@ -59,7 +60,6 @@ export class GameScene extends Phaser.Scene {
   private fx!: Fx;
   private entities: Entity[] = [];
   private solids: Solid[] = [];
-  private layers: { ts: Phaser.GameObjects.TileSprite; factor: number }[] = [];
   private phase: Phase = 'run';
   private phaseT = 0;
   private hearts: number = TUNING.maxHearts;
@@ -75,12 +75,15 @@ export class GameScene extends Phaser.Scene {
   private paused = false;
   private onHidden = () => this.pauseGame();
   private touch!: TouchControls;
+  private scenery!: Scenery;
   /** Cosmetic on-screen lead while bursting. */
   private lead = 0;
+  /** Brief simulation freeze for comic timing (the hero rig keeps animating). */
+  private hitstop = 0;
   private burstWasReady = true;
 
   private onResize(size: Phaser.Structs.Size): void {
-    for (const l of this.layers) l.ts.setSize(size.width, VIEW.height);
+    this.scenery.layout(size.width);
     this.hud.layout(size.width);
     this.touch.layout(size.width);
   }
@@ -95,7 +98,6 @@ export class GameScene extends Phaser.Scene {
     this.startAt = data.startAt === 'encounter' ? 'encounter' : 'start';
     this.entities = [];
     this.solids = [];
-    this.layers = [];
     this.phase = 'run';
     this.phaseT = 0;
     this.hearts = TUNING.maxHearts;
@@ -110,24 +112,28 @@ export class GameScene extends Phaser.Scene {
     this.pitFall = false;
     this.groundEnd = -Infinity;
     this.lead = 0;
+    this.hitstop = 0;
     this.burstWasReady = true;
 
     const startX = this.startAt === 'encounter' ? this.layout.encounterX + 160 : this.layout.startX;
     this.pc = new PlayerController(startX, WORLD.groundY, statsFromUpgrades());
     this.pc.speed = this.chapter.speedStart;
 
-    for (const [key, factor, depth] of [['depot_far', 0.08, DEPTH.farBg], ['depot_mid', 0.3, DEPTH.midBg], ['depot_near', 0.62, DEPTH.nearBg]] as const) {
-      const ts = this.add.tileSprite(0, 0, this.scale.width, VIEW.height, key).setOrigin(0, 0).setScrollFactor(0).setDepth(depth).setTileScale(ART_SCALE);
-      this.layers.push({ ts, factor });
-    }
+    const camStart = startX - VIEW.width * VIEW.heroScreenX;
+    const zones = this.chapter.zones.map((z) => ({ ...z, x: this.layout.chunkStarts[z.chunk]?.x ?? 0 }));
+    if (!zones.length) zones.push({ chunk: 0, near: 'depot_near', mid: 'depot_mid', indoor: true, x: 0 });
+    this.scenery = new Scenery(this, zones, camStart);
 
     this.fx = new Fx(this);
     this.hero = new HeroView(this, startX, WORLD.groundY).setDepth(DEPTH.hero);
     this.hero.onStep = () => Audio.play('step');
     this.hero.onSnap = () => {
       Audio.play('burst_snap');
-      this.fx.puff(this.pc.x - 70, this.pc.y - 20, 4, 0.7);
-      this.cameras.main.shake(90, 0.004);
+      // Freeze-frame beat, then a dust blast where the rear end launched from.
+      this.hitstop = 0.07;
+      this.fx.puff(this.pc.x - 60, this.pc.y - 18, 8, 1.3);
+      for (let i = 0; i < 8; i++) this.fx.streak(this.pc.x - 40 - i * 18, this.pc.y - 10 - Math.random() * 60);
+      this.cameras.main.shake(140, 0.009);
     };
     this.shadow = this.add.image(startX, WORLD.groundY, 'shadow').setScale(ART_SCALE).setDepth(DEPTH.groundShadow);
 
@@ -179,6 +185,11 @@ export class GameScene extends Phaser.Scene {
     }
 
     registerTestHook('input', () => this.input2);
+    // Test-only: jump the hero to a world x (used by visual checks).
+    registerTestHook('teleport', () => (x: number) => {
+      this.pc.x = x;
+      this.pc.invulnerable = 2;
+    });
     registerTestHook('game', () => ({
       phase: this.phase,
       x: this.pc.x,
@@ -200,6 +211,7 @@ export class GameScene extends Phaser.Scene {
       bursting: this.pc.bursting,
       effectiveSpeed: this.pc.effectiveSpeed,
       heroView: this.hero.debugState,
+      scenery: this.scenery.debug,
       hazardsAhead: this.entities
         .map((e) => (e.alive ? e.hazard() : null))
         .filter((r): r is Rect => !!r && r.x + r.w > this.pc.x - 40 && r.x < this.pc.x + 600)
@@ -243,6 +255,7 @@ export class GameScene extends Phaser.Scene {
     this.solids = [];
     registerTestHook('game', null);
     registerTestHook('input', null);
+    registerTestHook('teleport', null);
   }
 
   // ------------------------------------------------------------ pause
@@ -296,6 +309,8 @@ export class GameScene extends Phaser.Scene {
         return new Gate(this, it.x);
       case 'burstMarker':
         return new BurstMarker(this, it.x);
+      case 'barrel':
+        return new Barrel(this, it.x);
       case 'hint':
         this.pendingHints.push(it);
         return null;
@@ -432,6 +447,12 @@ export class GameScene extends Phaser.Scene {
   update(_time: number, deltaMs: number): void {
     if (this.paused) return;
     const dt = Math.min(deltaMs / 1000, TUNING.maxFrameDelta);
+    // Presses made during a freeze-frame stay latched for the next frame.
+    if (this.hitstop > 0) {
+      this.hitstop -= dt;
+      this.render(dt);
+      return;
+    }
     const frame = this.input2.consume();
     if (frame.pausePressed) {
       this.pauseGame();
@@ -502,6 +523,7 @@ export class GameScene extends Phaser.Scene {
         case 'burstStart':
           this.hero.burst();
           Audio.play('burst_stretch');
+          this.fx.dust(this.pc.x - 40, this.pc.y, 6);
           break;
         case 'bark':
           this.pulseId++;
@@ -601,7 +623,7 @@ export class GameScene extends Phaser.Scene {
 
   private render(dt: number): void {
     const cam = this.cameras.main;
-    for (const l of this.layers) l.ts.tilePositionX = (cam.scrollX * l.factor) / ART_SCALE;
+    this.scenery.update(dt, cam.scrollX, this.pc.x);
 
     this.hero.setPosition(this.pc.x, this.pc.y);
     this.hero.update(dt, {
