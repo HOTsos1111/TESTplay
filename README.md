@@ -26,6 +26,7 @@ npm run check:browser   # end-to-end browser checks (needs a build + Chromium, s
 | Jump (tap = hop, hold = big leap) | Space, ↑ or W | Left half of screen / JUMP button |
 | Hover (hold jump while falling) | hold Space / ↑ | hold JUMP |
 | Bark | X or K | Right half of screen / BARK button |
+| Speed burst (when the meter is full) | Shift, C or L | BURST button above BARK |
 | Pause | Esc or P | Pause icon (top right) |
 | Menus | Arrows / Tab, Enter, Esc | Tap |
 
@@ -34,14 +35,19 @@ Holding jump across a landing never re-jumps; you must release and press again. 
 ## What is implemented
 
 - **Movement** — automatic running, variable jump height (release clamps upward speed), 100 ms coyote time, 120 ms jump buffer, propeller-tail hover with a wag meter that drains in the air and recharges only on the ground, no upward boost or double jump. Fixed 1/120 s simulation sub-steps; frame time is capped.
+- **Speed burst** — a meter refills over 6 s. Bursting stretches the dog's front out like an elastic band, then snaps the back end forward (with sound), for +65 % speed for 0.9 s. A jump started during a burst keeps the speed until landing, so burst → jump → hold clears gaps too wide for a hover. Painted floor arrows mark the two gaps in chapter 1 that need it.
 - **Bark** — forward pulse with cooldown and visible rings; each pulse affects each target at most once. Opens fragile cardboard (the whole stack bursts), spooks squirrels, knocks acorns out of the air and damages the boss latch only while it is exposed.
 - **Health** — three hearts, 1.2 s blinking invulnerability after a hit, pits end the attempt, comic defeat flop.
-- **Chapter 1** — 18 authored chunks introducing jump, bones, bark, squirrel and hover one at a time, then combining them; speed ramps from 320 to 370 px/s. Optional higher routes carry extra bones. Scent wisps mark hover routes.
+- **Chapter 1** — 19 authored chunks introducing jump, bones, bark, squirrel and hover one at a time, then combining them; speed ramps from 340 to 400 px/s (raised after the first playtest felt easy). Optional higher routes carry extra bones. Scent wisps mark hover routes.
 - **Trolley encounter** — whistle and windup warnings, rolling parcels to jump, a lunge that exposes a glowing latch, three latch barks to win, slapstick collapse. Checkpoint at the encounter start; failure retries from there, even after a refresh.
 - **Progress** — localStorage with validation and safe defaults (works in memory if storage is blocked). Bones save the moment they are collected; the first-clear bonus is granted once. Best distance per chapter. Reset is only available from Settings, and needs a second tap to confirm.
 - **Upgrades** — "Good Dog, Great Gear": tail stamina (+0.2 s), recharge (+10 %), bark reach (+20 px); three levels each at 50/100/175 bones. Nothing requires them.
 - **Screens** — title, skippable ~20 s opening story, route map with six nodes (completed/current/locked/coming soon), pause, results, upgrades, settings (separate music and SFX volume, hitbox debug, replay opening, reset). All menu text is live and keyboard-navigable.
 - **Art and audio** — everything is an original procedural placeholder: a rubber-hose rig for the hero (separately animated legs, ears on springs, squash/stretch, propeller tail, expressions), three-layer depot parallax, props, squirrel, dogcatcher and trolley, plus Web Audio SFX and a small-band score with a recurring "home" motif.
+
+## Screen fit
+
+The game is always 720 logical pixels tall and between 1280 and 1720 wide, chosen from the screen's shape, so wide phones are filled edge to edge with no letterbox bars. Menus are laid out at 1280 and centred. A **Full screen** button on the title and pause screens (also tried automatically when you start playing on a phone) hides the browser bars where the browser allows it. iPhone Safari and some in-app viewers do not allow it, and the game says so.
 
 ## Replacing placeholder art
 
