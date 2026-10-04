@@ -35,6 +35,22 @@ export function makeTexture(scene: Phaser.Scene, key: string, w: number, h: numb
   tex.refresh();
 }
 
+/**
+ * Background bands only store the rows that contain art: a near-wall layer is
+ * drawn in full-screen coordinates but stored from y0 down (saves GPU memory).
+ */
+export const BAND = {
+  near: { y0: 340, h: 380 },
+  mid: { y0: 110, h: 610 },
+} as const;
+
+export function makeBand(scene: Phaser.Scene, key: string, w: number, band: { y0: number; h: number }, draw: (c: Ctx) => void): void {
+  makeTexture(scene, key, w, band.h, (c) => {
+    c.translate(0, -band.y0);
+    draw(c);
+  });
+}
+
 export function rr(c: Ctx, x: number, y: number, w: number, h: number, r: number): void {
   const rad = Math.min(r, w / 2, h / 2);
   c.beginPath();

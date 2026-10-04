@@ -11,6 +11,7 @@ export interface HudState {
   hovering: boolean;
   burstFraction: number;
   bursting: boolean;
+  powerups: { icon: string; frac: number }[];
   barkCooldown: number;
   bossHits: number | null;
   bossMax: number;
@@ -37,6 +38,8 @@ export class Hud {
   private hintT = 0;
   readonly pauseButton: Phaser.GameObjects.Image;
   private lastHearts = -1;
+  private puIcons: Phaser.GameObjects.Image[] = [];
+  private puRings!: Phaser.GameObjects.Graphics;
   /** Extra width beyond the 1280 design width (right-side items shift by this). */
   private dx = 0;
   private rightItems: { o: Phaser.GameObjects.Components.Transform; x: number }[] = [];
@@ -75,6 +78,8 @@ export class Hud {
     this.hintText = scene.add.text(0, 0, '', textStyle(28)).setOrigin(0.5);
     this.hint = fixed(scene.add.container(640, 160, [this.hintBg, this.hintText]).setVisible(false));
 
+    this.puRings = scene.add.graphics().setScrollFactor(0).setDepth(DEPTH.hud);
+    for (let i = 0; i < 4; i++) this.puIcons.push(scene.add.image(48 + i * 58, 182, 'pu_magnet').setScrollFactor(0).setDepth(DEPTH.hud + 1).setScale(ART_SCALE * 0.85).setVisible(false));
     this.rightItems = [this.wagIcon, this.burstIcon, this.barkIcon, this.pauseButton].map((o) => ({ o, x: o.x }));
     this.centerItems = [this.bossLabel, this.hint].map((o) => ({ o, x: o.x }));
     this.layout(scene.scale.width);
@@ -194,6 +199,24 @@ export class Hud {
       d.lineStyle(3, COLOR.butter, 1);
       d.strokeCircle(dialX, 42, 26);
     }
+
+    // Active power-ups with a countdown ring.
+    this.puRings.clear();
+    this.puIcons.forEach((img, i) => {
+      const p = s.powerups[i];
+      img.setVisible(!!p);
+      if (!p) return;
+      img.setTexture(p.icon);
+      const blink = p.frac < 0.2 && Math.floor(performance.now() / 120) % 2 === 0;
+      img.setAlpha(blink ? 0.4 : 1);
+      const x = 48 + i * 58;
+      this.puRings.fillStyle(COLOR.outline, 0.7);
+      this.puRings.fillCircle(x, 182, 25);
+      this.puRings.lineStyle(5, COLOR.butter, 1);
+      this.puRings.beginPath();
+      this.puRings.arc(x, 182, 25, -Math.PI / 2, -Math.PI / 2 + Math.max(0.01, p.frac) * Math.PI * 2);
+      this.puRings.strokePath();
+    });
 
     // Boss pips.
     this.bossPips.clear();

@@ -15,6 +15,8 @@ export interface Solid extends Rect {
   kind: 'ground' | 'platform' | 'crate' | 'cardboard';
   /** Opaque owner reference (e.g. the breakable box). */
   ref?: unknown;
+  /** Top on the previous step, for moving platforms (a rising lift can scoop the hero up). */
+  prevY?: number;
 }
 
 export interface FrameInput {
@@ -241,7 +243,7 @@ export class PlayerController {
       for (const s of solids) {
         if (right <= s.x || left >= s.x + s.w) continue;
         if (this.vy < 0) continue;
-        const crossedTop = prevBottom <= s.y + 0.01 && this.y >= s.y;
+        const crossedTop = prevBottom <= (s.prevY ?? s.y) + 0.01 && this.y >= s.y;
         const stepUp = !s.oneWay && this.y >= s.y && this.y - s.y <= TUNING.stepUp && prevBottom - s.y <= TUNING.stepUp;
         if (crossedTop || stepUp) {
           if (!landed || s.y < landed.y) landed = s;

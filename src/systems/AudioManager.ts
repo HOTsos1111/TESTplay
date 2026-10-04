@@ -3,7 +3,7 @@ import { MUSIC, type TrackDef } from '../data/music';
 export type SfxKey =
   | 'bark' | 'jump' | 'land' | 'step' | 'bone' | 'hit' | 'defeat' | 'box_break' | 'boss_hit' | 'boss_clear'
   | 'ui_select' | 'ui_confirm' | 'ui_back' | 'whistle' | 'squirrel' | 'throw' | 'parcel' | 'squeak' | 'retreat'
-  | 'burst_stretch' | 'burst_snap' | 'burst_ready';
+  | 'burst_stretch' | 'burst_snap' | 'burst_ready' | 'powerup' | 'powerdown' | 'shield_pop' | 'sonic';
 
 /** Maximum simultaneous voices per effect. */
 const VOICE_CAP: Partial<Record<SfxKey, number>> = { bone: 4, step: 2, bark: 2, land: 2, parcel: 3, box_break: 2 };
@@ -622,6 +622,21 @@ class AudioManagerImpl {
         this.wobble('sine', 240, 520, t + 0.04, 0.75, 0.32, 13, 120, 4);
         return this.whoosh(t + 0.03, 0.45, 2500, 300, 0.3);
       }
+      case 'powerup': {
+        [72, 76, 79, 84, 88].forEach((m, i) => this.oneShot('triangle', midiHz(m), midiHz(m), t + i * 0.06, 0.16, 0.2));
+        return this.wobble('sine', 1600, 2400, t + 0.3, 0.25, 0.08, 20, 60, 10);
+      }
+      case 'powerdown':
+        [79, 74, 70, 67].forEach((m, i) => this.oneShot('triangle', midiHz(m), midiHz(m), t + i * 0.07, 0.12, 0.14));
+        return t + 0.4;
+      case 'shield_pop':
+        this.noiseHit(t, 0.05, 0.5, 'highpass', 4000);
+        for (const f of [1800, 2700, 3900]) this.oneShot('sine', f, f * 1.02, t, 0.35, 0.08);
+        return this.oneShot('sine', 600, 150, t, 0.12, 0.3);
+      case 'sonic':
+        // Dog whistle: piercing sweep plus a big whoosh.
+        this.wobble('sine', 2400, 4200, t, 0.6, 0.12, 25, 80, 40);
+        return this.whoosh(t, 0.6, 400, 4000, 0.35);
       case 'burst_ready':
         this.oneShot('triangle', 1320, 1320, t, 0.08, 0.14);
         this.oneShot('triangle', 1760, 1760, t + 0.07, 0.08, 0.14);

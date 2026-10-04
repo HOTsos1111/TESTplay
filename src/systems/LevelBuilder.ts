@@ -15,7 +15,9 @@ export type Spawnable =
   | { type: 'hint'; x: number; id: string }
   | { type: 'gate'; x: number }
   | { type: 'burstMarker'; x: number }
-  | { type: 'barrel'; x: number };
+  | { type: 'barrel'; x: number }
+  | { type: 'powerup'; x: number; y: number; kind: 'magnet' | 'shield' | 'whistle' | 'bacon' }
+  | { type: 'lift'; x: number; w: number; lowTop: number; highTop: number; period: number };
 
 export interface LevelLayout {
   items: Spawnable[];
@@ -44,6 +46,46 @@ function bonePositions(p: BonePattern): { x: number; h: number }[] {
       out.push({ x: p.x - p.width / 2 + t * p.width, h: p.h + Math.sin(t * Math.PI) * p.rise });
     }
   }
+  return out;
+}
+
+/**
+ * Fill long empty stretches of floor with gently waving bone trails so no part
+ * of a run is barren. Keeps clear of every obstacle, gap and authored bone.
+ */
+export function autoBoneTrails(c: ChunkDef, chapterId: number, ci: number): { type: 'bone'; x: number; h: number; id: string }[] {
+  const blocked: [number, number][] = [[0, 150], [c.length - 120, c.length]];
+  const pad = (x: number, w: number, before = 110, after = 110) => blocked.push([x - before, x + w + after]);
+  for (const [x, w] of c.gaps ?? []) pad(x, w, 130, 130);
+  for (const t of c.tyres ?? []) pad(t.x, OBJECT_SIZE.tyre.w);
+  for (const b of c.cardboard ?? []) pad(b.x, OBJECT_SIZE.cardboard.w, 220, 110);
+  for (const cr of c.crates ?? []) pad(cr.x, OBJECT_SIZE.crate.w);
+  for (const b of c.barrels ?? []) pad(b.x - 320, 380);
+  for (const s of c.squirrels ?? []) pad(s.x, 40);
+  for (const p of c.platforms ?? []) pad(p.x, p.w, 40, 40);
+  for (const l of c.lifts ?? []) pad(l.x, l.w, 40, 40);
+  for (const p of c.powerups ?? []) pad(p.x, 0, 120, 120);
+  for (const m of c.burstMarkers ?? []) pad(m.x, 144, 60, 60);
+  if (c.exitGate) pad(c.exitGate.x, 0, 200, 400);
+  for (const b of c.bones ?? []) {
+    const span = b.kind === 'line' ? [b.x, b.x + (b.n - 1) * (b.spacing ?? 60)] : [b.x - b.width / 2, b.x + b.width / 2];
+    pad(span[0], span[1] - span[0], 100, 100);
+  }
+  blocked.sort((a, b) => a[0] - b[0]);
+  const out: { type: 'bone'; x: number; h: number; id: string }[] = [];
+  let cursor = 0;
+  let n = 0;
+  const fill = (from: number, to: number) => {
+    if (to - from < 340) return;
+    for (let x = from + 60; x <= to - 60; x += 70) {
+      out.push({ type: 'bone', x, h: 30 + Math.sin(x / 90) * 14, id: `${chapterId}:${ci}:auto:${n++}` });
+    }
+  };
+  for (const [a, b] of blocked) {
+    if (a > cursor) fill(cursor, a);
+    cursor = Math.max(cursor, b);
+  }
+  fill(cursor, c.length);
   return out;
 }
 
@@ -83,8 +125,11 @@ export function buildLevel(chapter: ChapterDef): LevelLayout {
     for (const s of c.scent ?? []) {
       for (let i = 0; i < s.n; i++) items.push({ type: 'scent', x: o + s.x + i * s.spacing, y: g - s.h - Math.sin((i / Math.max(1, s.n - 1)) * Math.PI) * 40 });
     }
+    for (const p of c.powerups ?? []) items.push({ type: 'powerup', x: o + p.x, y: g - p.h, kind: p.kind });
+    for (const l of c.lifts ?? []) items.push({ type: 'lift', x: o + l.x, w: l.w, lowTop: g - l.low, highTop: g - l.high, period: l.period });
     for (const b of c.barrels ?? []) items.push({ type: 'barrel', x: o + b.x });
     for (const m of c.burstMarkers ?? []) items.push({ type: 'burstMarker', x: o + m.x });
+    autoBoneTrails(c, chapter.id, ci).forEach((b) => items.push({ ...b, x: o + b.x, y: g - b.h }));
     if (c.hint) items.push({ type: 'hint', x: o + c.hint.x, id: c.hint.id });
     if (c.exitGate) {
       encounterX = o + c.exitGate.x;

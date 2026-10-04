@@ -1,5 +1,5 @@
 import type Phaser from 'phaser';
-import { ell, fillStroke, makeTexture, PAL, rng, rr, shade, stroke, wrapDraw, type Ctx } from './canvas';
+import { BAND, ell, fillStroke, makeBand, makeTexture, PAL, rng, rr, shade, stroke, wrapDraw, type Ctx } from './canvas';
 
 const W = 1280;
 const H = 720;
@@ -501,8 +501,8 @@ function drawBadge(c: Ctx, n: number): void {
 
 export function generateSceneArt(scene: Phaser.Scene): void {
   makeTexture(scene, 'depot_far', W, H, drawDepotFar);
-  makeTexture(scene, 'depot_mid', W, H, drawDepotMid);
-  makeTexture(scene, 'depot_near', W, H, drawDepotNear);
+  makeBand(scene, 'depot_mid', W, BAND.mid, drawDepotMid);
+  makeBand(scene, 'depot_near', W, BAND.near, drawDepotNear);
   makeTexture(scene, 'story_garden', W, H, drawGarden);
   makeTexture(scene, 'story_truck_open', 520, 300, (c) => drawTruck(c, true));
   makeTexture(scene, 'story_truck_closed', 520, 300, (c) => drawTruck(c, false));

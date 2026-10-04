@@ -33,6 +33,10 @@ export interface ChunkDef {
   /** Low hazards that hurt on contact. */
   tyres?: { x: number; h?: number }[];
   squirrels?: { x: number; h?: number }[];
+  /** Power-up bubbles (x, height above ground, kind). */
+  powerups?: { x: number; h: number; kind: 'magnet' | 'shield' | 'whistle' | 'bacon' }[];
+  /** Lift platforms moving up and down between two heights (optional routes). */
+  lifts?: { x: number; w: number; low: number; high: number; period: number }[];
   /** Barrels that roll toward the hero when he approaches (x = resting spot). */
   barrels?: { x: number }[];
   bones?: BonePattern[];
@@ -72,6 +76,7 @@ export const CHUNKS: Record<string, ChunkDef> = {
     id: 'jump_gap', length: 2000, entryHeight: 0, exitHeight: 0, requires: ['jump'], recovery: 350,
     gaps: [[500, 170], [1000, 210]],
     tyres: [{ x: 1550 }],
+    powerups: [{ x: 320, h: 70, kind: 'magnet' }],
     bones: [
       { kind: 'arc', x: 585, h: 50, n: 5, width: 230, rise: 80 },
       { kind: 'arc', x: 1105, h: 50, n: 5, width: 260, rise: 85 },
@@ -91,12 +96,13 @@ export const CHUNKS: Record<string, ChunkDef> = {
   platforms_intro: {
     id: 'platforms_intro', length: 2300, entryHeight: 0, exitHeight: 0, requires: ['jump'], recovery: 350,
     rewardBranch: true,
-    platforms: [{ x: 500, w: 420, h: 90 }, { x: 1150, w: 360, h: 90 }],
+    platforms: [{ x: 500, w: 420, h: 90 }],
+    lifts: [{ x: 1150, w: 360, low: 75, high: 160, period: 2.8 }],
     tyres: [{ x: 650 }, { x: 1300 }],
     gaps: [[1750, 200]],
     bones: [
       { kind: 'line', x: 550, h: 125, n: 7, spacing: 55 },
-      { kind: 'line', x: 1190, h: 125, n: 6, spacing: 55 },
+      { kind: 'line', x: 1190, h: 200, n: 6, spacing: 55 },
     ],
   },
   bark_intro: {
@@ -121,6 +127,7 @@ export const CHUNKS: Record<string, ChunkDef> = {
     id: 'depot_mix_a', length: 2500, entryHeight: 0, exitHeight: 0, requires: ['jump', 'bark'], recovery: 400,
     cardboard: [{ x: 550, stack: 3 }],
     gaps: [[1000, 200]],
+    powerups: [{ x: 300, h: 70, kind: 'shield' }],
     platforms: [{ x: 1450, w: 520, h: 90 }],
     tyres: [{ x: 1600 }],
     squirrels: [{ x: 1880, h: 90 }],
@@ -169,6 +176,7 @@ export const CHUNKS: Record<string, ChunkDef> = {
   squirrel_pair: {
     id: 'squirrel_pair', length: 2500, entryHeight: 0, exitHeight: 0, requires: ['jump'], recovery: 300,
     squirrels: [{ x: 700 }, { x: 1700 }],
+    powerups: [{ x: 350, h: 60, kind: 'whistle' }],
     tyres: [{ x: 1150 }],
     gaps: [[1950, 220]],
     bones: [
@@ -179,6 +187,7 @@ export const CHUNKS: Record<string, ChunkDef> = {
   mixed_hover: {
     id: 'mixed_hover', length: 2700, entryHeight: 0, exitHeight: 0, requires: ['jump', 'hover', 'bark'], recovery: 400,
     platforms: [{ x: 450, w: 320, h: 90 }],
+    powerups: [{ x: 620, h: 160, kind: 'bacon' }],
     barrels: [{ x: 420 }],
     gaps: [[950, 480]],
     cardboard: [{ x: 1850, stack: 3 }],
@@ -213,19 +222,22 @@ export const CHUNKS: Record<string, ChunkDef> = {
   high_route: {
     id: 'high_route', length: 2900, entryHeight: 0, exitHeight: 0, requires: ['jump', 'bark'], recovery: 400,
     rewardBranch: true,
-    platforms: [{ x: 500, w: 360, h: 90 }, { x: 960, w: 360, h: 180 }, { x: 1420, w: 420, h: 90 }],
+    platforms: [{ x: 500, w: 360, h: 90 }, { x: 1420, w: 420, h: 90 }],
+    lifts: [{ x: 960, w: 360, low: 90, high: 200, period: 3.2 }],
+    powerups: [{ x: 1140, h: 260, kind: 'magnet' }],
     tyres: [{ x: 700 }, { x: 1100 }, { x: 1600 }],
     squirrels: [{ x: 1750, h: 90 }],
     cardboard: [{ x: 2250, stack: 3 }],
     bones: [
       { kind: 'line', x: 540, h: 125, n: 5, spacing: 60 },
-      { kind: 'line', x: 1000, h: 215, n: 6, spacing: 55 },
+      { kind: 'line', x: 1000, h: 245, n: 6, spacing: 55 },
       { kind: 'line', x: 1460, h: 125, n: 5, spacing: 60 },
     ],
   },
   final_gauntlet: {
     id: 'final_gauntlet', length: 3100, entryHeight: 0, exitHeight: 0, requires: ['jump', 'bark', 'hover'], recovery: 350,
     platforms: [{ x: 400, w: 480, h: 90 }],
+    powerups: [{ x: 250, h: 70, kind: 'shield' }],
     squirrels: [{ x: 780, h: 90 }],
     gaps: [[1150, 490]],
     cardboard: [{ x: 1950, stack: 3 }],

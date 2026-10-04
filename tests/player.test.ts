@@ -149,3 +149,20 @@ describe('burst', () => {
     expect(boosted.carried.bursting).toBe(false);
   });
 });
+
+describe('moving platforms', () => {
+  it('a lift rising into a hovering hero scoops him up', () => {
+    const pc = new PlayerController(0, G - 100);
+    pc.grounded = false;
+    pc.vy = 0;
+    const lift: Solid = { x: -200, y: G - 95, w: 400, h: 18, oneWay: true, kind: 'platform', prevY: G - 95 };
+    // Lift rises 3px per step past the hero's feet while he barely falls.
+    let landed = false;
+    for (let i = 0; i < 20 && !landed; i++) {
+      lift.prevY = lift.y;
+      lift.y -= 3;
+      landed = pc.step(dt, { jumpPressed: false, jumpHeld: false, barkPressed: false }, [lift]).some((e) => e.type === 'land');
+    }
+    expect(landed).toBe(true);
+  });
+});

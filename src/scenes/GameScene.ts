@@ -3,10 +3,11 @@ import { chapterById, type ChapterDef } from '../data/chapters';
 import { DEPTH, SCORING, TUNING, UPGRADE_EFFECTS, VIEW, WORLD } from '../data/config';
 import { HINTS } from '../data/copy';
 import { TROLLEY } from '../data/encounters';
+import { POWERUP_TUNING, POWERUPS, type PowerUpKind } from '../data/powerups';
 import { HeroView } from '../entities/HeroView';
 import { TrolleyBoss } from '../entities/TrolleyBoss';
 import {
-  Barrel, Bone, BurstMarker, Cardboard, Crate, Entity, Gate, GroundPiece, Platform, Scent, Squirrel, Tyre, type GameContext,
+  Acorn, Barrel, Bone, BurstMarker, Cardboard, LiftPlatform, PowerUp, Crate, Entity, Gate, GroundPiece, Platform, Scent, Squirrel, Tyre, type GameContext,
 } from '../entities/World';
 import { ART_SCALE } from '../systems/AssetRegistry';
 import { Audio } from '../systems/AudioManager';
@@ -80,6 +81,54 @@ export class GameScene extends Phaser.Scene {
   private lead = 0;
   /** Brief simulation freeze for comic timing (the hero rig keeps animating). */
   private hitstop = 0;
+  /** Remaining seconds for each active power-up. */
+  private power: Partial<Record<PowerUpKind, number>> = {};
+  private shieldImg!: Phaser.GameObjects.Image;
+
+  private activatePowerUp(kind: PowerUpKind): void {
+    const def = POWERUPS[kind];
+    const wasActive = (this.power[kind] ?? 0) > 0;
+    this.power[kind] = def.duration;
+    Audio.play('powerup');
+    this.hud.showHint(`${def.name}! ${def.blurb}`, 2.2);
+    if (kind === 'whistle') {
+      if (!wasActive) this.pc.stats.barkRange += POWERUP_TUNING.whistleExtraRange;
+      // Sonic blast: every squirrel and acorn on screen is sent packing.
+      Audio.play('sonic');
+      this.fx.barkRing(this.scale.width, () => ({ x: this.pc.x + 40, y: this.pc.y - 46 }), 0.5);
+      this.cameras.main.shake(200, 0.006);
+      for (const e of this.entities) {
+        if (e instanceof Squirrel && e.right === Number.POSITIVE_INFINITY) e.flee(this.ctx);
+        if (e instanceof Acorn) e.onBark(this.ctx);
+      }
+    }
+  }
+
+  private expirePowerUp(kind: PowerUpKind): void {
+    delete this.power[kind];
+    if (kind === 'whistle') this.pc.stats.barkRange -= POWERUP_TUNING.whistleExtraRange;
+    Audio.play('powerdown');
+  }
+
+  private updatePowerUps(dt: number): void {
+    for (const k of Object.keys(this.power) as PowerUpKind[]) {
+      this.power[k]! -= dt;
+      if (this.power[k]! <= 0) this.expirePowerUp(k);
+    }
+    if (this.power.bacon) {
+      this.pc.wag = this.pc.stats.wagCapacity;
+      if (!this.pc.bursting) this.pc.burstMeter = 1;
+    }
+    if (this.power.magnet) {
+      const tx = this.pc.x + 10;
+      const ty = this.pc.y - 40;
+      for (const e of this.entities) {
+        if (!(e instanceof Bone) || !e.alive) continue;
+        const p = e.pos;
+        if (Math.hypot(p.x - tx, p.y - ty) < POWERUP_TUNING.magnetRadius) e.pull(tx, ty, POWERUP_TUNING.magnetPull, dt);
+      }
+    }
+  }
   private burstWasReady = true;
 
   private onResize(size: Phaser.Structs.Size): void {
@@ -113,6 +162,7 @@ export class GameScene extends Phaser.Scene {
     this.groundEnd = -Infinity;
     this.lead = 0;
     this.hitstop = 0;
+    this.power = {};
     this.burstWasReady = true;
 
     const startX = this.startAt === 'encounter' ? this.layout.encounterX + 160 : this.layout.startX;
@@ -135,6 +185,7 @@ export class GameScene extends Phaser.Scene {
       for (let i = 0; i < 8; i++) this.fx.streak(this.pc.x - 40 - i * 18, this.pc.y - 10 - Math.random() * 60);
       this.cameras.main.shake(140, 0.009);
     };
+    this.shieldImg = this.add.image(startX, WORLD.groundY, 'shield_bubble').setScale(ART_SCALE * 1.15).setDepth(DEPTH.hero + 1).setVisible(false);
     this.shadow = this.add.image(startX, WORLD.groundY, 'shadow').setScale(ART_SCALE).setDepth(DEPTH.groundShadow);
 
     this.input2 = new InputManager(this);
@@ -151,6 +202,7 @@ export class GameScene extends Phaser.Scene {
       cameraRight: 0,
       surfaceBelow: (x, y) => this.surfaceBelow(x, y),
       spawn: (e) => this.entities.push(e),
+      collectPowerUp: (kind) => this.activatePowerUp(kind),
       addBone: () => {
         this.bones++;
         progress.addBones(1);
@@ -208,6 +260,7 @@ export class GameScene extends Phaser.Scene {
       paused: this.paused,
       speed: this.pc.speed,
       burstMeter: this.pc.burstMeter,
+      powerups: { ...this.power },
       bursting: this.pc.bursting,
       effectiveSpeed: this.pc.effectiveSpeed,
       heroView: this.hero.debugState,
@@ -311,6 +364,10 @@ export class GameScene extends Phaser.Scene {
         return new BurstMarker(this, it.x);
       case 'barrel':
         return new Barrel(this, it.x);
+      case 'powerup':
+        return new PowerUp(this, it.x, it.y, it.kind);
+      case 'lift':
+        return new LiftPlatform(this, it.x, it.w, it.lowTop, it.highTop, it.period);
       case 'hint':
         this.pendingHints.push(it);
         return null;
@@ -383,6 +440,16 @@ export class GameScene extends Phaser.Scene {
 
   private damage(): void {
     if (this.pc.invulnerable > 0 || this.phase === 'defeat' || this.phase === 'victory' || debugFlags.god) return;
+    if (this.power.shield) {
+      // The Spiked Collar takes the hit instead.
+      delete this.power.shield;
+      this.pc.invulnerable = POWERUP_TUNING.shieldGraceInvulnerability;
+      Audio.play('shield_pop');
+      this.fx.puff(this.pc.x, this.pc.y - 40, 8, 1.2);
+      this.fx.sparkle(this.pc.x, this.pc.y - 40, 10);
+      this.cameras.main.shake(120, 0.005);
+      return;
+    }
     this.hearts--;
     this.pc.hit();
     this.hero.hit();
@@ -526,6 +593,7 @@ export class GameScene extends Phaser.Scene {
           this.fx.dust(this.pc.x - 40, this.pc.y, 6);
           break;
         case 'bark':
+          if (this.power.whistle) this.pc.barkCooldown = POWERUP_TUNING.whistleCooldown;
           this.pulseId++;
           this.pulseT = TUNING.barkLifetime;
           this.hero.bark();
@@ -571,6 +639,18 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.updateEntities(dt);
+    this.updatePowerUps(dt);
+    // Carry a hero standing on a moving lift.
+    if (this.pc.grounded) {
+      for (const e of this.entities) {
+        if (!(e instanceof LiftPlatform) || !e.solid) continue;
+        const s = e.solid;
+        if (Math.abs(this.pc.y - e.prevTop) < 0.75 && this.pc.x + 46 > s.x && this.pc.x - 46 < s.x + s.w) {
+          this.pc.y = s.y;
+          break;
+        }
+      }
+    }
 
     // Contact damage.
     if (this.pc.invulnerable <= 0) {
@@ -635,6 +715,12 @@ export class GameScene extends Phaser.Scene {
       bursting: this.pc.bursting,
     });
     this.touch.update(dt, this.pc.burstMeter >= 1);
+    const shieldLeft = this.power.shield ?? 0;
+    this.shieldImg
+      .setVisible(shieldLeft > 0 && (shieldLeft > 2 || Math.floor(shieldLeft * 8) % 2 === 0))
+      .setPosition(this.pc.x + 10, this.pc.y - 40)
+      .setAlpha(0.75 + Math.sin(this.time.now / 120) * 0.2);
+    if (this.power.bacon && Math.random() < dt * 25) this.fx.sparkle(this.pc.x - 50, this.pc.y - 30 - Math.random() * 40, 1);
     if (this.pc.bursting && Math.random() < dt * 40) {
       this.fx.streak(this.pc.x - 60 - Math.random() * 60, this.pc.y - 15 - Math.random() * 55);
     }
@@ -658,6 +744,7 @@ export class GameScene extends Phaser.Scene {
       hovering: this.pc.hovering,
       burstFraction: this.pc.burstMeter,
       bursting: this.pc.bursting,
+      powerups: (Object.keys(this.power) as PowerUpKind[]).map((k) => ({ icon: POWERUPS[k].icon, frac: this.power[k]! / POWERUPS[k].duration })),
       barkCooldown: this.pc.barkCooldown,
       bossHits: this.boss ? this.boss.hits : null,
       bossMax: TROLLEY.hitsToWin,

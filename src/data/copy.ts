@@ -37,7 +37,7 @@ export const HINTS: Record<string, HintCopy> = {
   jump_hold: { keys: 'Tap for a hop — hold SPACE for a big leap.', touch: 'Tap for a hop — hold JUMP for a big leap.' },
   bones: { keys: 'Bones buy upgrades. Grab them!', touch: 'Bones buy upgrades. Grab them!' },
   bark: { keys: 'Big bark. Tiny dog. Press X or K to bark!', touch: 'Big bark. Tiny dog. Tap BARK!' },
-  squirrel: { keys: 'Bark to spook squirrels — or jump their acorns.', touch: 'Bark to spook squirrels — or jump their acorns.' },
+  squirrel: { keys: 'Squirrels pelt you with acorns! Jump them, and BARK (X) when the squirrel comes close.', touch: 'Squirrels pelt you with acorns! Jump them, and tap BARK when the squirrel comes close.' },
   hover: { keys: 'Hold jump to give your tail a spin!', touch: 'Hold jump to give your tail a spin!' },
   hover_recharge: { keys: 'Your tail recharges while your paws are on the ground.', touch: 'Your tail recharges while your paws are on the ground.' },
   burst: { keys: 'Arrows on the floor? Press SHIFT to BURST, then jump and hold!', touch: 'Arrows on the floor? Tap BURST, then jump and hold!' },

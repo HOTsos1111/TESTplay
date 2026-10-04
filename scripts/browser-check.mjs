@@ -140,6 +140,19 @@ try {
   await sleep(250);
   await page.screenshot({ path: 'screenshots/03d-burst-run.png' });
 
+  // Power-up: the Golden Bone sits early in "jump_gap"; run the hero into it.
+  await page.evaluate(() => window.__HH__.teleport()(3500));
+  {
+    const t0 = Date.now();
+    let got = false;
+    while (Date.now() - t0 < 8000 && !got) {
+      const s = await state(page);
+      got = !!s?.powerups?.magnet;
+      await sleep(50);
+    }
+    check('running into a power-up bubble activates it', got);
+  }
+
   // Pause freezes simulation.
   await page.keyboard.press('Escape');
   await waitScene(page, 'Pause');

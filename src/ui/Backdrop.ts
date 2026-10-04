@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { DEPTH, VIEW } from '../data/config';
 import { ART_SCALE } from '../systems/AssetRegistry';
+import { BAND } from '../systems/art/canvas';
 import { COLOR } from './theme';
 import { centerMenu } from './layout';
 
@@ -10,7 +11,8 @@ export class Backdrop {
   private x = 0;
   constructor(scene: Phaser.Scene, dim = 0.35, private speed = 40, into?: Phaser.GameObjects.Container) {
     for (const [key, f, d] of [['depot_far', 0.1, DEPTH.farBg], ['depot_mid', 0.35, DEPTH.midBg], ['depot_near', 0.7, DEPTH.nearBg]] as const) {
-      const ts = scene.add.tileSprite(0, 0, VIEW.width, VIEW.height, key).setOrigin(0).setTileScale(ART_SCALE).setDepth(d);
+      const band = key === 'depot_near' ? BAND.near : key === 'depot_mid' ? BAND.mid : { y0: 0, h: VIEW.height };
+      const ts = scene.add.tileSprite(0, band.y0, VIEW.width, band.h, key).setOrigin(0).setTileScale(ART_SCALE).setDepth(d);
       this.layers.push({ ts, f });
       into?.add(ts);
     }

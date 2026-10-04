@@ -1,8 +1,8 @@
 import Phaser from 'phaser';
 import { DEPTH, VIEW } from '../data/config';
 import { ART_SCALE } from './AssetRegistry';
-import { rng } from './art/canvas';
-import { DECALS, ZONE_DECALS } from './art/decorArt';
+import { BAND, rng } from './art/canvas';
+import { DECALS, ZONE_ACTORS, ZONE_DECALS } from './art/decorArt';
 
 export interface SceneryZone {
   /** World x where this zone takes over. */
@@ -17,6 +17,16 @@ const FAR = 0.08;
 const MID = 0.3;
 const NEAR = 0.62;
 const FG = 1.35;
+
+interface Actor {
+  kind: string;
+  /** Wall-space x of the actor's anchor. */
+  x: number;
+  objs: Phaser.GameObjects.Image[];
+  t: number;
+  /** Pigeons: per-bird flight velocity once startled. */
+  fly?: { vx: number; vy: number }[];
+}
 
 interface Placed {
   img: Phaser.GameObjects.Image;
@@ -45,21 +55,24 @@ export class Scenery {
   private fgCursor = 0;
   private birds: { img: Phaser.GameObjects.Image; vx: number; flap: number }[] = [];
   private birdT = 4;
+  private actors: Actor[] = [];
+  private actorCursor = 0;
   private rand = rng(1234);
   private camX = 0;
 
   constructor(private scene: Phaser.Scene, private zones: SceneryZone[], startCamX: number) {
     const w = scene.scale.width;
-    const ts = (key: string, depth: number) =>
-      scene.add.tileSprite(0, 0, w, VIEW.height, key).setOrigin(0).setScrollFactor(0).setDepth(depth).setTileScale(ART_SCALE);
+    const ts = (key: string, depth: number, band: { y0: number; h: number } = { y0: 0, h: VIEW.height }) =>
+      scene.add.tileSprite(0, band.y0, w, band.h, key).setOrigin(0).setScrollFactor(0).setDepth(depth).setTileScale(ART_SCALE);
     const z0 = this.zoneAt(startCamX + VIEW.width * VIEW.heroScreenX);
     this.far = ts('depot_far', DEPTH.farBg);
-    this.mids = [ts(z0.mid, DEPTH.midBg), ts(z0.mid, DEPTH.midBg + 0.5).setAlpha(0)];
-    this.nears = [ts(z0.near, DEPTH.nearBg), ts(z0.near, DEPTH.nearBg + 0.5).setAlpha(0)];
+    this.mids = [ts(z0.mid, DEPTH.midBg, BAND.mid), ts(z0.mid, DEPTH.midBg + 0.5, BAND.mid).setAlpha(0)];
+    this.nears = [ts(z0.near, DEPTH.nearBg, BAND.near), ts(z0.near, DEPTH.nearBg + 0.5, BAND.near).setAlpha(0)];
     this.zoneIndex = this.zones.indexOf(z0);
     this.camX = startCamX;
     this.decalCursor = startCamX * NEAR - 200;
     this.fgCursor = startCamX * FG + 300;
+    this.actorCursor = startCamX * NEAR + 500;
   }
 
   private zoneAt(worldX: number): SceneryZone {
@@ -73,7 +86,9 @@ export class Scenery {
   }
 
   layout(width: number): void {
-    for (const t of [this.far, ...this.mids, ...this.nears]) t.setSize(width, VIEW.height);
+    this.far.setSize(width, VIEW.height);
+    for (const t of this.mids) t.setSize(width, BAND.mid.h);
+    for (const t of this.nears) t.setSize(width, BAND.near.h);
   }
 
   update(dt: number, camX: number, heroX: number): void {
@@ -109,6 +124,7 @@ export class Scenery {
     for (const n of this.nears) n.tilePositionX = (camX * NEAR) / ART_SCALE;
 
     this.updateDecals(width, zone);
+    this.updateActors(dt, width, zone, heroX - camX);
     this.updateForeground(dt, width, zone);
     this.updateBirds(dt, width);
   }
@@ -137,6 +153,98 @@ export class Scenery {
       if (d.x + d.w < viewL - 100) {
         d.img.destroy();
         this.decals.splice(i, 1);
+      }
+    }
+  }
+
+  private wallImage(key: string, x: number, y: number): Phaser.GameObjects.Image {
+    return this.scene.add.image(x, y, key).setScale(ART_SCALE).setScrollFactor(NEAR, 0).setDepth(DEPTH.nearBg + 2);
+  }
+
+  private spawnActor(kind: string, x: number): Actor {
+    const a: Actor = { kind, x, objs: [], t: this.rand() * 10 };
+    switch (kind) {
+      case 'forklift':
+        // Washed out so it reads as background, never as an obstacle.
+        a.objs.push(this.wallImage('actor_forklift', x, 598).setOrigin(0.5, 1).setTint(0xe6dce8).setAlpha(0.9));
+        break;
+      case 'pigeons':
+        for (let i = 0; i < 3; i++) a.objs.push(this.wallImage('actor_pigeon', x + i * 30, 358).setOrigin(0.5, 1));
+        break;
+      case 'beacon':
+        a.objs.push(this.wallImage('actor_beacon_on', x, 380));
+        break;
+      case 'cat':
+        a.objs.push(this.wallImage('actor_cat_tail', x + 14, 470).setOrigin(0.05, 0.5));
+        a.objs.push(this.wallImage('actor_cat', x, 480).setOrigin(0.5, 1));
+        break;
+      case 'steam':
+        break;
+    }
+    return a;
+  }
+
+  private updateActors(dt: number, width: number, zone: SceneryZone, heroScreenX: number): void {
+    const viewL = this.camX * NEAR;
+    while (this.actorCursor < viewL + width + 250) {
+      const kinds = ZONE_ACTORS[zone.near] ?? [];
+      if (kinds.length) this.actors.push(this.spawnActor(kinds[Math.floor(this.rand() * kinds.length)], this.actorCursor));
+      this.actorCursor += 650 + this.rand() * 700;
+    }
+    for (let i = this.actors.length - 1; i >= 0; i--) {
+      const a = this.actors[i];
+      a.t += dt;
+      const screenX = a.x - viewL;
+      switch (a.kind) {
+        case 'forklift': {
+          const img = a.objs[0];
+          const v = Math.cos(a.t * 0.45);
+          img.x = a.x + Math.sin(a.t * 0.45) * 170;
+          img.setFlipX(v < 0);
+          img.y = 598 - Math.abs(Math.sin(a.t * 9)) * 1.5;
+          break;
+        }
+        case 'pigeons': {
+          if (!a.fly && screenX - heroScreenX < 260) {
+            a.fly = a.objs.map(() => ({ vx: 80 + this.rand() * 140, vy: -(200 + this.rand() * 120) }));
+          }
+          a.objs.forEach((p, j) => {
+            if (a.fly) {
+              p.x += a.fly[j].vx * dt;
+              p.y += a.fly[j].vy * dt;
+              p.setTexture(Math.floor(a.t / 0.09 + j) % 2 ? 'bird_down' : 'bird_up');
+            } else {
+              p.rotation = Math.max(0, Math.sin(a.t * 3 + j * 1.7)) * 0.5;
+            }
+          });
+          break;
+        }
+        case 'beacon':
+          a.objs[0].setTexture(Math.floor(a.t / 0.45) % 2 ? 'actor_beacon_on' : 'actor_beacon_off');
+          break;
+        case 'cat':
+          a.objs[0].rotation = Math.sin(a.t * 2.2) * 0.45;
+          break;
+        case 'steam':
+          if (Math.floor(a.t / 1.4) !== Math.floor((a.t - dt) / 1.4)) {
+            const puff = this.wallImage('fx_puff', a.x, 420).setAlpha(0.7).setScale(ART_SCALE * 0.4);
+            a.objs.push(puff);
+          }
+          for (let j = a.objs.length - 1; j >= 0; j--) {
+            const p = a.objs[j];
+            p.y -= 40 * dt;
+            p.setScale(p.scale + dt * 0.5);
+            p.setAlpha(p.alpha - dt * 0.55);
+            if (p.alpha <= 0) {
+              p.destroy();
+              a.objs.splice(j, 1);
+            }
+          }
+          break;
+      }
+      if (screenX < -400) {
+        for (const o of a.objs) o.destroy();
+        this.actors.splice(i, 1);
       }
     }
   }

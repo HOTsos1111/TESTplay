@@ -1,5 +1,5 @@
 import type Phaser from 'phaser';
-import { ell, fillStroke, makeTexture, PAL, rng, rr, shade, stroke, wrapDraw, type Ctx } from './canvas';
+import { BAND, ell, fillStroke, makeBand, makeTexture, PAL, rng, rr, shade, stroke, wrapDraw, type Ctx } from './canvas';
 
 const W = 1280;
 const H = 720;
@@ -374,6 +374,15 @@ export const DECALS: Decal[] = [
 ];
 
 /** Decals used per zone. */
+/** Animated background actors per zone (they ride on the near wall, never on the play floor). */
+export const ZONE_ACTORS: Record<string, string[]> = {
+  depot_near: ['forklift', 'pigeons', 'beacon'],
+  depot_near_sorting: ['beacon', 'steam', 'pigeons'],
+  depot_near_cold: ['steam', 'beacon'],
+  depot_near_yard: ['forklift', 'pigeons'],
+  depot_near_street: ['cat', 'pigeons', 'pigeons'],
+};
+
 export const ZONE_DECALS: Record<string, string[]> = {
   depot_near: ['decor_clock', 'decor_poster_arrow', 'decor_extinguisher', 'decor_board', 'decor_vent', 'decor_lamp'],
   depot_near_sorting: ['decor_clock', 'decor_poster_arrow', 'decor_pipe', 'decor_vent', 'decor_lamp', 'decor_extinguisher'],
@@ -615,12 +624,122 @@ function drawBarrel(c: Ctx): void {
   stroke(c, 2);
 }
 
+// ------------------------------------------------------- background actors
+
+function drawForklift(c: Ctx): void {
+  // Faces right. Mast and forks at the front carrying a pallet of boxes.
+  const body = '#E3A13B';
+  rr(c, 18, 40, 70, 34, 6);
+  fillStroke(c, body, 3);
+  rr(c, 28, 16, 36, 28, 4);
+  c.fillStyle = 'rgba(169,217,235,0.7)';
+  c.fill();
+  stroke(c, 3);
+  c.fillStyle = PAL.outline;
+  c.fillRect(26, 12, 42, 5);
+  c.fillRect(88, 6, 6, 70);
+  c.fillRect(92, 64, 30, 5);
+  rr(c, 94, 46, 26, 18, 2);
+  fillStroke(c, '#D9A85E', 2.5);
+  rr(c, 100, 30, 18, 16, 2);
+  fillStroke(c, '#E8C48A', 2.5);
+  for (const x of [32, 76]) {
+    ell(c, x, 76, 10, 10);
+    fillStroke(c, '#3A3340', 3);
+    ell(c, x, 76, 4, 4);
+    c.fillStyle = '#9AA6BA';
+    c.fill();
+  }
+  // Driver: a round head in a cap.
+  ell(c, 46, 30, 8, 8);
+  fillStroke(c, '#F2B48C', 2);
+  rr(c, 37, 20, 18, 6, 3);
+  fillStroke(c, '#4F6AA3', 2);
+}
+
+function drawPigeon(c: Ctx): void {
+  ell(c, 15, 15, 11, 8);
+  fillStroke(c, '#8E8FA8', 2.5);
+  ell(c, 24, 9, 6, 6);
+  fillStroke(c, '#8E8FA8', 2.5);
+  c.beginPath();
+  c.moveTo(29, 9);
+  c.lineTo(34, 11);
+  c.lineTo(29, 12);
+  c.closePath();
+  fillStroke(c, PAL.butter, 1.5);
+  ell(c, 25, 8, 1.5, 1.5);
+  c.fillStyle = PAL.outline;
+  c.fill();
+  ell(c, 21, 14, 4, 3);
+  c.fillStyle = 'rgba(66,183,176,0.7)';
+  c.fill();
+  c.beginPath();
+  c.moveTo(12, 22);
+  c.lineTo(12, 26);
+  c.moveTo(17, 22);
+  c.lineTo(17, 26);
+  stroke(c, 2, PAL.coral);
+}
+
+function drawCat(c: Ctx): void {
+  ell(c, 24, 34, 15, 13);
+  fillStroke(c, '#5C5470', 3);
+  ell(c, 24, 16, 11, 10);
+  fillStroke(c, '#5C5470', 3);
+  for (const x of [16, 32]) {
+    c.beginPath();
+    c.moveTo(x - 5, 10);
+    c.lineTo(x, 0);
+    c.lineTo(x + 5, 10);
+    c.closePath();
+    fillStroke(c, '#5C5470', 2.5);
+  }
+  for (const x of [20, 28]) {
+    ell(c, x, 15, 2.5, 3.5);
+    c.fillStyle = PAL.butter;
+    c.fill();
+    c.fillStyle = PAL.outline;
+    c.fillRect(x - 0.6, 12.5, 1.2, 5);
+  }
+}
+
+function drawCatTail(c: Ctx): void {
+  c.beginPath();
+  c.moveTo(2, 6);
+  c.quadraticCurveTo(18, 2, 30, 8);
+  stroke(c, 7, PAL.outline);
+  stroke(c, 4, '#5C5470');
+}
+
+function drawBeacon(c: Ctx, on: boolean): void {
+  rr(c, 6, 16, 16, 8, 2);
+  fillStroke(c, '#5C5466', 2);
+  c.beginPath();
+  c.arc(14, 16, 8, Math.PI, 0);
+  c.closePath();
+  fillStroke(c, on ? '#FFB04A' : '#9C7A4A', 2);
+  if (on) {
+    const g = c.createRadialGradient(14, 12, 2, 14, 12, 14);
+    g.addColorStop(0, 'rgba(255,214,110,0.8)');
+    g.addColorStop(1, 'rgba(255,214,110,0)');
+    c.fillStyle = g;
+    c.fillRect(0, 0, 28, 28);
+  }
+}
+
 export function generateDecorArt(scene: Phaser.Scene): void {
-  makeTexture(scene, 'depot_near_sorting', W, H, drawSortingHall);
-  makeTexture(scene, 'depot_near_cold', W, H, drawColdStorage);
-  makeTexture(scene, 'depot_near_yard', W, H, drawContainerYard);
-  makeTexture(scene, 'depot_near_street', W, H, drawStreetWall);
-  makeTexture(scene, 'depot_mid_yard', W, H, drawMidYard);
+  makeTexture(scene, 'actor_forklift', 124, 90, drawForklift);
+  makeTexture(scene, 'actor_pigeon', 36, 28, drawPigeon);
+  makeTexture(scene, 'actor_cat', 48, 48, drawCat);
+  makeTexture(scene, 'actor_cat_tail', 32, 12, drawCatTail);
+  makeTexture(scene, 'actor_beacon_on', 28, 28, (c) => drawBeacon(c, true));
+  makeTexture(scene, 'actor_beacon_off', 28, 28, (c) => drawBeacon(c, false));
+  makeBand(scene, 'depot_near_sorting', W, BAND.near, drawSortingHall);
+  makeBand(scene, 'depot_near_cold', W, BAND.near, drawColdStorage);
+  makeBand(scene, 'depot_near_yard', W, BAND.near, drawContainerYard);
+  makeBand(scene, 'depot_near_street', W, BAND.near, drawStreetWall);
+  makeBand(scene, 'depot_mid_yard', W, BAND.mid, drawMidYard);
   for (const d of DECALS) makeTexture(scene, d.key, d.w, d.h, d.draw);
   makeTexture(scene, 'fg_chain', 30, 200, (c) => drawChain(c, 180, true));
   makeTexture(scene, 'fg_chain_short', 30, 110, (c) => drawChain(c, 100, false));
