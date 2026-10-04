@@ -25,10 +25,15 @@ export interface FrameInput {
   jumpHeld: boolean;
   barkPressed: boolean;
   burstPressed?: boolean;
+  /** Down held: duck (only on the ground). */
+  duckHeld?: boolean;
 }
 
 export type PlayerEvent =
   | { type: 'jump' }
+  | { type: 'doubleJump' }
+  | { type: 'duckStart' }
+  | { type: 'duckEnd' }
   | { type: 'land'; impact: number }
   | { type: 'hoverStart' }
   | { type: 'hoverStop' }
@@ -75,6 +80,9 @@ export class PlayerController {
   burstT = 0;
   /** True while a burst's speed is being carried through a jump. */
   burstCarry = false;
+  /** Second jump already used this time in the air. */
+  doubleUsed = false;
+  ducking = false;
   /** Time spent airborne since leaving the ground. */
   airTime = 0;
   private coyote = 0;
@@ -96,7 +104,8 @@ export class PlayerController {
   }
 
   hurtRect(): Rect {
-    const { width, height, bottomInset } = HERO_BOX.hurt;
+    const { width, bottomInset } = HERO_BOX.hurt;
+    const height = this.ducking ? HERO_BOX.duckHurtHeight : HERO_BOX.hurt.height;
     return { x: this.x - width / 2, y: this.y - bottomInset - height, w: width, h: height };
   }
 
@@ -167,10 +176,21 @@ export class PlayerController {
     }
 
     // --- Jump: fresh presses only (held jump never re-triggers on landing).
-    if (input.jumpPressed) this.buffer = TUNING.jumpBuffer;
-    else this.buffer = Math.max(0, this.buffer - dt);
-
     if (!this.grounded) this.coyote = Math.max(0, this.coyote - dt);
+    const airborne = !this.grounded && this.coyote <= 0;
+    if (input.jumpPressed && airborne && !this.doubleUsed) {
+      // Double jump: a fresh press in mid-air.
+      this.doubleUsed = true;
+      this.vy = TUNING.doubleJumpVelocity;
+      this.jumpRising = true;
+      this.buffer = 0;
+      if (this.hovering) {
+        this.hovering = false;
+        events.push({ type: 'hoverStop' });
+      }
+      events.push({ type: 'doubleJump' });
+    } else if (input.jumpPressed) this.buffer = TUNING.jumpBuffer;
+    else this.buffer = Math.max(0, this.buffer - dt);
 
     if (this.buffer > 0 && (this.grounded || this.coyote > 0)) {
       this.vy = TUNING.jumpVelocity;
@@ -180,6 +200,7 @@ export class PlayerController {
       this.airTime = 0;
       this.jumpRising = true;
       this.supportTop = null;
+      this.doubleUsed = false;
       if (this.burstT > 0) this.burstCarry = true;
       events.push({ type: 'jump' });
     }
@@ -284,7 +305,15 @@ export class PlayerController {
       }
     }
 
+    // --- Duck: only while on the ground; jumping or falling stands him back up.
+    const duck = this.grounded && !!input.duckHeld;
+    if (duck !== this.ducking) {
+      this.ducking = duck;
+      events.push({ type: duck ? 'duckStart' : 'duckEnd' });
+    }
+
     if (this.grounded) {
+      this.doubleUsed = false;
       this.airTime = 0;
       this.wag = Math.min(this.stats.wagCapacity, this.wag + this.stats.rechargeRate * dt);
     }

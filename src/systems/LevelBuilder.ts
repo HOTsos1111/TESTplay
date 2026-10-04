@@ -16,6 +16,7 @@ export type Spawnable =
   | { type: 'gate'; x: number }
   | { type: 'burstMarker'; x: number }
   | { type: 'barrel'; x: number }
+  | { type: 'lowbar'; x: number }
   | { type: 'powerup'; x: number; y: number; kind: 'magnet' | 'shield' | 'whistle' | 'bacon' }
   | { type: 'lift'; x: number; w: number; lowTop: number; highTop: number; period: number };
 
@@ -61,10 +62,11 @@ export function autoBoneTrails(c: ChunkDef, chapterId: number, ci: number): { ty
   for (const b of c.cardboard ?? []) pad(b.x, OBJECT_SIZE.cardboard.w, 220, 110);
   for (const cr of c.crates ?? []) pad(cr.x, OBJECT_SIZE.crate.w);
   for (const b of c.barrels ?? []) pad(b.x - 320, 380);
+  for (const l of c.lowbars ?? []) pad(l.x, 104, 180, 120);
   for (const s of c.squirrels ?? []) pad(s.x, 40);
   for (const p of c.platforms ?? []) pad(p.x, p.w, 40, 40);
   for (const l of c.lifts ?? []) pad(l.x, l.w, 40, 40);
-  for (const p of c.powerups ?? []) pad(p.x, 0, 120, 120);
+  for (const p of c.powerupSlots ?? []) pad(p.x, 0, 120, 120);
   for (const m of c.burstMarkers ?? []) pad(m.x, 144, 60, 60);
   if (c.exitGate) pad(c.exitGate.x, 0, 200, 400);
   for (const b of c.bones ?? []) {
@@ -89,9 +91,13 @@ export function autoBoneTrails(c: ChunkDef, chapterId: number, ci: number): { ty
   return out;
 }
 
-export function buildLevel(chapter: ChapterDef): LevelLayout {
+/** How many power-ups appear per run of a chapter. */
+export const POWERUPS_PER_RUN = 5;
+
+export function buildLevel(chapter: ChapterDef, random: () => number = Math.random): LevelLayout {
   const g = WORLD.groundY;
   const items: Spawnable[] = [];
+  const slots: { x: number; h: number }[] = [];
   const gaps: [number, number][] = [];
   const chunkStarts: { id: string; x: number }[] = [];
   let cursor = 0;
@@ -125,8 +131,9 @@ export function buildLevel(chapter: ChapterDef): LevelLayout {
     for (const s of c.scent ?? []) {
       for (let i = 0; i < s.n; i++) items.push({ type: 'scent', x: o + s.x + i * s.spacing, y: g - s.h - Math.sin((i / Math.max(1, s.n - 1)) * Math.PI) * 40 });
     }
-    for (const p of c.powerups ?? []) items.push({ type: 'powerup', x: o + p.x, y: g - p.h, kind: p.kind });
+    for (const p of c.powerupSlots ?? []) slots.push({ x: o + p.x, h: p.h });
     for (const l of c.lifts ?? []) items.push({ type: 'lift', x: o + l.x, w: l.w, lowTop: g - l.low, highTop: g - l.high, period: l.period });
+    for (const l of c.lowbars ?? []) items.push({ type: 'lowbar', x: o + l.x });
     for (const b of c.barrels ?? []) items.push({ type: 'barrel', x: o + b.x });
     for (const m of c.burstMarkers ?? []) items.push({ type: 'burstMarker', x: o + m.x });
     autoBoneTrails(c, chapter.id, ci).forEach((b) => items.push({ ...b, x: o + b.x, y: g - b.h }));
@@ -139,6 +146,24 @@ export function buildLevel(chapter: ChapterDef): LevelLayout {
   });
 
   if (encounterX < 0) encounterX = cursor;
+
+  // Power-ups: a different random handful of spots and kinds every run. Low
+  // spots get raised so grabbing one takes a deliberate, well-timed jump.
+  const pool = [...slots];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  const kinds: ('magnet' | 'shield' | 'whistle' | 'bacon')[] = ['magnet', 'shield', 'whistle', 'bacon'];
+  kinds.push(kinds[Math.floor(random() * kinds.length)]);
+  for (let i = kinds.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [kinds[i], kinds[j]] = [kinds[j], kinds[i]];
+  }
+  pool.slice(0, POWERUPS_PER_RUN).forEach((slot, i) => {
+    const h = slot.h < 120 ? [145, 170, 215][Math.floor(random() * 3)] : slot.h;
+    items.push({ type: 'powerup', x: slot.x + (random() - 0.5) * 80, y: g - h, kind: kinds[i % kinds.length] });
+  });
 
   // Ground: everything from the lead-in to the end of the encounter runway, minus gaps.
   gaps.sort((a, b) => a[0] - b[0]);

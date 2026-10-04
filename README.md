@@ -23,10 +23,13 @@ npm run check:browser   # end-to-end browser checks (needs a build + Chromium, s
 
 | Action | Keyboard | Touch |
 |---|---|---|
-| Jump (tap = hop, hold = big leap) | Space, ↑ or W | Left half of screen / JUMP button |
-| Hover (hold jump while falling) | hold Space / ↑ | hold JUMP |
-| Bark | X or K | Right half of screen / BARK button |
-| Speed burst (when the meter is full) | Shift, C or L | BURST button above BARK |
+| Jump (tap = hop, hold = big leap) | Space, ↑ or W | Joystick (left thumb) UP |
+| Double jump | press jump again in mid-air | push UP again in mid-air |
+| Hover (hold jump while falling) | hold Space / ↑ | hold the stick UP |
+| Duck | ↓ or S | stick DOWN |
+| Pace back / forward | ← → or A D | stick LEFT / RIGHT |
+| Bark | X or K | BARK button (right thumb) |
+| Speed burst (when charged) | Shift, C or L | SPEED button above BARK |
 | Pause | Esc or P | Pause icon (top right) |
 | Menus | Arrows / Tab, Enter, Esc | Tap |
 
@@ -36,8 +39,9 @@ Holding jump across a landing never re-jumps; you must release and press again. 
 
 - **Movement** — automatic running, variable jump height (release clamps upward speed), 100 ms coyote time, 120 ms jump buffer, propeller-tail hover with a wag meter that drains in the air and recharges only on the ground, no upward boost or double jump. Fixed 1/120 s simulation sub-steps; frame time is capped.
 - **Speed burst** — a meter refills over 6 s. Bursting stretches the dog's front out like an elastic band, then snaps the back end forward (with sound), for +65 % speed for 0.9 s. A jump started during a burst keeps the speed until landing, so burst → jump → hold clears gaps too wide for a hover. Painted floor arrows mark the two gaps in chapter 1 that need it.
-- **Pest squirrels** — once you get close, a squirrel scampers along just ahead of you, pelting you with rolling and bouncing acorns. Between volleys it hops in close to blow a raspberry: bark then to send it tumbling away. It stays until you bark it off (or gets bored after about 18 s).
-- **Power-ups** (bubbles along the route, never required): **Golden Bone** pulls nearby bones to you (9 s); **Spiked Collar** blocks the next hit (15 s); **Dog Whistle** blasts every squirrel and acorn off the screen, then gives super-range rapid barks (7 s); **Bacon Zoomies** gives unlimited tail spin and bursts (6 s). Active ones show with a countdown ring under the distance.
+- **Pacing, double jump, duck** — the camera scrolls on its own and the dog can pace forward/back within a band of the screen. A second press in mid-air double-jumps (needed for three-crate towers); ducking flattens him under low-clearance signs. BARK and SPEED show their recharge as a sweep on the buttons themselves. A mini-map across the top shows progress through the depot's five areas, the burst gaps and the gate.
+- **Pest squirrels** — once you get close, a squirrel skitters erratically ahead of you, hurling lobbed nut clusters that land and stay on the path and rollers that skid to a stop — jump them or bark them away. Now and then it darts in close to taunt: bark then to send it tumbling. A frantic xylophone riff in the music's key plays over the score while squirrels are on screen. It stays until you bark it off (or gets bored after about 18 s).
+- **Power-ups** (five per run, at random spots with random kinds, set high enough that you have to time a jump to grab them; never required): **Golden Bone** pulls nearby bones to you (9 s); **Spiked Collar** blocks the next hit (15 s); **Dog Whistle** blasts every squirrel and acorn off the screen, then gives super-range rapid barks (7 s); **Bacon Zoomies** gives unlimited tail spin and bursts (6 s). Active ones show with a countdown ring under the distance.
 - **Bark** — forward pulse with cooldown and visible rings; each pulse affects each target at most once. Opens fragile cardboard (the whole stack bursts), spooks squirrels, knocks acorns out of the air and damages the boss latch only while it is exposed.
 - **Health** — three hearts, 1.2 s blinking invulnerability after a hit, pits end the attempt, comic defeat flop.
 - **Chapter 1** — 19 authored chunks introducing jump, bones, bark, squirrel and hover one at a time, then combining them; speed ramps from 340 to 400 px/s (raised after the first playtest felt easy). Optional higher routes (some on moving scissor lifts) carry extra bones, and long empty stretches get automatic bone trails. Scent wisps mark hover routes.

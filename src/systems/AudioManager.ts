@@ -3,7 +3,7 @@ import { MUSIC, type TrackDef } from '../data/music';
 export type SfxKey =
   | 'bark' | 'jump' | 'land' | 'step' | 'bone' | 'hit' | 'defeat' | 'box_break' | 'boss_hit' | 'boss_clear'
   | 'ui_select' | 'ui_confirm' | 'ui_back' | 'whistle' | 'squirrel' | 'throw' | 'parcel' | 'squeak' | 'retreat'
-  | 'burst_stretch' | 'burst_snap' | 'burst_ready' | 'powerup' | 'powerdown' | 'shield_pop' | 'sonic';
+  | 'burst_stretch' | 'burst_snap' | 'burst_ready' | 'powerup' | 'powerdown' | 'shield_pop' | 'sonic' | 'double_jump' | 'duck' | 'nut_land' | 'squirrel_angry';
 
 /** Maximum simultaneous voices per effect. */
 const VOICE_CAP: Partial<Record<SfxKey, number>> = { bone: 4, step: 2, bark: 2, land: 2, parcel: 3, box_break: 2 };
@@ -36,6 +36,10 @@ class AudioManagerImpl {
   private musicPaused = false;
   private barkVariant = 0;
   private boneCombo = 0;
+  /** Squirrel-threat overlay: frantic xylophone runs in the current track's key. */
+  private overlayBus: GainNode | null = null;
+  private overlayOn = false;
+  private overlayNote = 4;
   private lastBone = 0;
 
   get unlocked(): boolean {
@@ -80,9 +84,12 @@ class AudioManagerImpl {
         revLp.frequency.value = 3500;
         this.reverbIn.connect(rev).connect(revLp).connect(this.master);
 
+        this.overlayBus = ctx.createGain();
+        this.overlayBus.gain.value = 0;
         this.musicBus = ctx.createGain();
         this.sfxBus = ctx.createGain();
         this.musicBus.connect(this.master);
+        this.overlayBus.connect(this.musicBus);
         this.sfxBus.connect(this.master);
         const musicSend = ctx.createGain();
         musicSend.gain.value = 0.28;
@@ -137,6 +144,56 @@ class AudioManagerImpl {
     if (this.ctx) {
       this.applyVolumes();
       this.startScheduler();
+    }
+  }
+
+  /** Turn the squirrel stress riff on/off (fades over half a second). */
+  setThreat(on: boolean): void {
+    if (on === this.overlayOn) return;
+    this.overlayOn = on;
+    if (!this.ctx || !this.overlayBus) return;
+    const t = this.ctx.currentTime;
+    this.overlayBus.gain.cancelScheduledValues(t);
+    this.overlayBus.gain.setValueAtTime(this.overlayBus.gain.value, t);
+    this.overlayBus.gain.linearRampToValueAtTime(on ? 1 : 0, t + 0.5);
+  }
+
+  /** Scale (MIDI notes) of the current track, so the riff stays in key. */
+  private get threatScale(): number[] {
+    return this.trackKey === 'chase'
+      ? [69, 71, 72, 74, 76, 77, 79, 81, 83, 84, 86, 88]
+      : [72, 74, 76, 77, 79, 81, 83, 84, 86, 88, 89, 91];
+  }
+
+  private playThreat(t: number, eighth: number): void {
+    const ctx = this.ctx!;
+    const scale = this.threatScale;
+    for (let k = 0; k < 2; k++) {
+      if (Math.random() < 0.18) continue;
+      // Jittery random walk with sudden leaps and stuttered repeats.
+      const r = Math.random();
+      if (r < 0.15) this.overlayNote += Math.random() < 0.5 ? 4 : -4;
+      else if (r < 0.8) this.overlayNote += Math.random() < 0.5 ? 1 : -1;
+      this.overlayNote = Math.max(0, Math.min(scale.length - 1, this.overlayNote));
+      const f = midiHz(scale[this.overlayNote]);
+      const tt = t + (k * eighth) / 2;
+      const o = ctx.createOscillator();
+      const o2 = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = 'triangle';
+      o2.type = 'sine';
+      o.frequency.value = f;
+      o2.frequency.value = f * 4;
+      this.env(g, tt, 0.002, 0.09, 0.09);
+      o.connect(g);
+      const g2 = ctx.createGain();
+      g2.gain.value = 0.25;
+      o2.connect(g2).connect(g);
+      g.connect(this.overlayBus!);
+      o.start(tt);
+      o2.start(tt);
+      o.stop(tt + 0.12);
+      o2.stop(tt + 0.12);
     }
   }
 
@@ -197,6 +254,7 @@ class AudioManagerImpl {
         while (part.notes[(i + len) % tr.length] === -1 && len < tr.length) len++;
         this.playNote(part.instrument, n, this.nextTime + swing, len * eighth);
       }
+      if (this.overlayOn || (this.overlayBus && this.overlayBus.gain.value > 0.01)) this.playThreat(this.nextTime + swing, eighth);
       this.nextTime += eighth;
       this.step++;
     }
@@ -622,6 +680,23 @@ class AudioManagerImpl {
         this.wobble('sine', 240, 520, t + 0.04, 0.75, 0.32, 13, 120, 4);
         return this.whoosh(t + 0.03, 0.45, 2500, 300, 0.3);
       }
+      case 'double_jump':
+        // Higher, springier "bwoing" plus a little whoosh for the somersault.
+        this.wobble('sine', 420, 1100, t, 0.22, 0.32, 38, 90, 10);
+        return this.whoosh(t, 0.3, 800, 3000, 0.18);
+      case 'duck':
+        // Squishy "flump".
+        this.oneShot('sine', 300, 120, t, 0.1, 0.3);
+        return this.noiseHit(t, 0.06, 0.15, 'lowpass', 600);
+      case 'nut_land':
+        return this.oneShot('triangle', 900, 600, t, 0.05, 0.16);
+      case 'squirrel_angry':
+        // Furious chitter-chatter.
+        for (let i = 0; i < 10; i++) {
+          const f = 1800 + Math.random() * 1500;
+          this.oneShot('sawtooth', f, f * 0.6, t + i * 0.035 + Math.random() * 0.01, 0.028, 0.07);
+        }
+        return t + 0.4;
       case 'powerup': {
         [72, 76, 79, 84, 88].forEach((m, i) => this.oneShot('triangle', midiHz(m), midiHz(m), t + i * 0.06, 0.16, 0.2));
         return this.wobble('sine', 1600, 2400, t + 0.3, 0.25, 0.08, 20, 60, 10);

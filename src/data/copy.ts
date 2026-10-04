@@ -33,14 +33,16 @@ export interface HintCopy {
 
 /** Tutorial hints, keyboard and touch wording. Each shows once per save. */
 export const HINTS: Record<string, HintCopy> = {
-  jump: { keys: 'Press SPACE or ↑ to jump!', touch: 'Tap JUMP to jump!' },
-  jump_hold: { keys: 'Tap for a hop — hold SPACE for a big leap.', touch: 'Tap for a hop — hold JUMP for a big leap.' },
+  jump: { keys: 'Press SPACE or ↑ to jump!', touch: 'Push the stick UP to jump!' },
+  jump_hold: { keys: 'Tap for a hop — hold SPACE for a big leap. ← → to pace yourself.', touch: 'Flick UP for a hop, hold UP for a big leap. Left/right paces you.' },
   bones: { keys: 'Bones buy upgrades. Grab them!', touch: 'Bones buy upgrades. Grab them!' },
   bark: { keys: 'Big bark. Tiny dog. Press X or K to bark!', touch: 'Big bark. Tiny dog. Tap BARK!' },
   squirrel: { keys: 'Squirrels pelt you with acorns! Jump them, and BARK (X) when the squirrel comes close.', touch: 'Squirrels pelt you with acorns! Jump them, and tap BARK when the squirrel comes close.' },
-  hover: { keys: 'Hold jump to give your tail a spin!', touch: 'Hold jump to give your tail a spin!' },
+  hover: { keys: 'Hold jump to give your tail a spin!', touch: 'Hold the stick UP to give your tail a spin!' },
   hover_recharge: { keys: 'Your tail recharges while your paws are on the ground.', touch: 'Your tail recharges while your paws are on the ground.' },
-  burst: { keys: 'Arrows on the floor? Press SHIFT to BURST, then jump and hold!', touch: 'Arrows on the floor? Tap BURST, then jump and hold!' },
+  burst: { keys: 'Arrows on the floor? Press SHIFT to BURST, then jump and hold!', touch: 'Arrows on the floor? Tap SPEED, then jump and hold!' },
+  duck: { keys: 'Low sign ahead! Hold ↓ (or S) to duck under it.', touch: 'Low sign ahead! Pull the stick DOWN to duck under it.' },
+  double: { keys: 'Too tall! Jump, then press jump again in mid-air to double-jump.', touch: 'Too tall! Push UP, let go, then push UP again in mid-air to double-jump.' },
   encounter: { keys: 'Jump the parcels. Bark the latch when it glows!', touch: 'Jump the parcels. Bark the latch when it glows!' },
 };
 

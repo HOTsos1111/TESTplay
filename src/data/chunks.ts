@@ -6,7 +6,7 @@
  * length, recovery space, required abilities, optional reward branch) so the
  * validator and a future endless mode can filter compatible sequences.
  */
-export type Ability = 'jump' | 'bark' | 'hover' | 'burst';
+export type Ability = 'jump' | 'bark' | 'hover' | 'burst' | 'duck' | 'double';
 
 export type BonePattern =
   | { kind: 'line'; x: number; h: number; n: number; spacing?: number }
@@ -33,10 +33,16 @@ export interface ChunkDef {
   /** Low hazards that hurt on contact. */
   tyres?: { x: number; h?: number }[];
   squirrels?: { x: number; h?: number }[];
-  /** Power-up bubbles (x, height above ground, kind). */
-  powerups?: { x: number; h: number; kind: 'magnet' | 'shield' | 'whistle' | 'bacon' }[];
+  /**
+   * Candidate power-up spots (x, height above the surface the hero runs on).
+   * Each run picks a few of these at random across the chapter and deals random
+   * kinds, so power-ups move around and can be missed.
+   */
+  powerupSlots?: { x: number; h: number }[];
   /** Lift platforms moving up and down between two heights (optional routes). */
   lifts?: { x: number; w: number; low: number; high: number; period: number }[];
+  /** Low-clearance signs to duck under. */
+  lowbars?: { x: number }[];
   /** Barrels that roll toward the hero when he approaches (x = resting spot). */
   barrels?: { x: number }[];
   bones?: BonePattern[];
@@ -64,6 +70,7 @@ export const CHUNKS: Record<string, ChunkDef> = {
   },
   jump_tyre: {
     id: 'jump_tyre', length: 1900, entryHeight: 0, exitHeight: 0, requires: ['jump'], recovery: 350,
+    powerupSlots: [{ x: 1250, h: 150 }],
     hint: { id: 'jump', x: 0 },
     tyres: [{ x: 650 }, { x: 1050 }, { x: 1450 }],
     bones: [
@@ -76,7 +83,7 @@ export const CHUNKS: Record<string, ChunkDef> = {
     id: 'jump_gap', length: 2000, entryHeight: 0, exitHeight: 0, requires: ['jump'], recovery: 350,
     gaps: [[500, 170], [1000, 210]],
     tyres: [{ x: 1550 }],
-    powerups: [{ x: 320, h: 70, kind: 'magnet' }],
+    powerupSlots: [{ x: 320, h: 70 }],
     bones: [
       { kind: 'arc', x: 585, h: 50, n: 5, width: 230, rise: 80 },
       { kind: 'arc', x: 1105, h: 50, n: 5, width: 260, rise: 85 },
@@ -107,6 +114,7 @@ export const CHUNKS: Record<string, ChunkDef> = {
   },
   bark_intro: {
     id: 'bark_intro', length: 2150, entryHeight: 0, exitHeight: 0, requires: ['jump', 'bark'], recovery: 300,
+    powerupSlots: [{ x: 1100, h: 160 }],
     hint: { id: 'bark', x: 0 },
     cardboard: [{ x: 750, stack: 3 }, { x: 1300, stack: 3 }],
     tyres: [{ x: 1750 }],
@@ -117,6 +125,7 @@ export const CHUNKS: Record<string, ChunkDef> = {
   },
   squirrel_intro: {
     id: 'squirrel_intro', length: 2300, entryHeight: 0, exitHeight: 0, requires: ['jump'], recovery: 300,
+    powerupSlots: [{ x: 900, h: 140 }],
     hint: { id: 'squirrel', x: 0 },
     tyres: [{ x: 500 }],
     squirrels: [{ x: 1400 }],
@@ -127,7 +136,7 @@ export const CHUNKS: Record<string, ChunkDef> = {
     id: 'depot_mix_a', length: 2500, entryHeight: 0, exitHeight: 0, requires: ['jump', 'bark'], recovery: 400,
     cardboard: [{ x: 550, stack: 3 }],
     gaps: [[1000, 200]],
-    powerups: [{ x: 300, h: 70, kind: 'shield' }],
+    powerupSlots: [{ x: 300, h: 70 }],
     platforms: [{ x: 1450, w: 520, h: 90 }],
     tyres: [{ x: 1600 }],
     squirrels: [{ x: 1880, h: 90 }],
@@ -138,6 +147,7 @@ export const CHUNKS: Record<string, ChunkDef> = {
   },
   hover_intro: {
     id: 'hover_intro', length: 2300, entryHeight: 0, exitHeight: 0, requires: ['jump', 'hover'], recovery: 650,
+    powerupSlots: [{ x: 1135, h: 190 }],
     hint: { id: 'hover', x: 0 },
     gaps: [[900, 470]],
     bones: [{ kind: 'arc', x: 1135, h: 80, n: 9, width: 470, rise: 70 }],
@@ -164,6 +174,7 @@ export const CHUNKS: Record<string, ChunkDef> = {
   },
   crate_steps: {
     id: 'crate_steps', length: 2400, entryHeight: 0, exitHeight: 0, requires: ['jump', 'bark'], recovery: 300,
+    powerupSlots: [{ x: 1000, h: 200 }],
     crates: [{ x: 600 }, { x: 664 }, { x: 728, stack: 2 }, { x: 792, stack: 2 }],
     cardboard: [{ x: 1650, stack: 3 }],
     tyres: [{ x: 2050 }],
@@ -176,7 +187,7 @@ export const CHUNKS: Record<string, ChunkDef> = {
   squirrel_pair: {
     id: 'squirrel_pair', length: 2500, entryHeight: 0, exitHeight: 0, requires: ['jump'], recovery: 300,
     squirrels: [{ x: 700 }, { x: 1700 }],
-    powerups: [{ x: 350, h: 60, kind: 'whistle' }],
+    powerupSlots: [{ x: 350, h: 60 }],
     tyres: [{ x: 1150 }],
     gaps: [[1950, 220]],
     bones: [
@@ -187,7 +198,7 @@ export const CHUNKS: Record<string, ChunkDef> = {
   mixed_hover: {
     id: 'mixed_hover', length: 2700, entryHeight: 0, exitHeight: 0, requires: ['jump', 'hover', 'bark'], recovery: 400,
     platforms: [{ x: 450, w: 320, h: 90 }],
-    powerups: [{ x: 620, h: 160, kind: 'bacon' }],
+    powerupSlots: [{ x: 620, h: 160 }],
     barrels: [{ x: 420 }],
     gaps: [[950, 480]],
     cardboard: [{ x: 1850, stack: 3 }],
@@ -209,6 +220,7 @@ export const CHUNKS: Record<string, ChunkDef> = {
   },
   speed_run: {
     id: 'speed_run', length: 2600, entryHeight: 0, exitHeight: 0, requires: ['jump'], recovery: 400,
+    powerupSlots: [{ x: 1675, h: 170 }],
     tyres: [{ x: 450 }, { x: 800 }, { x: 1150 }, { x: 1500 }],
     gaps: [[1850, 220]],
     bones: [
@@ -224,7 +236,7 @@ export const CHUNKS: Record<string, ChunkDef> = {
     rewardBranch: true,
     platforms: [{ x: 500, w: 360, h: 90 }, { x: 1420, w: 420, h: 90 }],
     lifts: [{ x: 960, w: 360, low: 90, high: 200, period: 3.2 }],
-    powerups: [{ x: 1140, h: 260, kind: 'magnet' }],
+    powerupSlots: [{ x: 1140, h: 260 }],
     tyres: [{ x: 700 }, { x: 1100 }, { x: 1600 }],
     squirrels: [{ x: 1750, h: 90 }],
     cardboard: [{ x: 2250, stack: 3 }],
@@ -237,7 +249,7 @@ export const CHUNKS: Record<string, ChunkDef> = {
   final_gauntlet: {
     id: 'final_gauntlet', length: 3100, entryHeight: 0, exitHeight: 0, requires: ['jump', 'bark', 'hover'], recovery: 350,
     platforms: [{ x: 400, w: 480, h: 90 }],
-    powerups: [{ x: 250, h: 70, kind: 'shield' }],
+    powerupSlots: [{ x: 250, h: 70 }],
     squirrels: [{ x: 780, h: 90 }],
     gaps: [[1150, 490]],
     cardboard: [{ x: 1950, stack: 3 }],
@@ -247,6 +259,37 @@ export const CHUNKS: Record<string, ChunkDef> = {
       { kind: 'arc', x: 2374, h: 40, n: 4, width: 180, rise: 75 },
     ],
     scent: [{ x: 1080, h: 120, n: 8, spacing: 80 }],
+  },
+  duck_intro: {
+    id: 'duck_intro', length: 2300, entryHeight: 0, exitHeight: 0, requires: ['duck'], recovery: 600,
+    powerupSlots: [{ x: 1150, h: 150 }],
+    hint: { id: 'duck', x: 0 },
+    lowbars: [{ x: 800 }, { x: 1500 }],
+    bones: [
+      { kind: 'line', x: 815, h: 14, n: 3, spacing: 35 },
+      { kind: 'line', x: 1515, h: 14, n: 3, spacing: 35 },
+    ],
+  },
+  double_intro: {
+    id: 'double_intro', length: 2400, entryHeight: 0, exitHeight: 0, requires: ['jump', 'double'], recovery: 500,
+    powerupSlots: [{ x: 935, h: 260 }],
+    hint: { id: 'double', x: 0 },
+    crates: [{ x: 900, stack: 3 }, { x: 964, stack: 3 }],
+    bones: [
+      { kind: 'arc', x: 935, h: 140, n: 5, width: 160, rise: 90 },
+      { kind: 'line', x: 1500, h: 30, n: 5, spacing: 60 },
+    ],
+  },
+  duck_double_mix: {
+    id: 'duck_double_mix', length: 3000, entryHeight: 0, exitHeight: 0, requires: ['jump', 'double', 'duck', 'bark'], recovery: 350,
+    lowbars: [{ x: 600 }],
+    crates: [{ x: 1250 }, { x: 1314, stack: 3 }, { x: 1378, stack: 3 }],
+    cardboard: [{ x: 2000, stack: 3 }],
+    tyres: [{ x: 2600 }],
+    bones: [
+      { kind: 'line', x: 615, h: 14, n: 3, spacing: 35 },
+      { kind: 'line', x: 1320, h: 230, n: 3, spacing: 50 },
+    ],
   },
   exit_gate: {
     id: 'exit_gate', length: 1600, entryHeight: 0, exitHeight: 0, requires: ['jump'], recovery: 1000,

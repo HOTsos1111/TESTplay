@@ -12,6 +12,8 @@ export interface HudState {
   burstFraction: number;
   bursting: boolean;
   powerups: { icon: string; frac: number }[];
+  /** 0..1 along the route to the checkpoint gate. */
+  progress: number;
   barkCooldown: number;
   bossHits: number | null;
   bossMax: number;
@@ -25,11 +27,7 @@ export class Hud {
   private wagIcon: Phaser.GameObjects.Image;
   private wagBar: Phaser.GameObjects.Graphics;
   private burstIcon: Phaser.GameObjects.Image;
-  private burstBar: Phaser.GameObjects.Graphics;
-  private burstReadyT = 0;
-  private lastBurst = 1;
   private barkIcon: Phaser.GameObjects.Image;
-  private barkDial: Phaser.GameObjects.Graphics;
   private bossLabel: Phaser.GameObjects.Text;
   private bossPips: Phaser.GameObjects.Graphics;
   private hint: Phaser.GameObjects.Container;
@@ -38,6 +36,9 @@ export class Hud {
   private hintT = 0;
   readonly pauseButton: Phaser.GameObjects.Image;
   private lastHearts = -1;
+  private mini!: Phaser.GameObjects.Graphics;
+  private miniDog!: Phaser.GameObjects.Image;
+  private miniInfo: { zones: { from: number; color: number }[]; marks: number[] } = { zones: [], marks: [] };
   private puIcons: Phaser.GameObjects.Image[] = [];
   private puRings!: Phaser.GameObjects.Graphics;
   /** Extra width beyond the 1280 design width (right-side items shift by this). */
@@ -59,30 +60,69 @@ export class Hud {
     this.boneText = fixed(scene.add.text(76, 94, '0', textStyle(26)).setOrigin(0, 0.5));
     this.distText = fixed(scene.add.text(26, 132, '0 m', textStyle(22, CSS.cream)).setOrigin(0, 0.5));
 
-    this.wagIcon = fixed(scene.add.image(880, 42, 'icon_tail').setScale(ART_SCALE * 1.2));
+    this.wagIcon = fixed(scene.add.image(960, 42, 'icon_tail').setScale(ART_SCALE * 1.2));
     this.wagBar = fixed(scene.add.graphics());
-    this.burstIcon = fixed(scene.add.image(880, 84, 'icon_burst').setScale(ART_SCALE * 1.2));
-    this.burstBar = fixed(scene.add.graphics());
-    this.barkIcon = fixed(scene.add.image(1140, 42, 'icon_bark').setScale(ART_SCALE * 1.2));
-    this.barkDial = fixed(scene.add.graphics());
+    // Bark and burst recharge now show on their own action buttons (TouchControls).
+    this.burstIcon = fixed(scene.add.image(880, 84, 'icon_burst').setVisible(false));
+    this.barkIcon = fixed(scene.add.image(1140, 42, 'icon_bark').setVisible(false));
     this.pauseButton = fixed(scene.add.image(1228, 42, 'icon_pause').setScale(ART_SCALE * 1.4));
     this.pauseButton.setInteractive({ useHandCursor: true }).on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) => {
       e.stopPropagation();
       onPause();
     });
 
-    this.bossLabel = fixed(scene.add.text(640, 34, 'LATCH', textStyle(20, CSS.butter)).setOrigin(0.5).setVisible(false));
+    this.bossLabel = fixed(scene.add.text(640, 66, 'LATCH', textStyle(20, CSS.butter)).setOrigin(0.5).setVisible(false));
     this.bossPips = fixed(scene.add.graphics());
 
     this.hintBg = scene.add.graphics();
     this.hintText = scene.add.text(0, 0, '', textStyle(28)).setOrigin(0.5);
     this.hint = fixed(scene.add.container(640, 160, [this.hintBg, this.hintText]).setVisible(false));
 
+    this.mini = scene.add.graphics().setScrollFactor(0).setDepth(DEPTH.hud);
+    this.miniDog = scene.add.image(0, 26, 'hero_head').setScale(ART_SCALE * 0.42).setScrollFactor(0).setDepth(DEPTH.hud + 1);
     this.puRings = scene.add.graphics().setScrollFactor(0).setDepth(DEPTH.hud);
     for (let i = 0; i < 4; i++) this.puIcons.push(scene.add.image(48 + i * 58, 182, 'pu_magnet').setScrollFactor(0).setDepth(DEPTH.hud + 1).setScale(ART_SCALE * 0.85).setVisible(false));
     this.rightItems = [this.wagIcon, this.burstIcon, this.barkIcon, this.pauseButton].map((o) => ({ o, x: o.x }));
     this.centerItems = [this.bossLabel, this.hint].map((o) => ({ o, x: o.x }));
     this.layout(scene.scale.width);
+  }
+
+  /**
+   * Mini-map: zones as fractions (0..1) of the route to the checkpoint gate,
+   * plus marker fractions (burst gaps).
+   */
+  setMinimap(zones: { from: number; color: number }[], marks: number[]): void {
+    this.miniInfo = { zones, marks };
+  }
+
+  private drawMinimap(progress: number): void {
+    const g = this.mini;
+    const w = 380;
+    const x0 = 640 + this.dx / 2 - w / 2;
+    const y = 26;
+    g.clear();
+    g.fillStyle(COLOR.outline, 0.75);
+    g.fillRoundedRect(x0 - 14, y - 13, w + 50, 26, 13);
+    const zs = this.miniInfo.zones.length ? this.miniInfo.zones : [{ from: 0, color: COLOR.cream }];
+    zs.forEach((z, i) => {
+      const to = zs[i + 1]?.from ?? 1;
+      g.fillStyle(z.color, 0.45);
+      g.fillRect(x0 + z.from * w, y - 4, (to - z.from) * w, 8);
+    });
+    g.fillStyle(COLOR.butter, 1);
+    g.fillRect(x0, y - 4, Math.max(0, Math.min(1, progress)) * w, 8);
+    for (const m of this.miniInfo.marks) {
+      g.fillStyle(COLOR.coral, 1);
+      g.fillTriangle(x0 + m * w - 5, y - 10, x0 + m * w + 5, y - 10, x0 + m * w, y - 3);
+    }
+    // Gate + dogcatcher at the end.
+    g.fillStyle(COLOR.white, 1);
+    g.fillRect(x0 + w - 2, y - 11, 4, 22);
+    g.fillStyle(0x4f6aa3, 1);
+    g.fillCircle(x0 + w + 20, y, 8);
+    g.lineStyle(2, COLOR.outline, 1);
+    g.strokeCircle(x0 + w + 20, y, 8);
+    this.miniDog.setPosition(x0 + Math.max(0, Math.min(1, progress)) * w, y - 2);
   }
 
   /** Reposition for the current game width (right items hug the right edge). */
@@ -118,6 +158,7 @@ export class Hud {
   }
 
   update(dt: number, s: HudState): void {
+    this.drawMinimap(s.progress);
     if (this.lastHearts !== s.hearts) {
       if (this.lastHearts > s.hearts) this.heartFlash = 0.5;
       this.lastHearts = s.hearts;
@@ -136,7 +177,7 @@ export class Hud {
     this.wagIcon.setTexture(empty ? 'icon_tail_empty' : 'icon_tail');
     if (s.hovering) this.wagIcon.rotation -= dt * 20;
     else this.wagIcon.rotation *= 0.9;
-    const bx = 906 + this.dx;
+    const bx = 986 + this.dx;
     const by = 32;
     const bw = 170;
     const bh = 20;
@@ -155,49 +196,6 @@ export class Hud {
       // Empty state uses a hatch pattern so it reads without colour.
       g.lineStyle(2, 0x9a8e9c, 1);
       for (let x = bx + 6; x < bx + bw; x += 12) g.lineBetween(x, by + bh - 3, x + 8, by + 3);
-    }
-
-    // Burst meter: fills slowly; flashes when ready.
-    if (s.burstFraction >= 1 && this.lastBurst < 1) this.burstReadyT = 0.6;
-    this.lastBurst = s.burstFraction;
-    this.burstReadyT = Math.max(0, this.burstReadyT - dt);
-    const ready = s.burstFraction >= 1;
-    this.burstIcon.setTexture(ready || s.bursting ? 'icon_burst' : 'icon_burst_empty');
-    this.burstIcon.setScale(ART_SCALE * (1.2 + this.burstReadyT * 0.6 + (ready ? Math.sin(performance.now() / 120) * 0.06 : 0)));
-    const ub = this.burstBar;
-    const uy = 74;
-    ub.clear();
-    ub.fillStyle(COLOR.outline, 0.85);
-    ub.fillRoundedRect(bx - 3, uy - 3, bw + 6, 20 + 6, 12);
-    ub.fillStyle(0x5c4560, 1);
-    ub.fillRoundedRect(bx, uy, bw, 20, 9);
-    const bf = s.bursting ? 1 : s.burstFraction;
-    if (bf > 0.02) {
-      ub.fillStyle(ready || s.bursting ? COLOR.butter : 0xc9a34a, 1);
-      ub.fillRoundedRect(bx, uy, Math.max(18, bw * bf), 20, 9);
-    }
-    if (ready) {
-      ub.lineStyle(3, COLOR.white, 0.6 + Math.sin(performance.now() / 120) * 0.4);
-      ub.strokeRoundedRect(bx - 3, uy - 3, bw + 6, 26, 12);
-    }
-
-    // Bark cooldown dial.
-    const d = this.barkDial;
-    d.clear();
-    const barkReady = s.barkCooldown <= 0;
-    const dialX = 1140 + this.dx;
-    this.barkIcon.setAlpha(barkReady ? 1 : 0.45);
-    d.lineStyle(5, COLOR.outline, 0.9);
-    d.strokeCircle(dialX, 42, 26);
-    if (!barkReady) {
-      const k = 1 - s.barkCooldown / TUNING.barkCooldown;
-      d.lineStyle(5, COLOR.coral, 1);
-      d.beginPath();
-      d.arc(dialX, 42, 26, -Math.PI / 2, -Math.PI / 2 + k * Math.PI * 2);
-      d.strokePath();
-    } else {
-      d.lineStyle(3, COLOR.butter, 1);
-      d.strokeCircle(dialX, 42, 26);
     }
 
     // Active power-ups with a countdown ring.
@@ -225,9 +223,9 @@ export class Hud {
       for (let i = 0; i < s.bossMax; i++) {
         const x = 640 + this.dx / 2 + (i - (s.bossMax - 1) / 2) * 40;
         this.bossPips.fillStyle(COLOR.outline, 1);
-        this.bossPips.fillCircle(x, 68, 14);
+        this.bossPips.fillCircle(x, 98, 14);
         this.bossPips.fillStyle(i < s.bossHits ? COLOR.butter : 0x5c4560, 1);
-        this.bossPips.fillCircle(x, 68, 10);
+        this.bossPips.fillCircle(x, 98, 10);
       }
     }
 

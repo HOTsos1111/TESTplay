@@ -180,8 +180,12 @@ export class PowerUp extends Entity {
     this.bubble.setPosition(this.x, yy).setScale(ART_SCALE * (1.1 + Math.sin(this.t * 5) * 0.04));
     if (Math.random() < dt * 4) ctx.fx.sparkle(this.x + (Math.random() - 0.5) * 50, yy + (Math.random() - 0.5) * 50, 1);
   }
+  get where(): { x: number; y: number; kind: string } {
+    return { x: this.x, y: this.y, kind: this.kind };
+  }
   pickup(): Rect {
-    return { x: this.x - 30, y: this.y - 36, w: 60, h: 72 };
+    // Tight pickup area: you have to actually reach the bubble.
+    return { x: this.x - 20, y: this.y - 22, w: 40, h: 44 };
   }
   onPickup(ctx: GameContext): void {
     this.alive = false;
@@ -400,13 +404,16 @@ export class BurstMarker extends Entity {
 
 // ---------------------------------------------------------------- enemies
 
-type SquirrelState = 'waiting' | 'enter' | 'aim' | 'throw' | 'approach' | 'taunt' | 'back' | 'flee' | 'bored';
+type SquirrelState = 'waiting' | 'skitter' | 'aim' | 'throw' | 'dart' | 'taunt' | 'flee' | 'bored';
+
+const rand = (a: number, b: number) => a + Math.random() * (b - a);
 
 /**
- * Pest squirrel. Once the hero gets near it scampers along just ahead of him,
- * pelting him with acorns (rolling and bouncing). Between volleys it hops in
- * close to blow a raspberry, which is the moment to bark it off the screen.
- * It stays a threat until barked at (or eventually gets bored and leaves).
+ * Pest squirrel. Once the hero gets near, it skitters frantically ahead of him,
+ * darting to random spots, chittering, and hurling acorns: lobbed clusters
+ * that land and stay on the path as obstacles, and rollers that skid to a stop.
+ * Every so often it darts in close to taunt, which is the moment to bark it
+ * away. It stays a threat until barked at (or eventually gets bored).
  */
 export class Squirrel extends Entity {
   private img: Phaser.GameObjects.Image;
@@ -416,19 +423,21 @@ export class Squirrel extends Entity {
   private life = 0;
   private x: number;
   private y: number;
-  private screenX = 0;
-  private fromX = 0;
-  private throwsLeft = 2;
-  private volley = 0;
+  /** Offset from the hero's screen position. */
+  private rel = 500;
+  private fromRel = 500;
+  private toRel = 500;
+  private moveTime = 0.5;
+  private hopH = 20;
+  private stateTime = 1;
+  private throwCooldown = 0.6;
+  private sinceTaunt = 0;
+  private nuts: Acorn[] = [];
   private vx = 0;
   private vy = 0;
-  /** Distance ahead of the hero at which the squirrel starts pestering. */
   static readonly WARN_DISTANCE = 1000;
-  static readonly REST_X = 790;
-  static readonly TAUNT_X = 530;
-  static readonly AIM_TIME = 0.75;
-  static readonly TAUNT_TIME = 1.25;
-  static readonly MAX_LIFE = 18;
+  static readonly MAX_LIFE = 20;
+  static readonly MAX_NUTS = 4;
 
   constructor(scene: Phaser.Scene, x: number, bottom: number) {
     super();
@@ -438,24 +447,32 @@ export class Squirrel extends Entity {
     this.bubble = scene.add.image(x, bottom - 58, 'fx_exclaim').setOrigin(0.5, 1).setScale(ART_SCALE).setDepth(DEPTH.enemy + 1).setVisible(false);
   }
   get right(): number {
-    // Never despawned by the camera while it is tracking the hero.
     return this.state === 'waiting' ? this.x + 40 : Number.POSITIVE_INFINITY;
   }
-  private go(s: SquirrelState): void {
+  /** True while it is on screen harassing the hero (drives the stress music). */
+  get pestering(): boolean {
+    return this.state !== 'waiting' && this.state !== 'flee' && this.state !== 'bored';
+  }
+  private go(s: SquirrelState, time = 1): void {
     this.state = s;
     this.t = 0;
-    this.fromX = this.screenX;
+    this.stateTime = time;
+    this.fromRel = this.rel;
     const tex = s === 'throw' ? 'squirrel_throw' : s === 'aim' || s === 'taunt' ? 'squirrel_taunt' : s === 'flee' ? 'squirrel_startled' : s === 'bored' ? 'squirrel_run' : 'squirrel_idle';
     this.img.setTexture(tex);
+    this.img.setFlipX(false);
   }
-  private get active(): boolean {
-    return this.state !== 'flee' && this.state !== 'bored';
+  private moveTo(rel: number, time: number, hop: number): void {
+    this.fromRel = this.rel;
+    this.toRel = rel;
+    this.moveTime = Math.max(0.01, time);
+    this.hopH = hop;
   }
   hazard(): Rect | null {
-    return this.active ? { x: this.x - 16, y: this.y - 44, w: 32, h: 40 } : null;
+    return this.pestering ? { x: this.x - 16, y: this.y - 44, w: 32, h: 40 } : null;
   }
   barkTarget(): Rect | null {
-    return this.active ? { x: this.x - 24, y: this.y - 60, w: 48, h: 60 } : null;
+    return this.pestering || this.state === 'waiting' ? { x: this.x - 24, y: this.y - 60, w: 48, h: 60 } : null;
   }
   onBark(ctx: GameContext): void {
     this.flee(ctx);
@@ -463,9 +480,8 @@ export class Squirrel extends Entity {
   onHeroHit(ctx: GameContext): void {
     this.flee(ctx);
   }
-  /** Scared off: tumbles away and off the screen. */
   flee(ctx: GameContext): void {
-    if (!this.active) return;
+    if (this.state === 'flee' || this.state === 'bored') return;
     this.go('flee');
     this.bubble.setVisible(false);
     ctx.fx.puff(this.x, this.y - 30, 6, 1);
@@ -474,15 +490,35 @@ export class Squirrel extends Entity {
     this.vx = 520;
     this.vy = -620;
   }
+  private nextSkitter(): void {
+    this.go('skitter', rand(0.35, 0.9));
+    this.moveTo(rand(300, 640), this.stateTime * rand(0.5, 0.9), rand(8, 55));
+  }
+  private throwNut(ctx: GameContext): void {
+    this.nuts = this.nuts.filter((n) => n.alive);
+    if (this.nuts.length >= Squirrel.MAX_NUTS) return;
+    let nut: Acorn;
+    if (Math.random() < 0.6) {
+      // Lob a cluster to land on the path in front of the hero; it stays there.
+      const target = Math.max(ctx.heroX + 230, this.x - rand(120, 340));
+      nut = new Acorn(ctx.scene, this.x - 20, this.y - 40, 'lob', target);
+    } else {
+      nut = new Acorn(ctx.scene, this.x - 24, this.y - 26, 'roll');
+    }
+    this.nuts.push(nut);
+    ctx.spawn(nut);
+    Audio.play('throw');
+  }
   update(dt: number, ctx: GameContext): void {
     this.t += dt;
-    const ease = (k: number) => 1 - Math.pow(1 - Math.min(1, k), 3);
+    const heroScreen = ctx.heroX - ctx.cameraLeft;
     if (this.state === 'waiting') {
-      this.img.y = this.y - Math.abs(Math.sin(this.t * 3)) * 4;
+      this.img.y = this.y - Math.abs(Math.sin(this.t * 6)) * 6;
+      this.img.setFlipX(Math.sin(this.t * 3) > 0);
       if (this.x - ctx.heroX < Squirrel.WARN_DISTANCE) {
-        this.screenX = this.x - ctx.cameraLeft;
-        this.go('enter');
-        Audio.play('squirrel');
+        this.rel = this.x - ctx.heroX;
+        Audio.play('squirrel_angry');
+        this.nextSkitter();
       }
       return;
     }
@@ -491,102 +527,125 @@ export class Squirrel extends Entity {
       this.x += (this.state === 'bored' ? 900 : this.vx) * dt;
       this.y += (this.state === 'bored' ? 0 : this.vy) * dt;
       if (this.state === 'flee') this.img.rotation += dt * 10;
-      else this.img.y = this.y - Math.abs(Math.sin(this.t * 16)) * 10;
-      this.img.setPosition(this.x, this.state === 'bored' ? this.img.y : this.y);
+      this.img.setPosition(this.x, this.state === 'bored' ? this.y - Math.abs(Math.sin(this.t * 16)) * 10 : this.y);
       this.bubble.setVisible(false);
       if (this.y > WORLD.pitDeathY + 200 || this.x > ctx.cameraRight + 200) this.alive = false;
       return;
     }
 
     this.life += dt;
-    let hop = 0;
+    this.sinceTaunt += dt;
+    this.throwCooldown -= dt;
+    const mk = Math.min(1, this.t / this.moveTime);
+    this.rel = Phaser.Math.Linear(this.fromRel, this.toRel, 1 - Math.pow(1 - mk, 3));
+    let hop = Math.sin(mk * Math.PI) * this.hopH;
+    // Constant nervous jitter.
+    const jitter = Math.sin(this.t * 47) * 2;
+
     switch (this.state) {
-      case 'enter':
-        this.screenX = Phaser.Math.Linear(this.fromX, Squirrel.REST_X, ease(this.t / 0.7));
-        hop = Math.abs(Math.sin(this.t * 14)) * 10;
-        if (this.t >= 0.7) this.go('aim');
+      case 'skitter':
+        this.img.setFlipX(Math.sin(this.t * 20) > 0.6);
+        if (this.t >= this.stateTime) {
+          if (this.life > Squirrel.MAX_LIFE) {
+            this.go('bored');
+            break;
+          }
+          const r = Math.random();
+          if (this.sinceTaunt > 3.5 && r < 0.35) {
+            // Dart in close to taunt: the bark window.
+            this.go('dart', 0.3);
+            this.moveTo(rand(185, 225), 0.3, 35);
+          } else if (this.throwCooldown <= 0 && r < 0.85) {
+            this.go('aim', rand(0.35, 0.7));
+            this.moveTo(this.rel, 0.01, 0);
+            Audio.play('squirrel_angry');
+          } else this.nextSkitter();
+        }
         break;
       case 'aim':
-        this.bubble.setVisible(true);
-        this.bubble.setScale(ART_SCALE * (1 + Math.sin(this.t * 14) * 0.08));
-        hop = Math.abs(Math.sin(this.t * 9)) * 5;
-        if (this.t >= Squirrel.AIM_TIME) {
+        this.bubble.setVisible(true).setScale(ART_SCALE * (1 + Math.sin(this.t * 20) * 0.1));
+        hop = Math.abs(Math.sin(this.t * 25)) * 4;
+        if (this.t >= this.stateTime) {
           this.bubble.setVisible(false);
-          // Alternate low rollers and bouncers.
-          const bounce = (this.volley + this.throwsLeft) % 2 === 1;
-          ctx.spawn(new Acorn(ctx.scene, this.x - 24, this.y - 30, bounce));
-          Audio.play('throw');
-          this.throwsLeft--;
-          this.go('throw');
+          this.throwNut(ctx);
+          if (Math.random() < 0.3) this.pendingSecondThrow = 0.18;
+          this.throwCooldown = rand(0.9, 1.8);
+          this.go('throw', 0.3);
         }
         break;
       case 'throw':
-        if (this.t > 0.35) {
-          if (this.throwsLeft > 0) this.go('aim');
-          else this.go('approach');
+        if (this.pendingSecondThrow > 0) {
+          this.pendingSecondThrow -= dt;
+          if (this.pendingSecondThrow <= 0) this.throwNut(ctx);
         }
+        if (this.t >= this.stateTime) this.nextSkitter();
         break;
-      case 'approach':
-        this.screenX = Phaser.Math.Linear(this.fromX, Squirrel.TAUNT_X, ease(this.t / 0.4));
-        hop = Math.sin(Math.min(1, this.t / 0.4) * Math.PI) * 40;
-        if (this.t >= 0.4) {
-          this.go('taunt');
+      case 'dart':
+        if (this.t >= this.stateTime) {
+          this.go('taunt', rand(0.8, 1.3));
+          this.moveTo(this.rel, 0.01, 0);
           Audio.play('squirrel');
         }
         break;
       case 'taunt':
-        // Blowing a raspberry within bark range: the window to bark it away.
-        hop = Math.abs(Math.sin(this.t * 12)) * 6;
-        this.img.setFlipX(Math.floor(this.t * 4) % 2 === 0);
-        if (this.t >= Squirrel.TAUNT_TIME) {
-          this.img.setFlipX(false);
-          this.go('back');
-        }
-        break;
-      case 'back':
-        this.screenX = Phaser.Math.Linear(this.fromX, Squirrel.REST_X, ease(this.t / 0.45));
-        hop = Math.sin(Math.min(1, this.t / 0.45) * Math.PI) * 30;
-        if (this.t >= 0.45) {
-          this.volley++;
-          this.throwsLeft = 2;
-          if (this.life > Squirrel.MAX_LIFE) this.go('bored');
-          else this.go('aim');
+        hop = Math.abs(Math.sin(this.t * 14)) * 7;
+        this.img.setFlipX(Math.floor(this.t * 6) % 2 === 0);
+        if (this.t >= this.stateTime) {
+          this.sinceTaunt = 0;
+          this.nextSkitter();
         }
         break;
     }
-    // Keep pace with the hero, scampering along the floor (leaping over pits).
-    this.x = ctx.cameraLeft + this.screenX;
+    this.x = ctx.cameraLeft + Phaser.Math.Clamp(heroScreen + this.rel, 120, ctx.cameraRight - ctx.cameraLeft - 40);
     this.y = WORLD.groundY;
     if (ctx.surfaceBelow(this.x, WORLD.groundY - 1) === null) hop += 60;
-    this.img.setPosition(this.x, this.y - hop);
+    this.img.setPosition(this.x + jitter, this.y - hop);
     this.bubble.setPosition(this.x - 6, this.y - hop - 58);
   }
+  private pendingSecondThrow = 0;
   destroy(): void {
     this.img.destroy();
     this.bubble.destroy();
   }
 }
 
+/**
+ * Thrown acorns. 'lob' clusters arc onto the path and stay there as an
+ * obstacle; 'roll' acorns skid along the floor and come to rest. Jump them or
+ * bark them away.
+ */
 export class Acorn extends Entity {
   private img: Phaser.GameObjects.Image;
-  private vx = -260;
-  private vy = -120;
-  constructor(scene: Phaser.Scene, private x: number, private y: number, private bouncy = false) {
+  private vx: number;
+  private vy: number;
+  private resting = false;
+  private t = 0;
+  constructor(scene: Phaser.Scene, private x: number, private y: number, private mode: 'lob' | 'roll' = 'roll', target?: number) {
     super();
-    if (bouncy) {
-      this.vx = -230;
-      this.vy = -420;
+    const lob = mode === 'lob';
+    this.img = scene.add.image(x, y, lob ? 'nut_pile' : 'acorn').setOrigin(0.5, 0.5).setScale(ART_SCALE).setDepth(DEPTH.enemy);
+    if (lob) {
+      this.vy = -520;
+      const g = 1600;
+      const drop = WORLD.groundY - 14 - y;
+      const T = (-this.vy + Math.sqrt(this.vy * this.vy + 2 * g * drop)) / g;
+      this.vx = ((target ?? x - 250) - x) / T;
+    } else {
+      this.vx = -280;
+      this.vy = -120;
     }
-    this.img = scene.add.image(x, y, 'acorn').setOrigin(0.5, 0.5).setScale(ART_SCALE).setDepth(DEPTH.enemy);
+  }
+  private get r(): number {
+    return this.mode === 'lob' ? 14 : 11;
   }
   get right(): number {
-    return this.x + 12;
+    return this.x + 20;
   }
   hazard(): Rect {
-    return { x: this.x - 9, y: this.y - 9, w: 18, h: 18 };
+    return this.mode === 'lob' ? { x: this.x - 16, y: this.y - 12, w: 32, h: 24 } : { x: this.x - 9, y: this.y - 9, w: 18, h: 18 };
   }
   barkTarget(): Rect {
-    return { x: this.x - 14, y: this.y - 14, w: 28, h: 28 };
+    return { x: this.x - 20, y: this.y - 18, w: 40, h: 36 };
   }
   onBark(ctx: GameContext): void {
     this.alive = false;
@@ -596,23 +655,79 @@ export class Acorn extends Entity {
     this.alive = false;
   }
   update(dt: number, ctx: GameContext): void {
-    const r = 11;
+    this.t += dt;
+    const r = this.r;
+    if (this.resting) {
+      // Settled on the path: a little wobble so it reads as a hazard.
+      this.img.rotation = Math.sin(this.t * 5) * 0.08;
+      if (this.x < ctx.cameraLeft - 100) this.alive = false;
+      if (ctx.surfaceBelow(this.x, this.y + r - 2) === null) this.resting = false;
+      return;
+    }
     this.vy += 1600 * dt;
     const nx = this.x + this.vx * dt;
     let ny = this.y + this.vy * dt;
     const surf = ctx.surfaceBelow(nx, this.y + r - 2);
     if (surf !== null && ny + r >= surf && this.vy >= 0) {
       ny = surf - r;
-      this.vy = this.bouncy ? -Math.max(320, this.vy * 0.75) : this.vy > 300 ? -this.vy * 0.3 : 0;
+      if (this.mode === 'lob') {
+        this.vx = 0;
+        this.vy = 0;
+        this.resting = true;
+        Audio.play('nut_land');
+        ctx.fx.dust(nx, surf, 2);
+      } else {
+        this.vy = this.vy > 300 ? -this.vy * 0.3 : 0;
+        // Friction: rollers skid to a stop and become a small obstacle.
+        this.vx = Math.min(0, this.vx + 260 * dt);
+        if (this.vx > -8 && this.vy === 0) this.resting = true;
+      }
     }
     this.x = nx;
     this.y = ny;
     this.img.setPosition(this.x, this.y);
-    this.img.rotation += (this.vx * dt) / r;
+    if (this.mode === 'roll' && !this.resting) this.img.rotation += (this.vx * dt) / r;
     if (this.x < ctx.cameraLeft - 100 || this.y > WORLD.pitDeathY + 100) this.alive = false;
   }
   destroy(): void {
     this.img.destroy();
+  }
+}
+
+/**
+ * Low-clearance sign hanging on chains: its bottom is just above a standing
+ * dog's back. Duck under it (or double-jump over it).
+ */
+export class LowBar extends Entity {
+  private img: Phaser.GameObjects.Image;
+  private chains: Phaser.GameObjects.Graphics;
+  private t = Math.random() * 4;
+  static readonly W = 104;
+  /** Height of the sign's bottom edge above the floor. */
+  static readonly CLEARANCE = 30;
+  static readonly H = 58;
+  constructor(scene: Phaser.Scene, private x: number) {
+    super();
+    const bottom = WORLD.groundY - LowBar.CLEARANCE;
+    this.chains = scene.add.graphics().setDepth(DEPTH.enemy);
+    this.chains.lineStyle(4, 0x302331, 1);
+    for (const cx of [x + 15, x + 89]) this.chains.lineBetween(cx, -20, cx, bottom - LowBar.H + 4);
+    this.img = scene.add.image(x - 3, bottom + 2, 'lowbar').setOrigin(0, 1).setScale(ART_SCALE).setDepth(DEPTH.enemy);
+  }
+  get right(): number {
+    return this.x + LowBar.W;
+  }
+  update(dt: number): void {
+    this.t += dt;
+    this.img.rotation = Math.sin(this.t * 2) * 0.015;
+  }
+  hazard(): Rect {
+    const bottom = WORLD.groundY - LowBar.CLEARANCE;
+    return { x: this.x, y: bottom - LowBar.H, w: LowBar.W, h: LowBar.H };
+  }
+  destroy(): void {
+    this.img.destroy();
+    this.chains.destroy();
   }
 }
 

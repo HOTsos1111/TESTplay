@@ -37,6 +37,25 @@ export function measureReach(speed: number, hover: boolean, burst = false): { di
   return { distance: pc.x - x0, apex };
 }
 
+/** Highest the feet reach with a full jump plus a double jump pressed at the apex. */
+export function measureDoubleApex(): number {
+  const floorY = WORLD.groundY;
+  const floor: Solid[] = [{ x: -10_000, y: floorY, w: 20_000, h: 200, oneWay: false, kind: 'ground' }];
+  const pc = new PlayerController(0, floorY, baseStats());
+  const dt = TUNING.maxStep;
+  pc.step(dt, { jumpPressed: true, jumpHeld: true, barkPressed: false }, floor);
+  let apex = 0;
+  let pressed = false;
+  for (let i = 0; i < 2000; i++) {
+    const press = !pressed && pc.vy >= 0;
+    if (press) pressed = true;
+    pc.step(dt, { jumpPressed: press, jumpHeld: press || pc.vy < 0, barkPressed: false }, []);
+    apex = Math.max(apex, floorY - pc.y);
+    if (pressed && pc.vy > 0 && pc.y >= floorY) break;
+  }
+  return apex;
+}
+
 export function reachAt(speed: number): Reach {
   const j = measureReach(speed, false);
   const h = measureReach(speed, true);
@@ -68,6 +87,8 @@ export function validateChunk(c: ChunkDef, minSpeed: number, maxSpeed: number): 
   const apex = Math.min(slow.apex, fast.apex);
   const canHover = c.requires.includes('hover');
   const canBurst = c.requires.includes('burst');
+  const canDouble = c.requires.includes('double');
+  const doubleApex = measureDoubleApex();
   const canBark = c.requires.includes('bark');
 
   for (const [x, w] of c.gaps ?? []) {
@@ -88,8 +109,11 @@ export function validateChunk(c: ChunkDef, minSpeed: number, maxSpeed: number): 
   for (const [x, top] of columns) {
     if (top <= apex * MARGIN) continue;
     const before = columns.get(x - OBJECT_SIZE.crate.w) ?? 0;
-    if (top - before > apex * MARGIN) add(`crate column at ${x} (${top}px) cannot be climbed`);
+    const reach = (canDouble ? doubleApex : apex) * MARGIN;
+    if (top - before > reach) add(`crate column at ${x} (${top}px) cannot be climbed${canDouble ? '' : ' (needs double jump?)'}`);
   }
+
+  if ((c.lowbars ?? []).length && !c.requires.includes('duck')) add('low signs present but chunk does not declare duck');
 
   for (const cb of c.cardboard ?? []) {
     const top = (cb.h ?? 0) + cb.stack * OBJECT_SIZE.cardboard.h;
@@ -111,6 +135,7 @@ export function validateChunk(c: ChunkDef, minSpeed: number, maxSpeed: number): 
     ...(c.tyres ?? []).filter((t) => !t.h).map((t) => ({ x: t.x, w: OBJECT_SIZE.tyre.w })),
     ...(c.cardboard ?? []).filter((b) => !b.h).map((b) => ({ x: b.x, w: OBJECT_SIZE.cardboard.w })),
     ...(c.gaps ?? []).map(([x, w]) => ({ x, w })),
+    ...(c.lowbars ?? []).map((l) => ({ x: l.x, w: 104 })),
     // Barrels roll about this far toward the hero before they meet him.
     ...(c.barrels ?? []).map((b) => ({ x: b.x - BARREL_TRAVEL, w: 48 })),
   ].sort((a, b) => a.x - b.x);

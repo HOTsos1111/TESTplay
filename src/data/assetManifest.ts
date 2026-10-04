@@ -40,6 +40,7 @@ export const ASSET_MANIFEST: AssetEntry[] = [
   // Enemies.
   ...['idle', 'taunt', 'throw', 'run', 'startled'].map((k) => e(`squirrel_${k}`, 'enemies', [90, 90], 'feet at bottom-centre')),
   e('acorn', 'enemies', [22, 24]),
+  e('nut_pile', 'enemies', [40, 28], 'lobbed acorns left on the path'),
   ...['walk', 'run', 'windup', 'frustrated', 'tumble'].map((k) => e(`dogcatcher_${k}`, 'enemies', [170, 250], 'feet at (90,246)')),
   e('trolley_body', 'enemies', [300, 180]),
   e('trolley_door', 'enemies', [30, 110]),
@@ -85,6 +86,7 @@ export const ASSET_MANIFEST: AssetEntry[] = [
   e('platform_mid_conveyor', 'tiles', [64, 18]),
   e('platform_mid_plank', 'tiles', [64, 18]),
   e('barrel', 'props', [48, 48], 'rolling hazard'),
+  e('lowbar', 'props', [110, 62], 'low-clearance sign: duck under it'),
   e('pu_bubble', 'props', [64, 64], 'power-up bubble'),
   e('pu_magnet', 'props', [48, 48], 'Golden Bone power-up'),
   e('pu_shield', 'props', [48, 52], 'Spiked Collar power-up'),

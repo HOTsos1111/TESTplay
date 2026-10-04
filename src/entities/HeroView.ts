@@ -11,6 +11,7 @@ export interface HeroVisualState {
   speed: number;
   invulnerable: number;
   bursting?: boolean;
+  ducking?: boolean;
 }
 
 type PartKey = keyof typeof HERO_PARTS;
@@ -48,6 +49,7 @@ export class HeroView {
   private stepAcc = 0;
   /** Burst animation clock (-1 when idle) and whether the rear has snapped yet. */
   private burstAnimT = -1;
+  private flipT = -1;
   private snapped = false;
   /** Elastic body: how far the front half (F) and rear half (R) are pulled ahead, in px. */
   private elF = 0;
@@ -86,8 +88,8 @@ export class HeroView {
 
     this.head = scene.add.container(44, -54);
     this.headImg = part('hero_head', 'head', 0, 0);
-    this.eye = part('hero_eye_determined', 'eye', 12, -15);
-    this.ear = part('hero_ear', 'ear', -5, -24);
+    this.eye = part('hero_eye_determined', 'eye', 12, -17);
+    this.ear = part('hero_ear', 'ear', -9, -27);
     this.mouth = part('hero_mouth', 'mouth', 22, 4).setVisible(false);
     this.head.add([this.headImg, this.mouth, this.eye, this.ear]);
 
@@ -100,7 +102,7 @@ export class HeroView {
     ];
     this.rig.setScale(HeroView.BASE_SCALE);
     this.frontParts = [legNearFront, legFarFront, collar].map((o) => ({ o, x: o.x }));
-    this.rearParts = [legNearRear, legFarRear, this.tail, this.propeller].map((o) => ({ o, x: o.x }));
+    this.rearParts = [legNearRear, legFarRear, this.propeller].map((o) => ({ o, x: o.x }));
   }
 
   setPosition(x: number, y: number): void {
@@ -179,6 +181,13 @@ export class HeroView {
     this.sqY = 1 - 0.2 * k;
   }
 
+  /** Double jump: a quick forward somersault. */
+  flip(): void {
+    this.flipT = 0;
+    this.sqX = 0.85;
+    this.sqY = 1.15;
+  }
+
   takeoff(): void {
     this.sqX = 0.86;
     this.sqY = 1.14;
@@ -214,8 +223,9 @@ export class HeroView {
   }
 
   private springEar(target: number, dt: number): void {
-    const k = 180;
-    const d = 9;
+    // Soft, under-damped spring: floppy velvet ears.
+    const k = 120;
+    const d = 5.5;
     const e = this.earSpring;
     const [n, h] = HeroView.substeps(dt);
     for (let i = 0; i < n; i++) {
@@ -253,7 +263,7 @@ export class HeroView {
     let earTarget = 0.4;
     let eye: EyeKind = 'determined';
     let showProp = false;
-    let tailRot = -0.5 + Math.sin(this.t * 14) * 0.25;
+    let tailRot = 0.55 + Math.sin(this.t * 14) * 0.4;
     let mouth = false;
     let stretch = 0;
 
@@ -274,7 +284,7 @@ export class HeroView {
         bodyRot = Math.sin(this.phase - 0.9) * 0.04; // rear end lags the front
         headY += Math.sin(this.phase + 0.6) * 1.6;
         earTarget = 0.7 + Math.sin(this.phase - 1.3) * 0.35;
-        tailRot = -0.4 + Math.sin(this.t * 16) * 0.35;
+        tailRot = 0.5 + Math.sin(this.t * 18) * 0.45;
       } else if (s.hovering) {
         showProp = true;
         rigRot = 0.08;
@@ -314,7 +324,7 @@ export class HeroView {
       const breath = Math.sin(this.t * 2.2);
       this.sqY = 1 + breath * 0.02;
       headRot = Math.sin(this.t * 0.9) * 0.05 + (Math.sin(this.t * 13) > 0.97 ? -0.05 : 0);
-      tailRot = -0.6 + Math.sin(this.t * 6) * 0.25;
+      tailRot = 0.6 + Math.sin(this.t * 7) * 0.4;
       earTarget = 0.35;
       eye = 'open';
       this.root.alpha = 1;
@@ -330,13 +340,13 @@ export class HeroView {
       headY -= 4;
       earTarget = -0.2;
       eye = this.modeT < 0.8 ? 'closed' : 'open';
-      tailRot = -0.8 + Math.sin(this.t * 10) * 0.2;
+      tailRot = 0.8 + Math.sin(this.t * 12) * 0.3;
       this.root.alpha = 1;
     } else if (this.mode === 'victory') {
       const b = Math.abs(Math.sin(this.t * 6.5));
       rigY = -b * 16;
       if (b < 0.1) this.sqY = 0.92;
-      tailRot = -0.7 + Math.sin(this.t * 26) * 0.5;
+      tailRot = 0.7 + Math.sin(this.t * 26) * 0.55;
       eye = 'happy';
       earTarget = 1.4 - b;
       mouth = true;
@@ -351,7 +361,7 @@ export class HeroView {
       headY += 6 * k;
       eye = 'dizzy';
       earTarget = 1.8;
-      tailRot = -0.1;
+      tailRot = -0.2;
       mouth = true;
       this.root.alpha = 1;
     }
@@ -368,8 +378,23 @@ export class HeroView {
       if (s.bursting) {
         rigRot += 0.07;
         earTarget = Math.max(earTarget, 2.4);
-        tailRot = -0.05 + Math.sin(this.t * 40) * 0.2;
+        tailRot = 0.15 + Math.sin(this.t * 40) * 0.25;
       }
+    }
+
+    if (this.mode === 'play' && s.ducking && s.grounded) {
+      // Belly-to-the-floor squat: flat, wide, legs splayed, ears pinned back.
+      for (let i = 0; i < 4; i++) legAngles[i] = this.legs[i].front ? -1.25 : 1.25;
+      headY += 11;
+      earTarget = 2.3;
+      eye = 'determined';
+      rigY = 0;
+    }
+    if (this.flipT >= 0) {
+      this.flipT += dt;
+      const k = Math.min(1, this.flipT / 0.42);
+      rigRot += (1 - Math.pow(1 - k, 2)) * Math.PI * 2;
+      if (k >= 1) this.flipT = -1;
     }
 
     if (this.mode === 'play' && this.blinkT <= 0) {
@@ -381,6 +406,10 @@ export class HeroView {
     this.springEar(earTarget, dt);
 
     const B = HeroView.BASE_SCALE;
+    if (this.mode === 'play' && s.ducking && s.grounded) {
+      this.sqX += (1.22 - this.sqX) * Math.min(1, dt * 22);
+      this.sqY += (0.58 - this.sqY) * Math.min(1, dt * 22);
+    }
     this.rig.setScale(B * this.sqX * (1 + stretch), B * this.sqY * (1 - stretch * 0.22));
     // Elastic body: front and rear halves move separately; the body stretches between them.
     const F = this.elF;
@@ -405,6 +434,8 @@ export class HeroView {
       this.propeller.rotation -= dt * 38;
       this.propeller.setScale(ART_SCALE * (1.25 + Math.sin(this.t * 50) * 0.08));
     }
+    // Tail root tucks under the body's rear edge, so it stays attached however the body stretches.
+    this.tail.setPosition(this.body.x - 56 * (this.body.scaleX / ART_SCALE) + 10, -44);
     this.tail.rotation = tailRot;
     for (let i = 0; i < 4; i++) this.legs[i].img.rotation = legAngles[i];
   }

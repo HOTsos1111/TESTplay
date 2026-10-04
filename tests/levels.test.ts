@@ -26,3 +26,19 @@ describe('chapter content', () => {
     });
   }
 });
+
+describe('power-up placement', () => {
+  it('changes between runs and is placed off the running line', () => {
+    const ch = CHAPTERS[0];
+    let seed = 1;
+    const rng = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const a = buildLevel(ch, rng).items.filter((i) => i.type === 'powerup');
+    const b = buildLevel(ch, rng).items.filter((i) => i.type === 'powerup');
+    expect(a.length).toBe(5);
+    expect(JSON.stringify(a)).not.toEqual(JSON.stringify(b));
+    // Every power-up needs a jump: at least 140px above the floor.
+    for (const p of a) expect(600 - (p as { y: number }).y).toBeGreaterThanOrEqual(140);
+    const kinds = new Set(a.map((p) => (p as { kind: string }).kind));
+    expect(kinds.size).toBeGreaterThanOrEqual(4);
+  });
+});

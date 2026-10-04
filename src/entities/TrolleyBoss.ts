@@ -32,6 +32,7 @@ export class TrolleyBoss extends Entity {
   private launched = 0;
   private launchT = 0;
   hits = 0;
+  private lungeTarget: number = TROLLEY.lungeScreenX;
   private worldX = 0;
   private shake = 0;
   private catcherFall = { x: 0, y: 0, vx: 0, vy: 0, rot: 0 };
@@ -150,11 +151,14 @@ export class TrolleyBoss extends Entity {
         this.shake = 0.08;
         if (this.t >= R.lungeWarnTime) {
           Audio.play('whistle');
+          // Lunge to just inside bark reach of wherever the hero is pacing.
+          const heroScreen = ctx.heroX - ctx.cameraLeft;
+          this.lungeTarget = Phaser.Math.Clamp(heroScreen + (R.lungeScreenX - 320), 420, R.restScreenX - 80);
           this.go('lunge');
         }
         break;
       case 'lunge':
-        this.screenX = Phaser.Math.Linear(this.fromX, R.lungeScreenX, ease(this.t / R.lungeTime));
+        this.screenX = Phaser.Math.Linear(this.fromX, this.lungeTarget, ease(this.t / R.lungeTime));
         if (this.t >= R.lungeTime) this.go('window');
         break;
       case 'window':

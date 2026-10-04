@@ -728,7 +728,43 @@ function drawBeacon(c: Ctx, on: boolean): void {
   }
 }
 
+function drawLowSign(c: Ctx): void {
+  // Low-clearance bar: chunky hazard-striped beam with a duck-down arrow.
+  rr(c, 3, 8, 104, 50, 8);
+  c.save();
+  c.clip();
+  c.fillStyle = '#FFC93C';
+  c.fillRect(0, 0, 110, 66);
+  c.fillStyle = PAL.outline;
+  for (let x = -60; x < 120; x += 24) {
+    c.beginPath();
+    c.moveTo(x, 66);
+    c.lineTo(x + 12, 66);
+    c.lineTo(x + 52, 0);
+    c.lineTo(x + 40, 0);
+    c.closePath();
+    c.fill();
+  }
+  c.restore();
+  rr(c, 3, 8, 104, 50, 8);
+  stroke(c, 4);
+  // Downward chevron badge.
+  ell(c, 55, 33, 16, 16);
+  fillStroke(c, PAL.white, 3);
+  c.beginPath();
+  c.moveTo(46, 28);
+  c.lineTo(55, 38);
+  c.lineTo(64, 28);
+  stroke(c, 4, PAL.coral);
+  // Hooks for the chains.
+  for (const x of [18, 92]) {
+    ell(c, x, 6, 4, 4);
+    stroke(c, 3);
+  }
+}
+
 export function generateDecorArt(scene: Phaser.Scene): void {
+  makeTexture(scene, 'lowbar', 110, 62, drawLowSign);
   makeTexture(scene, 'actor_forklift', 124, 90, drawForklift);
   makeTexture(scene, 'actor_pigeon', 36, 28, drawPigeon);
   makeTexture(scene, 'actor_cat', 48, 48, drawCat);

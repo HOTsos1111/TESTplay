@@ -8,13 +8,13 @@ import { ell, fillStroke, makeTexture, PAL, rr, stroke, type Ctx } from './canva
  */
 export const HERO_PARTS = {
   body: { w: 124, h: 58, ox: 0.5, oy: 0.5 },
-  head: { w: 76, h: 62, ox: 0.32, oy: 0.62 },
-  ear: { w: 28, h: 42, ox: 0.5, oy: 0.1 },
+  head: { w: 80, h: 66, ox: 0.32, oy: 0.62 },
+  ear: { w: 40, h: 66, ox: 0.42, oy: 0.07 },
   legNear: { w: 18, h: 28, ox: 0.5, oy: 0.14 },
   legFar: { w: 18, h: 28, ox: 0.5, oy: 0.14 },
-  tail: { w: 38, h: 16, ox: 0.92, oy: 0.5 },
+  tail: { w: 46, h: 26, ox: 0.9, oy: 0.62 },
   collar: { w: 18, h: 42, ox: 0.5, oy: 0.5 },
-  eye: { w: 26, h: 26, ox: 0.5, oy: 0.5 },
+  eye: { w: 36, h: 36, ox: 0.5, oy: 0.5 },
   mouth: { w: 22, h: 18, ox: 0.3, oy: 0.2 },
   propeller: { w: 64, h: 64, ox: 0.5, oy: 0.5 },
 } as const;
@@ -51,50 +51,50 @@ function drawBody(c: Ctx): void {
 }
 
 function drawHead(c: Ctx): void {
-  // Snout (cream), drawn under skull.
-  ell(c, 54, 39, 19, 11, -0.08);
+  // Short cute snout (cream), drawn under a big round skull.
+  ell(c, 54, 42, 16, 11, -0.08);
   fillStroke(c, PAL.cream, 3);
-  // Skull.
-  ell(c, 28, 30, 23, 22);
+  ell(c, 28, 31, 26, 25);
   fillStroke(c, PAL.chestnut, 3.5);
-  // Cheek blending into muzzle.
-  ell(c, 41, 38, 10, 8);
+  // Cheek blending into the muzzle, and a rosy blush.
+  ell(c, 43, 41, 10, 8);
   c.fillStyle = PAL.cream;
   c.fill();
-  // Brow ridge shading.
-  ell(c, 26, 14, 14, 6);
-  c.fillStyle = PAL.chestnutDark;
-  c.globalAlpha = 0.35;
+  ell(c, 33, 44, 7, 4.5);
+  c.fillStyle = 'rgba(240,117,98,0.55)';
   c.fill();
-  c.globalAlpha = 1;
-  // Nose.
-  ell(c, 72, 35, 6, 5);
+  // Forehead highlight.
+  ell(c, 22, 15, 10, 5, -0.3);
+  c.fillStyle = 'rgba(255,240,215,0.35)';
+  c.fill();
+  // Button nose.
+  ell(c, 68, 37, 6.5, 5.5);
   fillStroke(c, PAL.outline, 0);
-  ell(c, 70.5, 33.5, 1.8, 1.3);
-  c.fillStyle = '#8f7a92';
+  ell(c, 66.5, 35, 2, 1.4);
+  c.fillStyle = '#9f8aa2';
   c.fill();
-  // Smile line.
+  // Little smile.
   c.beginPath();
-  c.moveTo(48, 46);
-  c.quadraticCurveTo(58, 51, 68, 43);
+  c.moveTo(50, 49);
+  c.quadraticCurveTo(57, 53, 64, 46);
   stroke(c, 2.5);
 }
-
 function drawEar(c: Ctx): void {
+  // Long, wide, floppy velvet ear with a soft curl at the tip.
   c.beginPath();
-  c.moveTo(9, 4);
-  c.quadraticCurveTo(25, 2, 23, 18);
-  c.quadraticCurveTo(22, 38, 13, 39);
-  c.quadraticCurveTo(3, 38, 4, 22);
-  c.quadraticCurveTo(4, 8, 9, 4);
+  c.moveTo(12, 4);
+  c.quadraticCurveTo(34, 2, 33, 24);
+  c.quadraticCurveTo(34, 50, 24, 61);
+  c.quadraticCurveTo(14, 66, 8, 57);
+  c.quadraticCurveTo(2, 40, 5, 22);
+  c.quadraticCurveTo(6, 8, 12, 4);
   c.closePath();
   fillStroke(c, PAL.ear, 3);
   c.beginPath();
-  c.moveTo(12, 12);
-  c.quadraticCurveTo(15, 25, 12, 32);
-  stroke(c, 2, 'rgba(255,225,170,0.25)');
+  c.moveTo(16, 14);
+  c.quadraticCurveTo(22, 34, 16, 52);
+  stroke(c, 2.5, 'rgba(255,225,170,0.22)');
 }
-
 function drawLeg(c: Ctx, color: string): void {
   rr(c, 3.5, 2, 11, 20, 5.5);
   fillStroke(c, color, 3);
@@ -103,14 +103,19 @@ function drawLeg(c: Ctx, color: string): void {
 }
 
 function drawTail(c: Ctx): void {
+  // Thick at the root (tucks under the body's rear), tapering to a curled tip.
   c.beginPath();
-  c.moveTo(35, 4);
-  c.quadraticCurveTo(18, 3, 3, 8);
-  c.quadraticCurveTo(18, 13, 35, 12);
+  c.moveTo(43, 10);
+  c.quadraticCurveTo(26, 8, 12, 4);
+  c.quadraticCurveTo(4, 2, 3, 7);
+  c.quadraticCurveTo(4, 11, 12, 11);
+  c.quadraticCurveTo(26, 17, 43, 22);
   c.closePath();
   fillStroke(c, PAL.chestnut, 3);
+  ell(c, 7, 7, 3, 2.2);
+  c.fillStyle = PAL.chestnutDark;
+  c.fill();
 }
-
 function drawCollar(c: Ctx): void {
   rr(c, 3, 3, 12, 32, 6);
   fillStroke(c, PAL.teal, 3);
@@ -123,75 +128,69 @@ function drawCollar(c: Ctx): void {
 }
 
 function drawEye(c: Ctx, kind: EyeKind): void {
-  const cx = 13;
-  const cy = 13;
+  const cx = 18;
+  const cy = 18;
   switch (kind) {
     case 'open':
     case 'determined': {
-      ell(c, cx, cy, 8, 9.5);
-      fillStroke(c, PAL.white, 2.8);
-      ell(c, cx + 2.5, cy + 1, 4.6, 5.4);
+      ell(c, cx, cy, 11, 13);
+      fillStroke(c, PAL.white, 3);
+      ell(c, cx + 2.5, cy + 1.5, 7.5, 9);
+      c.fillStyle = '#3B2A3E';
+      c.fill();
+      ell(c, cx + 3, cy + 3, 4.5, 5.5);
       c.fillStyle = PAL.outline;
       c.fill();
-      ell(c, cx + 4, cy - 1.5, 1.6, 1.6);
+      ell(c, cx + 5.5, cy - 3, 3, 3.2);
       c.fillStyle = PAL.white;
       c.fill();
+      ell(c, cx - 0.5, cy + 6, 1.5, 1.5);
+      c.fill();
       if (kind === 'determined') {
-        // Lowered lid slanting down toward the nose.
-        c.save();
-        ell(c, cx, cy, 8, 9.5);
-        c.clip();
+        // A brave little brow, not an angry lid.
         c.beginPath();
-        c.moveTo(cx - 10, cy - 12);
-        c.lineTo(cx + 10, cy - 12);
-        c.lineTo(cx + 10, cy - 1);
-        c.lineTo(cx - 10, cy - 5);
-        c.closePath();
-        c.fillStyle = PAL.chestnut;
-        c.fill();
-        c.restore();
-        c.beginPath();
-        c.moveTo(cx - 9, cy - 5.5);
-        c.lineTo(cx + 9, cy - 0.5);
-        stroke(c, 2.8);
-        ell(c, cx, cy, 8, 9.5);
-        stroke(c, 2.8);
+        c.moveTo(cx - 10, cy - 15);
+        c.quadraticCurveTo(cx, cy - 18, cx + 11, cy - 12);
+        stroke(c, 3.2);
       }
       break;
     }
     case 'surprised': {
-      ell(c, cx, cy, 10, 11.5);
-      fillStroke(c, PAL.white, 2.8);
-      ell(c, cx + 1, cy, 2.6, 2.6);
+      ell(c, cx, cy, 13, 15);
+      fillStroke(c, PAL.white, 3);
+      ell(c, cx + 1, cy, 4, 4.5);
       c.fillStyle = PAL.outline;
+      c.fill();
+      ell(c, cx + 3, cy - 3, 1.5, 1.5);
+      c.fillStyle = PAL.white;
       c.fill();
       break;
     }
     case 'happy': {
       c.beginPath();
-      c.moveTo(cx - 7, cy + 3);
-      c.quadraticCurveTo(cx, cy - 8, cx + 7, cy + 3);
-      stroke(c, 3.2);
+      c.moveTo(cx - 9, cy + 4);
+      c.quadraticCurveTo(cx, cy - 10, cx + 9, cy + 4);
+      stroke(c, 3.5);
       break;
     }
     case 'closed': {
       c.beginPath();
-      c.moveTo(cx - 7, cy + 1);
-      c.quadraticCurveTo(cx, cy + 5, cx + 7, cy + 1);
-      stroke(c, 3.2);
+      c.moveTo(cx - 9, cy + 2);
+      c.quadraticCurveTo(cx, cy + 7, cx + 9, cy + 2);
+      stroke(c, 3.5);
       break;
     }
     case 'dizzy': {
       c.beginPath();
-      for (let i = 0; i < 26; i++) {
+      for (let i = 0; i < 30; i++) {
         const a = i * 0.55;
-        const r = 1 + i * 0.32;
+        const r = 1 + i * 0.38;
         const x = cx + Math.cos(a) * r;
         const y = cy + Math.sin(a) * r;
         if (i === 0) c.moveTo(x, y);
         else c.lineTo(x, y);
       }
-      stroke(c, 2.4);
+      stroke(c, 2.6);
       break;
     }
   }

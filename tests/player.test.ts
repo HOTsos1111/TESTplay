@@ -76,6 +76,7 @@ describe('PlayerController', () => {
   it('jump buffer triggers a jump pressed just before landing', () => {
     const pc = new PlayerController(0, G - 200);
     pc.grounded = false;
+    pc.doubleUsed = true; // double jump already spent, so a late press buffers for landing
     // Fall until ~0.08 s before landing (about 600px/s at that point → ~50px).
     let i = 0;
     while (G - pc.y > 45 && i++ < 2000) pc.step(dt, none, floor);
@@ -164,5 +165,36 @@ describe('moving platforms', () => {
       landed = pc.step(dt, { jumpPressed: false, jumpHeld: false, barkPressed: false }, [lift]).some((e) => e.type === 'land');
     }
     expect(landed).toBe(true);
+  });
+});
+
+describe('double jump and duck', () => {
+  it('a fresh press in the air double-jumps once, reaching well above a single jump', () => {
+    const apex = (double: boolean) => {
+      const pc = new PlayerController(0, G);
+      let best = 0;
+      let doubles = 0;
+      for (let i = 0; i < 400; i++) {
+        const press = i === 0 || (double && (pc.vy > -20 && pc.vy < 20) && !pc.grounded && i > 5) || (double && i === 200);
+        const ev = pc.step(dt, { jumpPressed: press, jumpHeld: true, barkPressed: false }, floor);
+        doubles += ev.filter((e) => e.type === 'doubleJump').length;
+        best = Math.max(best, G - pc.y);
+      }
+      return { best, doubles };
+    };
+    const single = apex(false);
+    const dbl = apex(true);
+    expect(dbl.doubles).toBe(1);
+    expect(dbl.best).toBeGreaterThan(single.best * 1.7);
+  });
+
+  it('ducking only works on the ground and shrinks the hurtbox', () => {
+    const pc = new PlayerController(0, G);
+    const standing = pc.hurtRect().h;
+    run(pc, 0.05, { duckHeld: true });
+    expect(pc.ducking).toBe(true);
+    expect(pc.hurtRect().h).toBeLessThan(standing / 2);
+    run(pc, 0.05, { duckHeld: true, jumpPressed: true, jumpHeld: true });
+    expect(pc.ducking).toBe(false);
   });
 });

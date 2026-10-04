@@ -455,11 +455,17 @@ function drawSquirrel(c: Ctx, pose: SquirrelPose): void {
     ell(c, -11, -28, 2.6, 3);
     c.fillStyle = PAL.outline;
     c.fill();
-    // Smug half-lid.
+    // Furious brow slanting down toward the nose, plus a vein-pop mark.
     c.beginPath();
-    c.moveTo(-15, -32);
-    c.lineTo(-3, -31);
-    stroke(c, 2.6);
+    c.moveTo(-17, -37);
+    c.lineTo(-2, -32);
+    stroke(c, 3.4);
+    c.beginPath();
+    c.moveTo(2, -44);
+    c.lineTo(6, -40);
+    c.moveTo(6, -44);
+    c.lineTo(2, -40);
+    stroke(c, 2, PAL.coral);
   }
   // Mouth.
   c.beginPath();
@@ -828,6 +834,11 @@ export function generateWorldArt(scene: Phaser.Scene): void {
     makeTexture(scene, `squirrel_${p}`, 90, 90, (c) => drawSquirrel(c, p));
   }
   makeTexture(scene, 'acorn', 22, 24, (c) => drawAcorn(c, 11, 13, 1.1));
+  makeTexture(scene, 'nut_pile', 40, 28, (c) => {
+    drawAcorn(c, 10, 17, 1);
+    drawAcorn(c, 29, 17, 1);
+    drawAcorn(c, 20, 11, 1.1);
+  });
   makeTexture(scene, 'parcel_small', 46, 42, (c) => drawParcel(c, 46, 42));
   makeTexture(scene, 'parcel_big', 58, 56, (c) => drawParcel(c, 58, 56));
   makeTexture(scene, 'trolley_body', 300, 180, drawTrolley);

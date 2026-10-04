@@ -15,6 +15,10 @@ export class InputManager {
   private touchJump = new Set<number>();
   private touchBark = new Set<number>();
   private keys: Phaser.Input.Keyboard.Key[] = [];
+  private dirKeys: { left: Phaser.Input.Keyboard.Key[]; right: Phaser.Input.Keyboard.Key[]; down: Phaser.Input.Keyboard.Key[] } = { left: [], right: [], down: [] };
+  /** Virtual joystick vector (-1..1 each axis, y down), set by the touch layer. */
+  private stick = { x: 0, y: 0, active: false };
+  private stickUp = false;
   private enabled = true;
   /** Set once a touch is seen so prompts can switch to touch wording. */
   static touchMode = false;
@@ -31,6 +35,12 @@ export class InputManager {
       this.bindKey(K.SHIFT, 'burst');
       this.bindKey(K.C, 'burst');
       this.bindKey(K.L, 'burst');
+      const dir = (code: number) => kb.addKey(code, true, false);
+      this.dirKeys = {
+        left: [dir(K.LEFT), dir(K.A)],
+        right: [dir(K.RIGHT), dir(K.D)],
+        down: [dir(K.DOWN), dir(K.S)],
+      };
       this.bindKey(K.ESC, 'pause');
       this.bindKey(K.P, 'pause');
     }
@@ -75,6 +85,29 @@ export class InputManager {
     this.touchBark.delete(pointerId);
   }
 
+  /** Joystick update from the touch layer. Pushing up acts like pressing jump. */
+  setStick(x: number, y: number, active: boolean): void {
+    if (active && !this.enabled) return;
+    InputManager.touchMode = true;
+    this.stick = { x, y, active };
+    const up = active && y < -0.5;
+    if (up && !this.stickUp) this.jumpLatch = true;
+    this.stickUp = up;
+  }
+
+  /** -1 (pace back) .. 1 (pace forward). */
+  get pace(): number {
+    const kb = (this.dirKeys.right.some((k) => k.isDown) ? 1 : 0) - (this.dirKeys.left.some((k) => k.isDown) ? 1 : 0);
+    if (kb !== 0) return kb;
+    if (!this.stick.active) return 0;
+    const x = this.stick.x;
+    return Math.abs(x) < 0.25 ? 0 : Math.max(-1, Math.min(1, (x - Math.sign(x) * 0.25) / 0.75));
+  }
+
+  get duckHeld(): boolean {
+    return this.dirKeys.down.some((k) => k.isDown) || (this.stick.active && this.stick.y > 0.5);
+  }
+
   requestPause(): void {
     this.pauseLatch = true;
   }
@@ -85,14 +118,16 @@ export class InputManager {
       for (const k of this.keys) if (k.isDown && (k.keyCode === 32 || k.keyCode === 38 || k.keyCode === 87)) return true;
       this.keyJumpHeld.clear();
     }
-    return this.touchJump.size > 0;
+    return this.touchJump.size > 0 || this.stickUp;
   }
 
   /** Consumes latched presses. Call once per rendered frame. */
-  consume(): FrameInput & { burstPressed: boolean; pausePressed: boolean } {
+  consume(): FrameInput & { burstPressed: boolean; pausePressed: boolean; pace: number } {
     const out = {
       jumpPressed: this.jumpLatch,
       jumpHeld: this.jumpHeld,
+      duckHeld: this.duckHeld,
+      pace: this.pace,
       barkPressed: this.barkLatch,
       burstPressed: this.burstLatch,
       pausePressed: this.pauseLatch,
@@ -113,6 +148,8 @@ export class InputManager {
     this.keyJumpHeld.clear();
     this.touchJump.clear();
     this.touchBark.clear();
+    this.stick = { x: 0, y: 0, active: false };
+    this.stickUp = false;
   }
 
   setEnabled(on: boolean): void {
@@ -121,6 +158,7 @@ export class InputManager {
   }
 
   destroy(): void {
+    for (const k of [...this.dirKeys.left, ...this.dirKeys.right, ...this.dirKeys.down]) this.scene.input.keyboard?.removeKey(k, true);
     for (const k of this.keys) {
       k.removeAllListeners();
       this.scene.input.keyboard?.removeKey(k, true);

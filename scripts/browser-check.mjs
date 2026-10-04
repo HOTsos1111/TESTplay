@@ -140,19 +140,6 @@ try {
   await sleep(250);
   await page.screenshot({ path: 'screenshots/03d-burst-run.png' });
 
-  // Power-up: the Golden Bone sits early in "jump_gap"; run the hero into it.
-  await page.evaluate(() => window.__HH__.teleport()(3500));
-  {
-    const t0 = Date.now();
-    let got = false;
-    while (Date.now() - t0 < 8000 && !got) {
-      const s = await state(page);
-      got = !!s?.powerups?.magnet;
-      await sleep(50);
-    }
-    check('running into a power-up bubble activates it', got);
-  }
-
   // Pause freezes simulation.
   await page.keyboard.press('Escape');
   await waitScene(page, 'Pause');
@@ -174,6 +161,31 @@ try {
   await sleep(50);
   const b2 = await state(page);
   check('bark starts a cooldown that blocks immediate re-bark', b1.barkCooldown > 0.5 && b2.barkCooldown < b1.barkCooldown, `cd1=${b1.barkCooldown.toFixed(2)} cd2=${b2.barkCooldown.toFixed(2)}`);
+
+  // Power-ups are placed at random each run; drop the hero onto the first one we can see.
+  {
+    let got = false;
+    let where = null;
+    const t0 = Date.now();
+    while (Date.now() - t0 < 20000 && !where) {
+      const s = await state(page);
+      where = s?.powerupsAt?.[0] ?? null;
+      if (!where) {
+        await page.evaluate((x) => window.__HH__.teleport()(x), (s?.x ?? 0) + 2500);
+        await sleep(300);
+      }
+    }
+    if (where) {
+      await page.evaluate((w) => window.__HH__.teleport()(w.x, w.y + 40), where);
+      const t1 = Date.now();
+      while (Date.now() - t1 < 5000 && !got) {
+        const s = await state(page);
+        got = Object.keys(s?.powerups ?? {}).length > 0;
+        await sleep(50);
+      }
+    }
+    check('touching a power-up bubble activates it', got, where ? JSON.stringify(where) : 'no power-up found');
+  }
 
   // Run without input until something hurts the hero; verify invulnerability then defeat flow.
   let hurt = null;
@@ -307,14 +319,30 @@ try {
           input.touchUp(79);
           w.__bot.bursts = (w.__bot.bursts ?? 0) + 1;
         }
+        // Duck under low signs (overhead hazards).
+        const overhead = s.hazardsAhead.find((h) => h.bottom > 18 && h.dx > -110 && h.dx < 170);
+        if (overhead && s.grounded && !w.__hold) {
+          if (!w.__duck) input.setStick(0, 0.95, true);
+          w.__duck = true;
+        } else if (w.__duck) {
+          input.setStick(0, 0, false);
+          w.__duck = false;
+        }
+        // Double-jump tall crate towers: second press near the top of the first jump.
+        const tower = s.solidsAhead.find((c) => c.kind === 'crate' && c.dx > -30 && c.dx < 220 && c.top > s.height + 110);
+        if (tower && !s.grounded && !s.doubleUsed && s.vy > -120) {
+          input.touchDown('jump', 77);
+          w.__bot.doubles = (w.__bot.doubles ?? 0) + 1;
+          w.__hold = { mode: 'gap', air: true };
+        }
         // Hold like a player: across a gap until landing; for hops/crates until the apex.
-        if (s.grounded && !w.__hold) {
+        if (s.grounded && !w.__hold && !w.__duck) {
           let mode = null;
           const gap = s.gapsAhead.find((g) => g[0] >= 0 && g[0] < (s.bursting ? 170 : 110) && s.height < 5);
           if (gap) mode = 'gap';
-          const hz = s.hazardsAhead.find((h) => h.dx > 45 && h.dx < 125 && h.top > s.height);
+          const hz = s.hazardsAhead.find((h) => h.bottom < 18 && h.dx > 45 && h.dx < 125 && h.top > s.height);
           if (!mode && hz) mode = 'hop';
-          const crate = s.solidsAhead.find((c) => c.kind === 'crate' && c.dx > 46 && c.dx < 140 && c.top > s.height + 5);
+          const crate = s.solidsAhead.find((c) => c.kind === 'crate' && c.dx > 46 && c.dx < (c.top > s.height + 110 ? 120 : 140) && c.top > s.height + 5);
           if (!mode && crate) mode = 'hop';
           if (mode) {
             input.touchDown('jump', 77);

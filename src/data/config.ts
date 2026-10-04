@@ -29,6 +29,13 @@ export const TUNING = {
   maxFallSpeed: 1100,
   jumpVelocity: -650,
   jumpReleaseClamp: -300,
+  /** Second jump, triggered by a fresh press while airborne (once per air time). */
+  doubleJumpVelocity: -680,
+  /** Extra px/s the hero gains or loses relative to the scroll when pacing forward/back. */
+  paceSpeed: 130,
+  /** On-screen range the hero can pace within (px from the left edge). */
+  paceMinX: 150,
+  paceMaxX: 560,
   coyoteTime: 0.1,
   jumpBuffer: 0.12,
   hoverDelay: 0.18,
@@ -69,6 +76,8 @@ export const HERO_BOX = {
   body: { width: 92, height: 46 },
   /** Inset hurtbox covering the central body only. */
   hurt: { width: 76, height: 34, bottomInset: 6 },
+  /** Hurtbox height while ducking (squashed flat to the floor). */
+  duckHurtHeight: 16,
   /** Bones are collected with a more generous box. */
   pickup: { width: 120, height: 80 },
   /** Bark origin relative to feet anchor. */
