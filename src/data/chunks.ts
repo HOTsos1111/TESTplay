@@ -175,12 +175,12 @@ export const CHUNKS: Record<string, ChunkDef> = {
   crate_steps: {
     id: 'crate_steps', length: 2400, entryHeight: 0, exitHeight: 0, requires: ['jump', 'bark'], recovery: 300,
     powerupSlots: [{ x: 1000, h: 200 }],
-    crates: [{ x: 600 }, { x: 664 }, { x: 728, stack: 2 }, { x: 792, stack: 2 }],
+    crates: [{ x: 600 }, { x: 664 }, { x: 728 }, { x: 792, stack: 2 }, { x: 856, stack: 2 }],
     cardboard: [{ x: 1650, stack: 3 }],
     tyres: [{ x: 2050 }],
     bones: [
       { kind: 'line', x: 610, h: 95, n: 2, spacing: 50 },
-      { kind: 'line', x: 740, h: 160, n: 2, spacing: 50 },
+      { kind: 'line', x: 804, h: 160, n: 2, spacing: 50 },
       { kind: 'arc', x: 1000, h: 140, n: 5, width: 300, rise: 30 },
     ],
   },
@@ -283,7 +283,7 @@ export const CHUNKS: Record<string, ChunkDef> = {
   duck_double_mix: {
     id: 'duck_double_mix', length: 3000, entryHeight: 0, exitHeight: 0, requires: ['jump', 'double', 'duck', 'bark'], recovery: 350,
     lowbars: [{ x: 600 }],
-    crates: [{ x: 1250 }, { x: 1314, stack: 3 }, { x: 1378, stack: 3 }],
+    crates: [{ x: 1314, stack: 3 }, { x: 1378, stack: 3 }],
     cardboard: [{ x: 2000, stack: 3 }],
     tyres: [{ x: 2600 }],
     bones: [

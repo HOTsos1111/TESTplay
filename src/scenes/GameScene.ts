@@ -215,6 +215,7 @@ export class GameScene extends Phaser.Scene {
       surfaceBelow: (x, y) => this.surfaceBelow(x, y),
       spawn: (e) => this.entities.push(e),
       collectPowerUp: (kind) => this.activatePowerUp(kind),
+      isClearSpot: (x) => this.isClearSpot(x),
       addBone: () => {
         this.bones++;
         progress.addBones(1);
@@ -399,6 +400,23 @@ export class GameScene extends Phaser.Scene {
   }
 
   private pendingHints: { x: number; id: string }[] = [];
+
+  private isClearSpot(x: number): boolean {
+    const margin = 150;
+    // Solid floor for a stretch around the spot (no pits nearby).
+    for (const dx of [-margin, 0, margin]) {
+      const sx = x + dx;
+      if (!this.solids.some((s) => s.kind === 'ground' && sx >= s.x && sx <= s.x + s.w)) return false;
+    }
+    for (const e of this.entities) {
+      if (!e.alive || e instanceof Bone || e instanceof Squirrel || e instanceof Acorn) continue;
+      const r = e.hazard() ?? e.solid;
+      if (!r || r.y === undefined) continue;
+      if (e instanceof GroundPiece) continue;
+      if (x + margin > r.x && x - margin < r.x + r.w) return false;
+    }
+    return true;
+  }
 
   private burstStack(stack: string): void {
     if (this.stackBursts.has(stack)) return;

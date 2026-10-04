@@ -28,6 +28,11 @@ export interface GameContext {
   spawn(e: Entity): void;
   addBone(): void;
   collectPowerUp(kind: 'magnet' | 'shield' | 'whistle' | 'bacon'): void;
+  /**
+   * True if a nut may come to rest at world x: floor underneath and no other
+   * obstacle, gap or low sign nearby (so a nut never creates an unavoidable combo).
+   */
+  isClearSpot(x: number): boolean;
 }
 
 export abstract class Entity {
@@ -500,7 +505,12 @@ export class Squirrel extends Entity {
     let nut: Acorn;
     if (Math.random() < 0.6) {
       // Lob a cluster to land on the path in front of the hero; it stays there.
-      const target = Math.max(ctx.heroX + 230, this.x - rand(120, 340));
+      let target = -1;
+      for (let i = 0; i < 6 && target < 0; i++) {
+        const tx = Math.max(ctx.heroX + 230, this.x - rand(120, 340));
+        if (ctx.isClearSpot(tx)) target = tx;
+      }
+      if (target < 0) return;
       nut = new Acorn(ctx.scene, this.x - 20, this.y - 40, 'lob', target);
     } else {
       nut = new Acorn(ctx.scene, this.x - 24, this.y - 26, 'roll');
@@ -680,7 +690,15 @@ export class Acorn extends Entity {
         this.vy = this.vy > 300 ? -this.vy * 0.3 : 0;
         // Friction: rollers skid to a stop and become a small obstacle.
         this.vx = Math.min(0, this.vx + 260 * dt);
-        if (this.vx > -8 && this.vy === 0) this.resting = true;
+        if (this.vx > -8 && this.vy === 0) {
+          // A roller that stops somewhere unfair just fizzles out instead.
+          if (!ctx.isClearSpot(nx)) {
+            this.alive = false;
+            ctx.fx.puff(nx, surf - 8, 2, 0.5);
+            return;
+          }
+          this.resting = true;
+        }
       }
     }
     this.x = nx;

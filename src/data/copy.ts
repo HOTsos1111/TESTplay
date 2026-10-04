@@ -42,7 +42,7 @@ export const HINTS: Record<string, HintCopy> = {
   hover_recharge: { keys: 'Your tail recharges while your paws are on the ground.', touch: 'Your tail recharges while your paws are on the ground.' },
   burst: { keys: 'Arrows on the floor? Press SHIFT to BURST, then jump and hold!', touch: 'Arrows on the floor? Tap SPEED, then jump and hold!' },
   duck: { keys: 'Low sign ahead! Hold ↓ (or S) to duck under it.', touch: 'Low sign ahead! Pull the stick DOWN to duck under it.' },
-  double: { keys: 'Too tall! Jump, then press jump again in mid-air to double-jump.', touch: 'Too tall! Push UP, let go, then push UP again in mid-air to double-jump.' },
+  double: { keys: 'Too tall! Jump EARLY, then press jump again at the top to double-jump.', touch: 'Too tall! Push UP early, let go, then push UP again at the top to double-jump.' },
   encounter: { keys: 'Jump the parcels. Bark the latch when it glows!', touch: 'Jump the parcels. Bark the latch when it glows!' },
 };
 

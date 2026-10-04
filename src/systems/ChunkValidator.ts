@@ -111,6 +111,12 @@ export function validateChunk(c: ChunkDef, minSpeed: number, maxSpeed: number): 
     const before = columns.get(x - OBJECT_SIZE.crate.w) ?? 0;
     const reach = (canDouble ? doubleApex : apex) * MARGIN;
     if (top - before > reach) add(`crate column at ${x} (${top}px) cannot be climbed${canDouble ? '' : ' (needs double jump?)'}`);
+    // Climbing from a lower step needs run-up: at least three crates of that step to land on.
+    if (before > 0 && top > before) {
+      let run = 0;
+      while ((columns.get(x - (run + 1) * OBJECT_SIZE.crate.w) ?? -1) === before) run++;
+      if (run < 3) add(`crate step before column at ${x} is only ${run} crate(s) wide; needs 3 to land and re-jump`);
+    }
   }
 
   if ((c.lowbars ?? []).length && !c.requires.includes('duck')) add('low signs present but chunk does not declare duck');

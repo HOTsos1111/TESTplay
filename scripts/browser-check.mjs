@@ -320,7 +320,7 @@ try {
           w.__bot.bursts = (w.__bot.bursts ?? 0) + 1;
         }
         // Duck under low signs (overhead hazards).
-        const overhead = s.hazardsAhead.find((h) => h.bottom > 18 && h.dx > -110 && h.dx < 170);
+        const overhead = s.hazardsAhead.find((h) => h.bottom > 18 && h.dx + h.w > -50 && h.dx < 170);
         if (overhead && s.grounded && !w.__hold) {
           if (!w.__duck) input.setStick(0, 0.95, true);
           w.__duck = true;
@@ -329,8 +329,8 @@ try {
           w.__duck = false;
         }
         // Double-jump tall crate towers: second press near the top of the first jump.
-        const tower = s.solidsAhead.find((c) => c.kind === 'crate' && c.dx > -30 && c.dx < 220 && c.top > s.height + 110);
-        if (tower && !s.grounded && !s.doubleUsed && s.vy > -120) {
+        const tower = s.solidsAhead.find((c) => c.kind === 'crate' && c.dx > -30 && c.dx < 300 && c.top > s.height + 140);
+        if (tower && !s.grounded && !s.doubleUsed && s.vy > -60) {
           input.touchDown('jump', 77);
           w.__bot.doubles = (w.__bot.doubles ?? 0) + 1;
           w.__hold = { mode: 'gap', air: true };
@@ -342,7 +342,7 @@ try {
           if (gap) mode = 'gap';
           const hz = s.hazardsAhead.find((h) => h.bottom < 18 && h.dx > 45 && h.dx < 125 && h.top > s.height);
           if (!mode && hz) mode = 'hop';
-          const crate = s.solidsAhead.find((c) => c.kind === 'crate' && c.dx > 46 && c.dx < (c.top > s.height + 110 ? 120 : 140) && c.top > s.height + 5);
+          const crate = s.solidsAhead.find((c) => c.kind === 'crate' && c.dx > (c.top > s.height + 140 ? 280 : 140) && c.dx < (c.top > s.height + 140 ? 360 : 220) && c.top > s.height + 5);
           if (!mode && crate) mode = 'hop';
           if (mode) {
             input.touchDown('jump', 77);
