@@ -8,6 +8,7 @@ import { progress } from '../systems/ProgressStore';
 import { Backdrop } from '../ui/Backdrop';
 import { Button } from '../ui/Button';
 import { COLOR, CSS, textStyle } from '../ui/theme';
+import { centerMenu } from '../ui/layout';
 
 interface StoryData {
   next?: 'game' | 'settings';
@@ -46,7 +47,8 @@ export class StoryScene extends Phaser.Scene {
     this.layer = this.add.container(0, 0);
     const bar = this.add.graphics().setDepth(DEPTH.hud);
     bar.fillStyle(COLOR.outline, 0.82);
-    bar.fillRect(0, 630, 1280, 90);
+    bar.fillRect(-400, 630, 2080, 90);
+    centerMenu(this);
     this.caption = this.add.text(640, 675, '', textStyle(32, CSS.white)).setOrigin(0.5).setDepth(DEPTH.hud + 1);
     new Button(this, 1170, 50, 'Skip ▶', () => this.finish(), { width: 160, height: 56, fontSize: 24, color: 0x6f86a8 }).setDepth(DEPTH.hud + 2);
     this.add.text(20, 20, 'Tap or press Space to continue', textStyle(18, CSS.cream, 4)).setDepth(DEPTH.hud + 2);

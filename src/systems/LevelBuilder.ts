@@ -13,7 +13,8 @@ export type Spawnable =
   | { type: 'bone'; x: number; y: number; id: string }
   | { type: 'scent'; x: number; y: number }
   | { type: 'hint'; x: number; id: string }
-  | { type: 'gate'; x: number };
+  | { type: 'gate'; x: number }
+  | { type: 'burstMarker'; x: number };
 
 export interface LevelLayout {
   items: Spawnable[];
@@ -81,6 +82,7 @@ export function buildLevel(chapter: ChapterDef): LevelLayout {
     for (const s of c.scent ?? []) {
       for (let i = 0; i < s.n; i++) items.push({ type: 'scent', x: o + s.x + i * s.spacing, y: g - s.h - Math.sin((i / Math.max(1, s.n - 1)) * Math.PI) * 40 });
     }
+    for (const m of c.burstMarkers ?? []) items.push({ type: 'burstMarker', x: o + m.x });
     if (c.hint) items.push({ type: 'hint', x: o + c.hint.x, id: c.hint.id });
     if (c.exitGate) {
       encounterX = o + c.exitGate.x;

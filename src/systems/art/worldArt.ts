@@ -327,6 +327,22 @@ function drawGateDoor(c: Ctx): void {
   stroke(c, 2);
 }
 
+function drawBurstMarker(c: Ctx): void {
+  // Floor sign painted on the ground: three bold chevrons (a "speed up here" cue, not an obstacle).
+  for (let i = 0; i < 3; i++) {
+    const ox = 6 + i * 44;
+    c.beginPath();
+    c.moveTo(ox, 2);
+    c.lineTo(ox + 22, 9);
+    c.lineTo(ox, 16);
+    c.lineTo(ox + 14, 16);
+    c.lineTo(ox + 36, 9);
+    c.lineTo(ox + 14, 2);
+    c.closePath();
+    fillStroke(c, i === 2 ? PAL.coral : PAL.butter, 2);
+  }
+}
+
 function drawShadow(c: Ctx): void {
   ell(c, 60, 10, 58, 9);
   c.fillStyle = 'rgba(48,35,49,0.28)';
@@ -806,6 +822,7 @@ export function generateWorldArt(scene: Phaser.Scene): void {
   makeTexture(scene, 'exit_gate', 220, 282, drawGate);
   makeTexture(scene, 'gate_door', 84, 240, drawGateDoor);
   makeTexture(scene, 'shadow', 120, 20, drawShadow);
+  makeTexture(scene, 'burst_marker', 144, 18, drawBurstMarker);
   makeTexture(scene, 'toy', 62, 30, drawToy);
   for (const p of ['idle', 'taunt', 'throw', 'run', 'startled'] as SquirrelPose[]) {
     makeTexture(scene, `squirrel_${p}`, 90, 90, (c) => drawSquirrel(c, p));
@@ -824,4 +841,9 @@ export function generateWorldArt(scene: Phaser.Scene): void {
   makeTexture(scene, 'fx_star', 22, 22, (c) => drawStar(c, PAL.butter));
   makeTexture(scene, 'fx_sparkle', 18, 18, drawSparkle);
   makeTexture(scene, 'fx_exclaim', 36, 44, drawExclaim);
+  makeTexture(scene, 'fx_streak', 48, 8, (c) => {
+    rr(c, 2, 2, 44, 4, 2);
+    c.fillStyle = 'rgba(255,253,246,0.85)';
+    c.fill();
+  });
 }

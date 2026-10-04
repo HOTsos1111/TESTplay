@@ -7,6 +7,7 @@ import { progress } from '../systems/ProgressStore';
 import { Backdrop } from '../ui/Backdrop';
 import { Button, MenuNav } from '../ui/Button';
 import { COLOR, CSS, textStyle } from '../ui/theme';
+import { autoFullscreen, isFullscreen, toggleFullscreen } from '../ui/fullscreen';
 
 export class TitleScene extends Phaser.Scene {
   private backdrop!: Backdrop;
@@ -33,17 +34,24 @@ export class TitleScene extends Phaser.Scene {
     const hasProgress = p.storySeen || p.completedChapters.length > 0 || p.checkpoint !== null || p.boneBalance > 0;
     const buttons: Button[] = [];
     const primary = new Button(this, 640, 350, hasProgress ? COPY.continue : COPY.start, () => {
+      autoFullscreen(this);
       if (!progress.state.storySeen) this.scene.start('Story', { next: 'game' });
       else this.scene.start('ChapterMap');
     }, { width: 340, height: 80, fontSize: 36, color: COLOR.coral });
     buttons.push(primary);
     buttons.push(new Button(this, 640, 448, COPY.shop, () => this.scene.start('Upgrade', { from: 'Title' }), { width: 340, height: 62, fontSize: 26 }));
     buttons.push(new Button(this, 640, 530, COPY.settings, () => this.scene.start('Settings', { from: 'Title' }), { width: 340, height: 62, fontSize: 26, color: 0x6f86a8 }));
+    const fsLabel = () => (isFullscreen(this) ? 'Exit full screen' : 'Full screen');
+    const fs = new Button(this, 1130, 44, fsLabel(), () => {
+      toggleFullscreen(this);
+      this.time.delayedCall(400, () => fs.setText(fsLabel()));
+    }, { width: 230, height: 54, fontSize: 22, color: 0x6f86a8 });
+    buttons.push(fs);
     for (const b of buttons) b.setDepth(DEPTH.hud);
     new MenuNav(this, buttons);
 
     this.add.text(1260, 700, COPY.credit, textStyle(22, CSS.cream)).setOrigin(1, 1).setDepth(DEPTH.hud);
-    this.add.text(20, 700, 'Space / ↑ jump · hold to hover · X / K bark · Esc pause', textStyle(18, CSS.cream, 4)).setOrigin(0, 1).setDepth(DEPTH.hud);
+    this.add.text(20, 700, 'Space / ↑ jump · hold to hover · X / K bark · Shift burst · Esc pause', textStyle(18, CSS.cream, 4)).setOrigin(0, 1).setDepth(DEPTH.hud);
     if (!progress.available) {
       this.add.text(640, 690, 'Saving is unavailable in this browser — progress lasts until you close the tab.', textStyle(18, CSS.coral, 4)).setOrigin(0.5, 1).setDepth(DEPTH.hud);
     }

@@ -9,6 +9,8 @@ export interface HudState {
   metres: number;
   wagFraction: number;
   hovering: boolean;
+  burstFraction: number;
+  bursting: boolean;
   barkCooldown: number;
   bossHits: number | null;
   bossMax: number;
@@ -21,6 +23,10 @@ export class Hud {
   private distText: Phaser.GameObjects.Text;
   private wagIcon: Phaser.GameObjects.Image;
   private wagBar: Phaser.GameObjects.Graphics;
+  private burstIcon: Phaser.GameObjects.Image;
+  private burstBar: Phaser.GameObjects.Graphics;
+  private burstReadyT = 0;
+  private lastBurst = 1;
   private barkIcon: Phaser.GameObjects.Image;
   private barkDial: Phaser.GameObjects.Graphics;
   private bossLabel: Phaser.GameObjects.Text;
@@ -31,6 +37,10 @@ export class Hud {
   private hintT = 0;
   readonly pauseButton: Phaser.GameObjects.Image;
   private lastHearts = -1;
+  /** Extra width beyond the 1280 design width (right-side items shift by this). */
+  private dx = 0;
+  private rightItems: { o: Phaser.GameObjects.Components.Transform; x: number }[] = [];
+  private centerItems: { o: Phaser.GameObjects.Components.Transform; x: number }[] = [];
   private heartFlash = 0;
 
   constructor(private scene: Phaser.Scene, onPause: () => void) {
@@ -48,6 +58,8 @@ export class Hud {
 
     this.wagIcon = fixed(scene.add.image(880, 42, 'icon_tail').setScale(ART_SCALE * 1.2));
     this.wagBar = fixed(scene.add.graphics());
+    this.burstIcon = fixed(scene.add.image(880, 84, 'icon_burst').setScale(ART_SCALE * 1.2));
+    this.burstBar = fixed(scene.add.graphics());
     this.barkIcon = fixed(scene.add.image(1140, 42, 'icon_bark').setScale(ART_SCALE * 1.2));
     this.barkDial = fixed(scene.add.graphics());
     this.pauseButton = fixed(scene.add.image(1228, 42, 'icon_pause').setScale(ART_SCALE * 1.4));
@@ -62,6 +74,17 @@ export class Hud {
     this.hintBg = scene.add.graphics();
     this.hintText = scene.add.text(0, 0, '', textStyle(28)).setOrigin(0.5);
     this.hint = fixed(scene.add.container(640, 160, [this.hintBg, this.hintText]).setVisible(false));
+
+    this.rightItems = [this.wagIcon, this.burstIcon, this.barkIcon, this.pauseButton].map((o) => ({ o, x: o.x }));
+    this.centerItems = [this.bossLabel, this.hint].map((o) => ({ o, x: o.x }));
+    this.layout(scene.scale.width);
+  }
+
+  /** Reposition for the current game width (right items hug the right edge). */
+  layout(width: number): void {
+    this.dx = Math.max(0, width - 1280);
+    for (const r of this.rightItems) r.o.x = r.x + this.dx;
+    for (const c of this.centerItems) c.o.x = c.x + this.dx / 2;
   }
 
   showHint(text: string, seconds = 3.2): void {
@@ -79,8 +102,9 @@ export class Hud {
 
   /** Big centred chapter card / banner that fades on its own. */
   banner(title: string, sub: string, seconds = 2.4): void {
-    const t1 = this.scene.add.text(640, 300, title, textStyle(56, CSS.butter, 10)).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH.hud + 1);
-    const t2 = this.scene.add.text(640, 366, sub, textStyle(28, CSS.white)).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH.hud + 1);
+    const cx = 640 + this.dx / 2;
+    const t1 = this.scene.add.text(cx, 300, title, textStyle(56, CSS.butter, 10)).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH.hud + 1);
+    const t2 = this.scene.add.text(cx, 366, sub, textStyle(28, CSS.white)).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH.hud + 1);
     for (const t of [t1, t2]) {
       t.setAlpha(0);
       this.scene.tweens.add({ targets: t, alpha: 1, duration: 250 });
@@ -107,7 +131,7 @@ export class Hud {
     this.wagIcon.setTexture(empty ? 'icon_tail_empty' : 'icon_tail');
     if (s.hovering) this.wagIcon.rotation -= dt * 20;
     else this.wagIcon.rotation *= 0.9;
-    const bx = 906;
+    const bx = 906 + this.dx;
     const by = 32;
     const bw = 170;
     const bh = 20;
@@ -128,22 +152,47 @@ export class Hud {
       for (let x = bx + 6; x < bx + bw; x += 12) g.lineBetween(x, by + bh - 3, x + 8, by + 3);
     }
 
+    // Burst meter: fills slowly; flashes when ready.
+    if (s.burstFraction >= 1 && this.lastBurst < 1) this.burstReadyT = 0.6;
+    this.lastBurst = s.burstFraction;
+    this.burstReadyT = Math.max(0, this.burstReadyT - dt);
+    const ready = s.burstFraction >= 1;
+    this.burstIcon.setTexture(ready || s.bursting ? 'icon_burst' : 'icon_burst_empty');
+    this.burstIcon.setScale(ART_SCALE * (1.2 + this.burstReadyT * 0.6 + (ready ? Math.sin(performance.now() / 120) * 0.06 : 0)));
+    const ub = this.burstBar;
+    const uy = 74;
+    ub.clear();
+    ub.fillStyle(COLOR.outline, 0.85);
+    ub.fillRoundedRect(bx - 3, uy - 3, bw + 6, 20 + 6, 12);
+    ub.fillStyle(0x5c4560, 1);
+    ub.fillRoundedRect(bx, uy, bw, 20, 9);
+    const bf = s.bursting ? 1 : s.burstFraction;
+    if (bf > 0.02) {
+      ub.fillStyle(ready || s.bursting ? COLOR.butter : 0xc9a34a, 1);
+      ub.fillRoundedRect(bx, uy, Math.max(18, bw * bf), 20, 9);
+    }
+    if (ready) {
+      ub.lineStyle(3, COLOR.white, 0.6 + Math.sin(performance.now() / 120) * 0.4);
+      ub.strokeRoundedRect(bx - 3, uy - 3, bw + 6, 26, 12);
+    }
+
     // Bark cooldown dial.
     const d = this.barkDial;
     d.clear();
-    const ready = s.barkCooldown <= 0;
-    this.barkIcon.setAlpha(ready ? 1 : 0.45);
+    const barkReady = s.barkCooldown <= 0;
+    const dialX = 1140 + this.dx;
+    this.barkIcon.setAlpha(barkReady ? 1 : 0.45);
     d.lineStyle(5, COLOR.outline, 0.9);
-    d.strokeCircle(1140, 42, 26);
-    if (!ready) {
+    d.strokeCircle(dialX, 42, 26);
+    if (!barkReady) {
       const k = 1 - s.barkCooldown / TUNING.barkCooldown;
       d.lineStyle(5, COLOR.coral, 1);
       d.beginPath();
-      d.arc(1140, 42, 26, -Math.PI / 2, -Math.PI / 2 + k * Math.PI * 2);
+      d.arc(dialX, 42, 26, -Math.PI / 2, -Math.PI / 2 + k * Math.PI * 2);
       d.strokePath();
     } else {
       d.lineStyle(3, COLOR.butter, 1);
-      d.strokeCircle(1140, 42, 26);
+      d.strokeCircle(dialX, 42, 26);
     }
 
     // Boss pips.
@@ -151,7 +200,7 @@ export class Hud {
     this.bossLabel.setVisible(s.bossHits !== null);
     if (s.bossHits !== null) {
       for (let i = 0; i < s.bossMax; i++) {
-        const x = 640 + (i - (s.bossMax - 1) / 2) * 40;
+        const x = 640 + this.dx / 2 + (i - (s.bossMax - 1) / 2) * 40;
         this.bossPips.fillStyle(COLOR.outline, 1);
         this.bossPips.fillCircle(x, 68, 14);
         this.bossPips.fillStyle(i < s.bossHits ? COLOR.butter : 0x5c4560, 1);

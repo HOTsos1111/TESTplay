@@ -9,6 +9,7 @@ import type { FrameInput } from './PlayerController';
 export class InputManager {
   private jumpLatch = false;
   private barkLatch = false;
+  private burstLatch = false;
   private pauseLatch = false;
   private keyJumpHeld = new Set<string>();
   private touchJump = new Set<number>();
@@ -27,13 +28,16 @@ export class InputManager {
       this.bindKey(K.W, 'jump');
       this.bindKey(K.X, 'bark');
       this.bindKey(K.K, 'bark');
+      this.bindKey(K.SHIFT, 'burst');
+      this.bindKey(K.C, 'burst');
+      this.bindKey(K.L, 'burst');
       this.bindKey(K.ESC, 'pause');
       this.bindKey(K.P, 'pause');
     }
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.destroy());
   }
 
-  private bindKey(code: number, action: 'jump' | 'bark' | 'pause'): void {
+  private bindKey(code: number, action: 'jump' | 'bark' | 'burst' | 'pause'): void {
     const key = this.scene.input.keyboard!.addKey(code, true, false);
     const id = `k${code}`;
     key.on('down', () => {
@@ -42,6 +46,7 @@ export class InputManager {
         this.keyJumpHeld.add(id);
         this.jumpLatch = true;
       } else if (action === 'bark') this.barkLatch = true;
+      else if (action === 'burst') this.burstLatch = true;
       else this.pauseLatch = true;
     });
     key.on('up', () => {
@@ -51,10 +56,12 @@ export class InputManager {
   }
 
   /** Touch buttons forward pointer presses here. */
-  touchDown(action: 'jump' | 'bark', pointerId: number): void {
+  touchDown(action: 'jump' | 'bark' | 'burst', pointerId: number): void {
     InputManager.touchMode = true;
     if (!this.enabled) return;
-    if (action === 'jump') {
+    if (action === 'burst') {
+      this.burstLatch = true;
+    } else if (action === 'jump') {
       this.touchJump.add(pointerId);
       this.jumpLatch = true;
     } else {
@@ -82,15 +89,17 @@ export class InputManager {
   }
 
   /** Consumes latched presses. Call once per rendered frame. */
-  consume(): FrameInput & { pausePressed: boolean } {
+  consume(): FrameInput & { burstPressed: boolean; pausePressed: boolean } {
     const out = {
       jumpPressed: this.jumpLatch,
       jumpHeld: this.jumpHeld,
       barkPressed: this.barkLatch,
+      burstPressed: this.burstLatch,
       pausePressed: this.pauseLatch,
     };
     this.jumpLatch = false;
     this.barkLatch = false;
+    this.burstLatch = false;
     this.pauseLatch = false;
     return out;
   }
@@ -99,6 +108,7 @@ export class InputManager {
   clear(): void {
     this.jumpLatch = false;
     this.barkLatch = false;
+    this.burstLatch = false;
     this.pauseLatch = false;
     this.keyJumpHeld.clear();
     this.touchJump.clear();

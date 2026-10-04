@@ -40,6 +40,7 @@ export const HINTS: Record<string, HintCopy> = {
   squirrel: { keys: 'Bark to spook squirrels — or jump their acorns.', touch: 'Bark to spook squirrels — or jump their acorns.' },
   hover: { keys: 'Hold jump to give your tail a spin!', touch: 'Hold jump to give your tail a spin!' },
   hover_recharge: { keys: 'Your tail recharges while your paws are on the ground.', touch: 'Your tail recharges while your paws are on the ground.' },
+  burst: { keys: 'Arrows on the floor? Press SHIFT to BURST, then jump and hold!', touch: 'Arrows on the floor? Tap BURST, then jump and hold!' },
   encounter: { keys: 'Jump the parcels. Bark the latch when it glows!', touch: 'Jump the parcels. Bark the latch when it glows!' },
 };
 

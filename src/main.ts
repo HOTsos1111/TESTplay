@@ -11,6 +11,7 @@ import { TitleScene } from './scenes/TitleScene';
 import { UpgradeScene } from './scenes/UpgradeScene';
 import { Audio } from './systems/AudioManager';
 import { registerTestHook } from './systems/debug';
+import { gameWidthFor } from './ui/layout';
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,
@@ -29,6 +30,15 @@ const game = new Phaser.Game({
   render: { antialias: true, roundPixels: false },
   scene: [BootScene, TitleScene, StoryScene, ChapterMapScene, GameScene, PauseScene, ResultsScene, UpgradeScene, SettingsScene],
 });
+
+// Match the game's width to the screen's shape so wide phones are filled edge to edge.
+const fitWidth = () => {
+  const w = gameWidthFor(window.innerWidth, window.innerHeight);
+  if (game.scale.width !== w) game.scale.setGameSize(w, VIEW.height);
+};
+window.addEventListener('resize', fitWidth);
+window.addEventListener('orientationchange', () => setTimeout(fitWidth, 200));
+game.events.once(Phaser.Core.Events.READY, fitWidth);
 
 // Browsers only allow audio after a user gesture.
 const unlock = () => Audio.unlock();

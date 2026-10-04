@@ -2,7 +2,7 @@ import { MUSIC, type TrackDef } from '../data/music';
 
 export type SfxKey =
   | 'bark' | 'jump' | 'land' | 'step' | 'bone' | 'hit' | 'defeat' | 'box_break' | 'boss_hit' | 'boss_clear'
-  | 'ui_select' | 'ui_confirm' | 'ui_back' | 'whistle' | 'squirrel' | 'throw' | 'parcel' | 'squeak' | 'retreat';
+  | 'ui_select' | 'ui_confirm' | 'ui_back' | 'whistle' | 'squirrel' | 'throw' | 'parcel' | 'squeak' | 'retreat' | 'burst_stretch' | 'burst_snap' | 'burst_ready';
 
 /** Maximum simultaneous voices per effect. */
 const VOICE_CAP: Partial<Record<SfxKey, number>> = { bone: 4, step: 2, bark: 2, land: 2, parcel: 3 };
@@ -393,6 +393,59 @@ class AudioManagerImpl {
       case 'squeak':
         this.tone('sine', 1500, 2100, t, 0.08, 0.25);
         return this.tone('sine', 2100, 1300, t + 0.08, 0.08, 0.2);
+      case 'burst_stretch': {
+        // Rubber-band stretch: a warbling slide up, like pulling a slingshot.
+        const ctx = this.ctx!;
+        const o = ctx.createOscillator();
+        const lfo = ctx.createOscillator();
+        const lg = ctx.createGain();
+        const g = this.out(0.0001, t);
+        o.type = 'triangle';
+        o.frequency.setValueAtTime(160, t);
+        o.frequency.exponentialRampToValueAtTime(820, t + 0.17);
+        lfo.frequency.setValueAtTime(18, t);
+        lfo.frequency.linearRampToValueAtTime(40, t + 0.17);
+        lg.gain.value = 40;
+        lfo.connect(lg).connect(o.frequency);
+        g.gain.linearRampToValueAtTime(0.32, t + 0.02);
+        g.gain.setValueAtTime(0.32, t + 0.15);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+        o.connect(g);
+        o.start(t);
+        lfo.start(t);
+        o.stop(t + 0.22);
+        lfo.stop(t + 0.22);
+        return t + 0.22;
+      }
+      case 'burst_snap': {
+        // The back end snapping forward: a whip-crack, then a cartoon "boi-oi-oing".
+        this.noiseBurst(t, 0.04, 0.55, 'highpass', 2500);
+        this.tone('square', 1400, 300, t, 0.05, 0.22);
+        const ctx = this.ctx!;
+        const o = ctx.createOscillator();
+        const lfo = ctx.createOscillator();
+        const lg = ctx.createGain();
+        const g = this.out(0.0001, t + 0.03);
+        o.type = 'sine';
+        o.frequency.setValueAtTime(260, t + 0.03);
+        o.frequency.exponentialRampToValueAtTime(420, t + 0.5);
+        lfo.frequency.setValueAtTime(14, t);
+        lfo.frequency.linearRampToValueAtTime(6, t + 0.5);
+        lg.gain.setValueAtTime(90, t + 0.03);
+        lg.gain.exponentialRampToValueAtTime(5, t + 0.5);
+        lfo.connect(lg).connect(o.frequency);
+        g.gain.linearRampToValueAtTime(0.35, t + 0.05);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+        o.connect(g);
+        o.start(t + 0.03);
+        lfo.start(t);
+        o.stop(t + 0.58);
+        lfo.stop(t + 0.58);
+        return t + 0.58;
+      }
+      case 'burst_ready':
+        this.tone('sine', 880, 880, t, 0.06, 0.14);
+        return this.tone('sine', 1320, 1320, t + 0.07, 0.1, 0.14);
       case 'retreat':
         return this.tone('sine', 500, 1400, t, 0.18, 0.18);
     }

@@ -3,7 +3,9 @@
  * points (section 4, "Initial tuning") — not a tested balance.
  */
 export const VIEW = {
+  /** Design width. Wide phones get a wider game (up to maxWidth) at the same height. */
   width: 1280,
+  maxWidth: 1720,
   height: 720,
   /** Hero is held at this fraction of the screen width. */
   heroScreenX: 0.25,
@@ -35,6 +37,14 @@ export const TUNING = {
   hoverMaxFall: 70,
   /** Meter units (seconds of hover) recharged per second on the ground. */
   groundRecharge: 0.6,
+  /** Seconds for the burst meter to fill from empty. */
+  burstChargeTime: 6,
+  /** Seconds a burst lasts on the ground; a jump started during it keeps the speed until landing. */
+  burstDuration: 0.9,
+  /** Extra speed during a burst, as a fraction of the current run speed. */
+  burstSpeedBonus: 0.65,
+  /** How far forward the hero slides on screen while bursting (cosmetic camera lead). */
+  burstScreenLead: 90,
   barkCooldown: 0.75,
   barkRange: 190,
   barkLifetime: 0.18,

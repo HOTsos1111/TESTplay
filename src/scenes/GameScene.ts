@@ -6,7 +6,7 @@ import { TROLLEY } from '../data/encounters';
 import { HeroView } from '../entities/HeroView';
 import { TrolleyBoss } from '../entities/TrolleyBoss';
 import {
-  Bone, Cardboard, Crate, Entity, Gate, GroundPiece, Platform, Scent, Squirrel, Tyre, type GameContext,
+  Bone, BurstMarker, Cardboard, Crate, Entity, Gate, GroundPiece, Platform, Scent, Squirrel, Tyre, type GameContext,
 } from '../entities/World';
 import { ART_SCALE } from '../systems/AssetRegistry';
 import { Audio } from '../systems/AudioManager';
@@ -74,6 +74,16 @@ export class GameScene extends Phaser.Scene {
   private resultsSent = false;
   private paused = false;
   private onHidden = () => this.pauseGame();
+  private touch!: TouchControls;
+  /** Cosmetic on-screen lead while bursting. */
+  private lead = 0;
+  private burstWasReady = true;
+
+  private onResize(size: Phaser.Structs.Size): void {
+    for (const l of this.layers) l.ts.setSize(size.width, VIEW.height);
+    this.hud.layout(size.width);
+    this.touch.layout(size.width);
+  }
 
   constructor() {
     super('Game');
@@ -99,24 +109,32 @@ export class GameScene extends Phaser.Scene {
     this.pendingHints = [];
     this.pitFall = false;
     this.groundEnd = -Infinity;
+    this.lead = 0;
+    this.burstWasReady = true;
 
     const startX = this.startAt === 'encounter' ? this.layout.encounterX + 160 : this.layout.startX;
     this.pc = new PlayerController(startX, WORLD.groundY, statsFromUpgrades());
     this.pc.speed = this.chapter.speedStart;
 
     for (const [key, factor, depth] of [['depot_far', 0.08, DEPTH.farBg], ['depot_mid', 0.3, DEPTH.midBg], ['depot_near', 0.62, DEPTH.nearBg]] as const) {
-      const ts = this.add.tileSprite(0, 0, VIEW.width, VIEW.height, key).setOrigin(0, 0).setScrollFactor(0).setDepth(depth).setTileScale(ART_SCALE);
+      const ts = this.add.tileSprite(0, 0, this.scale.width, VIEW.height, key).setOrigin(0, 0).setScrollFactor(0).setDepth(depth).setTileScale(ART_SCALE);
       this.layers.push({ ts, factor });
     }
 
     this.fx = new Fx(this);
     this.hero = new HeroView(this, startX, WORLD.groundY).setDepth(DEPTH.hero);
     this.hero.onStep = () => Audio.play('step');
+    this.hero.onSnap = () => {
+      Audio.play('burst_snap');
+      this.fx.puff(this.pc.x - 70, this.pc.y - 20, 4, 0.7);
+      this.cameras.main.shake(90, 0.004);
+    };
     this.shadow = this.add.image(startX, WORLD.groundY, 'shadow').setScale(ART_SCALE).setDepth(DEPTH.groundShadow);
 
     this.input2 = new InputManager(this);
     this.hud = new Hud(this, () => this.input2.requestPause());
-    new TouchControls(this, this.input2, (p) => p.x > 1180 && p.y < 100);
+    this.touch = new TouchControls(this, this.input2, (p) => p.x > this.scale.width - 100 && p.y < 100);
+    this.scale.on(Phaser.Scale.Events.RESIZE, this.onResize, this);
 
     this.ctx = {
       scene: this,
@@ -136,7 +154,7 @@ export class GameScene extends Phaser.Scene {
 
     // Skip content behind the start point (checkpoint retries start at the encounter).
     this.cursor = 0;
-    const skipBefore = startX - VIEW.width;
+    const skipBefore = startX - this.scale.width;
     while (this.cursor < this.layout.items.length) {
       const it = this.layout.items[this.cursor];
       const keep = it.type === 'ground' ? it.x + it.w > skipBefore : it.type === 'gate' ? true : it.x > startX;
@@ -178,6 +196,9 @@ export class GameScene extends Phaser.Scene {
       barkCooldown: this.pc.barkCooldown,
       paused: this.paused,
       speed: this.pc.speed,
+      burstMeter: this.pc.burstMeter,
+      bursting: this.pc.bursting,
+      effectiveSpeed: this.pc.effectiveSpeed,
       heroView: this.hero.debugState,
       hazardsAhead: this.entities
         .map((e) => (e.alive ? e.hazard() : null))
@@ -193,7 +214,7 @@ export class GameScene extends Phaser.Scene {
       gapsAhead: (() => {
         const gaps: [number, number][] = [];
         let start: number | null = null;
-        for (let dx = 0; dx <= 700; dx += 10) {
+        for (let dx = 0; dx <= 1200; dx += 10) {
           const x = this.pc.x + dx;
           const solid = this.solids.some((s) => s.kind === 'ground' && x >= s.x && x <= s.x + s.w);
           if (!solid && start === null) start = dx;
@@ -202,7 +223,7 @@ export class GameScene extends Phaser.Scene {
             start = null;
           }
         }
-        if (start !== null) gaps.push([start, 700]);
+        if (start !== null) gaps.push([start, 1200]);
         return gaps;
       })(),
       height: WORLD.groundY - this.pc.y,
@@ -214,6 +235,7 @@ export class GameScene extends Phaser.Scene {
     this.game.events.off(Phaser.Core.Events.HIDDEN, this.onHidden);
     this.game.events.off(Phaser.Core.Events.BLUR, this.onHidden);
     this.events.off(Phaser.Scenes.Events.RESUME, this.onResume, this);
+    this.scale.off(Phaser.Scale.Events.RESIZE, this.onResize, this);
     Audio.stopTail(true);
     this.fx.clear();
     for (const e of this.entities) e.destroy();
@@ -272,6 +294,8 @@ export class GameScene extends Phaser.Scene {
         return new Scent(this, it.x, it.y);
       case 'gate':
         return new Gate(this, it.x);
+      case 'burstMarker':
+        return new BurstMarker(this, it.x);
       case 'hint':
         this.pendingHints.push(it);
         return null;
@@ -289,7 +313,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private spawnAhead(initial = false): void {
-    const limit = this.cameras.main.scrollX + VIEW.width + WORLD.spawnAhead;
+    const limit = this.cameras.main.scrollX + this.scale.width + WORLD.spawnAhead;
     while (this.cursor < this.layout.items.length && this.layout.items[this.cursor].x < limit) {
       const it = this.layout.items[this.cursor++];
       if (initial && it.type === 'hint' && it.x < this.pc.x) continue;
@@ -309,9 +333,9 @@ export class GameScene extends Phaser.Scene {
   private groundEnd = -Infinity;
 
   private layoutCamera(): void {
-    this.cameras.main.scrollX = Math.round(this.pc.x - VIEW.width * VIEW.heroScreenX);
+    this.cameras.main.scrollX = Math.round(this.pc.x - VIEW.width * VIEW.heroScreenX - this.lead);
     this.ctx.cameraLeft = this.cameras.main.scrollX;
-    this.ctx.cameraRight = this.cameras.main.scrollX + VIEW.width;
+    this.ctx.cameraRight = this.cameras.main.scrollX + this.scale.width;
   }
 
   // ------------------------------------------------------------ flow
@@ -475,6 +499,10 @@ export class GameScene extends Phaser.Scene {
         case 'hoverStop':
           Audio.stopTail();
           break;
+        case 'burstStart':
+          this.hero.burst();
+          Audio.play('burst_stretch');
+          break;
         case 'bark':
           this.pulseId++;
           this.pulseT = TUNING.barkLifetime;
@@ -497,6 +525,11 @@ export class GameScene extends Phaser.Scene {
       this.pc.vy = -700;
     }
 
+    // While bursting the hero surges ahead on screen, then the camera catches up.
+    const leadTarget = this.pc.bursting ? TUNING.burstScreenLead : 0;
+    this.lead += (leadTarget - this.lead) * Math.min(1, dt * (this.pc.bursting ? 6 : 2.5));
+    if (this.pc.burstMeter >= 1 && !this.burstWasReady) Audio.play('burst_ready');
+    this.burstWasReady = this.pc.burstMeter >= 1;
     this.layoutCamera();
     this.ctx.heroX = this.pc.x;
     this.ctx.heroY = this.pc.y;
@@ -575,9 +608,14 @@ export class GameScene extends Phaser.Scene {
       grounded: this.pc.grounded,
       vy: this.pc.vy,
       hovering: this.pc.hovering,
-      speed: this.pc.speed,
+      speed: this.pc.effectiveSpeed,
       invulnerable: this.pc.invulnerable,
+      bursting: this.pc.bursting,
     });
+    this.touch.update(dt, this.pc.burstMeter >= 1);
+    if (this.pc.bursting && Math.random() < dt * 40) {
+      this.fx.streak(this.pc.x - 60 - Math.random() * 60, this.pc.y - 15 - Math.random() * 55);
+    }
     if (this.pc.hovering && Math.random() < dt * 20) {
       const t = this.hero.tailWorld;
       this.fx.propeller(t.x, t.y);
@@ -596,6 +634,8 @@ export class GameScene extends Phaser.Scene {
       metres: this.metres(),
       wagFraction: this.pc.wagFraction,
       hovering: this.pc.hovering,
+      burstFraction: this.pc.burstMeter,
+      bursting: this.pc.bursting,
       barkCooldown: this.pc.barkCooldown,
       bossHits: this.boss ? this.boss.hits : null,
       bossMax: TROLLEY.hitsToWin,

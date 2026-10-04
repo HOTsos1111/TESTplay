@@ -262,6 +262,26 @@ export class Gate extends Entity {
   }
 }
 
+export class BurstMarker extends Entity {
+  private img: Phaser.GameObjects.Image;
+  private t = 0;
+  constructor(scene: Phaser.Scene, private x: number) {
+    super();
+    // Painted on the floor's top lip, drawn over the ground.
+    this.img = scene.add.image(x, WORLD.groundY + 9, 'burst_marker').setOrigin(0, 0.5).setScale(ART_SCALE).setDepth(DEPTH.ground + 1);
+  }
+  get right(): number {
+    return this.x + 144;
+  }
+  update(dt: number): void {
+    this.t += dt;
+    this.img.setAlpha(0.75 + Math.sin(this.t * 8) * 0.25);
+  }
+  destroy(): void {
+    this.img.destroy();
+  }
+}
+
 // ---------------------------------------------------------------- enemies
 
 type SquirrelState = 'idle' | 'taunt' | 'throw' | 'run' | 'startled';

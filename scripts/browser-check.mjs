@@ -109,6 +109,15 @@ try {
   check('hero rig is visible with sane scale', vis.visible && vis.alpha > 0.3 && vis.scaleX > 0.4 && vis.scaleX < 1.6 && vis.scaleY > 0.4 && vis.scaleY < 1.6, JSON.stringify(vis));
   await page.screenshot({ path: 'screenshots/03b-before-pause.png' });
 
+  // Burst: stretch, speed boost, meter empties.
+  await page.keyboard.press('Shift');
+  await sleep(60);
+  await page.screenshot({ path: 'screenshots/03c-burst-stretch.png' });
+  const bs = await state(page);
+  check('burst boosts speed and empties the meter', bs.bursting && bs.effectiveSpeed > bs.speed * 1.3 && bs.burstMeter < 0.2, `speed=${bs.speed} eff=${Math.round(bs.effectiveSpeed)} meter=${bs.burstMeter.toFixed(2)}`);
+  await sleep(250);
+  await page.screenshot({ path: 'screenshots/03d-burst-run.png' });
+
   // Pause freezes simulation.
   await page.keyboard.press('Escape');
   await waitScene(page, 'Pause');
@@ -256,10 +265,17 @@ try {
           input.touchUp(78);
           w.__bot.barks++;
         }
+        // Long gaps (painted arrows) need a burst first.
+        const longGap = s.gapsAhead.find((g) => g[1] - g[0] > 560 && g[0] > 60 && g[0] < 380);
+        if (longGap && !s.bursting && s.burstMeter >= 1 && s.grounded) {
+          input.touchDown('burst', 79);
+          input.touchUp(79);
+          w.__bot.bursts = (w.__bot.bursts ?? 0) + 1;
+        }
         // Hold like a player: across a gap until landing; for hops/crates until the apex.
         if (s.grounded && !w.__hold) {
           let mode = null;
-          const gap = s.gapsAhead.find((g) => g[0] >= 0 && g[0] < 110 && s.height < 5);
+          const gap = s.gapsAhead.find((g) => g[0] >= 0 && g[0] < (s.bursting ? 170 : 110) && s.height < 5);
           if (gap) mode = 'gap';
           const hz = s.hazardsAhead.find((h) => h.dx > 45 && h.dx < 125 && h.top > s.height);
           if (!mode && hz) mode = 'hop';

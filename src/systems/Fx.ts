@@ -103,6 +103,11 @@ export class Fx {
     }
   }
 
+  /** Speed line streaking backwards behind a bursting hero. */
+  streak(x: number, y: number): void {
+    this.spawn('fx_streak', x, y, { vx: -520, max: 0.22, scale0: 1, scale1: 0.4 });
+  }
+
   propeller(x: number, y: number): void {
     this.spawn('fx_sparkle', x, y, { vx: -120, vy: 30, max: 0.25, scale0: 0.6, scale1: 0.1 });
   }

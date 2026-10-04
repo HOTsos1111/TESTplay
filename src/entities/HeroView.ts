@@ -10,6 +10,7 @@ export interface HeroVisualState {
   hovering: boolean;
   speed: number;
   invulnerable: number;
+  bursting?: boolean;
 }
 
 type PartKey = keyof typeof HERO_PARTS;
@@ -45,6 +46,11 @@ export class HeroView {
   private wasGrounded = true;
   private modeT = 0;
   private stepAcc = 0;
+  /** Burst animation clock (-1 when idle) and whether the rear has snapped yet. */
+  private burstAnimT = -1;
+  private snapped = false;
+  /** Fired when the stretched rear end snaps forward (for the sound). */
+  onSnap?: () => void;
   /** Fired roughly once per stride while running on the ground (for footstep audio). */
   onStep?: () => void;
 
@@ -103,6 +109,12 @@ export class HeroView {
     }
   }
 
+  /** Front stretches forward like an elastic band, then the rear snaps after it. */
+  burst(): void {
+    this.burstAnimT = 0;
+    this.snapped = false;
+  }
+
   bark(): void {
     this.barkT = 0.26;
   }
@@ -149,7 +161,7 @@ export class HeroView {
       this.sqX = this.sqY = 1;
       this.sqVX = this.sqVY = 0;
     }
-    this.sqX = Phaser.Math.Clamp(this.sqX, 0.6, 1.5);
+    this.sqX = Phaser.Math.Clamp(this.sqX, 0.55, 1.5);
     this.sqY = Phaser.Math.Clamp(this.sqY, 0.6, 1.5);
   }
 
@@ -195,6 +207,7 @@ export class HeroView {
     let showProp = false;
     let tailRot = -0.5 + Math.sin(this.t * 14) * 0.25;
     let mouth = false;
+    let stretch = 0;
 
     const legAngles: number[] = [0, 0, 0, 0];
 
@@ -295,6 +308,32 @@ export class HeroView {
       this.root.alpha = 1;
     }
 
+    if (this.mode === 'play') {
+      const STRETCH = 0.16;
+      if (this.burstAnimT >= 0) {
+        this.burstAnimT += dt;
+        if (this.burstAnimT < STRETCH) {
+          const k = this.burstAnimT / STRETCH;
+          stretch = 0.42 * (1 - (1 - k) * (1 - k));
+          earTarget = 2.6;
+          eye = 'determined';
+        } else if (!this.snapped) {
+          this.snapped = true;
+          // Rear end catches up: compress hard, the spring overshoots for a wobble.
+          this.sqX = 0.74;
+          this.sqY = 1.2;
+          this.sqVX = -2;
+          this.onSnap?.();
+        }
+        if (this.burstAnimT > 0.7) this.burstAnimT = -1;
+      }
+      if (s.bursting) {
+        rigRot += 0.07;
+        earTarget = Math.max(earTarget, 2.4);
+        tailRot = -0.05 + Math.sin(this.t * 40) * 0.2;
+      }
+    }
+
     if (this.mode === 'play' && this.blinkT <= 0) {
       if (this.blinkT < -0.12) this.blinkT = 2 + Math.random() * 3;
       else if (eye === 'determined' || eye === 'open') eye = 'closed';
@@ -304,7 +343,9 @@ export class HeroView {
     this.springEar(earTarget, dt);
 
     const B = HeroView.BASE_SCALE;
-    this.rig.setScale(B * this.sqX, B * this.sqY);
+    this.rig.setScale(B * this.sqX * (1 + stretch), B * this.sqY * (1 - stretch * 0.22));
+    // Shift forward while stretched so the rear stays planted and only the front reaches out.
+    this.rig.x = stretch * 58;
     this.rig.y = rigY;
     this.rig.rotation = rigRot;
     this.body.rotation = bodyRot;

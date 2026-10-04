@@ -7,6 +7,8 @@ export interface Reach {
   jumpGap: number;
   /** Widest gap crossable with a full jump plus a full hover. */
   hoverGap: number;
+  /** Widest gap crossable with a burst, a full jump and a full hover. */
+  burstGap: number;
   /** Max height the feet reach above the takeoff surface. */
   apex: number;
 }
@@ -15,12 +17,14 @@ export interface Reach {
  * Measures reach by running the real PlayerController over a flat floor with
  * the jump held, at base stats. This keeps validation honest when tuning moves.
  */
-export function measureReach(speed: number, hover: boolean): { distance: number; apex: number } {
+export function measureReach(speed: number, hover: boolean, burst = false): { distance: number; apex: number } {
   const floorY = WORLD.groundY;
   const floor: Solid[] = [{ x: -10_000, y: floorY, w: 10_000, h: 200, oneWay: false, kind: 'ground' }];
   const pc = new PlayerController(-1, floorY, baseStats());
   pc.speed = speed;
   const dt = TUNING.maxStep;
+  // A burst is triggered a few frames before takeoff, as a player would.
+  if (burst) for (let i = 0; i < 6; i++) pc.step(dt, { jumpPressed: false, jumpHeld: false, barkPressed: false, burstPressed: i === 0 }, floor);
   // Take off from the floor, then remove it: we measure free-flight distance.
   pc.step(dt, { jumpPressed: true, jumpHeld: true, barkPressed: false }, floor);
   const x0 = pc.x;
@@ -36,8 +40,10 @@ export function measureReach(speed: number, hover: boolean): { distance: number;
 export function reachAt(speed: number): Reach {
   const j = measureReach(speed, false);
   const h = measureReach(speed, true);
+  const b = measureReach(speed, true, true);
   // The long body adds its own length of forgiveness (rear leaves late, nose lands early).
-  return { jumpGap: j.distance + HERO_BOX.body.width, hoverGap: h.distance + HERO_BOX.body.width, apex: j.apex };
+  const body = HERO_BOX.body.width;
+  return { jumpGap: j.distance + body, hoverGap: h.distance + body, burstGap: b.distance + body, apex: j.apex };
 }
 
 export interface ValidationIssue {
@@ -59,12 +65,14 @@ export function validateChunk(c: ChunkDef, minSpeed: number, maxSpeed: number): 
   const fast = reachAt(maxSpeed);
   const apex = Math.min(slow.apex, fast.apex);
   const canHover = c.requires.includes('hover');
+  const canBurst = c.requires.includes('burst');
   const canBark = c.requires.includes('bark');
 
   for (const [x, w] of c.gaps ?? []) {
-    const limit = (canHover ? slow.hoverGap : slow.jumpGap) * MARGIN;
+    const limit = (canBurst ? slow.burstGap : canHover ? slow.hoverGap : slow.jumpGap) * MARGIN;
     if (w > limit) add(`gap at ${x} (${w}px) exceeds safe reach ${limit.toFixed(0)}px at ${minSpeed}px/s`);
     if (!canHover && w > slow.jumpGap * MARGIN) add(`gap at ${x} needs hover but chunk does not declare it`);
+    if (w > slow.hoverGap * MARGIN && !(c.burstMarkers ?? []).some((m) => m.x < x && x - m.x < 900)) add(`burst gap at ${x} has no burst marker before it`);
     if (x < 200 || x + w > c.length - 200) add(`gap at ${x} too close to chunk edge`);
     if (!c.requires.includes('jump')) add(`gap at ${x} but chunk does not require jump`);
   }
@@ -118,7 +126,10 @@ export function validateSequence(chunks: ChunkDef[], speedStart: number, speedEn
   const total = chunks.reduce((s, c) => s + c.length, 0);
   let cursor = 0;
   let lastHoverEnd = -Infinity;
+  let lastBurstEnd = -Infinity;
   const rechargeDistance = (TUNING.wagCapacity / TUNING.groundRecharge) * speedEnd;
+  // A burst meter must be full again before the next burst gap (burst and carry time included).
+  const burstRecharge = (TUNING.burstChargeTime + TUNING.burstDuration) * speedEnd * (1 + TUNING.burstSpeedBonus * 0.3);
   for (const c of chunks) {
     const t = total > 0 ? cursor / total : 0;
     const v = speedStart + (speedEnd - speedStart) * t;
@@ -131,6 +142,13 @@ export function validateSequence(chunks: ChunkDef[], speedStart: number, speedEn
           issues.push({ chunk: c.id, message: `forced hover at ${gx} only ${(start - lastHoverEnd).toFixed(0)}px after previous one (needs ${rechargeDistance.toFixed(0)})` });
         }
         lastHoverEnd = start + gw;
+      }
+      if (gw > slow.hoverGap * MARGIN) {
+        const start = cursor + gx;
+        if (start - lastBurstEnd < burstRecharge) {
+          issues.push({ chunk: c.id, message: `burst gap at ${gx} only ${(start - lastBurstEnd).toFixed(0)}px after previous one (needs ${burstRecharge.toFixed(0)})` });
+        }
+        lastBurstEnd = start + gw;
       }
     }
     cursor += c.length;

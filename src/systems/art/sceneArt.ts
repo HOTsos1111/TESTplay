@@ -367,6 +367,22 @@ function drawBarkIcon(c: Ctx): void {
   }
 }
 
+function drawBurstIcon(c: Ctx, empty: boolean): void {
+  // Double chevron with speed lines.
+  const fill = empty ? '#9A8E9C' : PAL.butter;
+  for (const ox of [4, 16]) {
+    c.beginPath();
+    c.moveTo(ox, 8);
+    c.lineTo(ox + 12, 18);
+    c.lineTo(ox, 28);
+    c.lineTo(ox + 6, 28);
+    c.lineTo(ox + 18, 18);
+    c.lineTo(ox + 6, 8);
+    c.closePath();
+    fillStroke(c, fill, 2.2);
+  }
+}
+
 function drawPauseIcon(c: Ctx): void {
   ell(c, 24, 24, 21, 21);
   fillStroke(c, 'rgba(48,35,49,0.55)', 3, PAL.white);
@@ -377,13 +393,25 @@ function drawPauseIcon(c: Ctx): void {
   c.fill();
 }
 
-function drawTouchButton(c: Ctx, kind: 'jump' | 'bark'): void {
+function drawTouchButton(c: Ctx, kind: 'jump' | 'bark' | 'burst'): void {
   ell(c, 64, 64, 60, 60);
   fillStroke(c, 'rgba(48,35,49,0.35)', 4, 'rgba(255,253,246,0.85)');
   ell(c, 64, 64, 50, 50);
-  c.fillStyle = kind === 'jump' ? 'rgba(66,183,176,0.55)' : 'rgba(240,117,98,0.55)';
+  c.fillStyle = kind === 'jump' ? 'rgba(66,183,176,0.55)' : kind === 'bark' ? 'rgba(240,117,98,0.55)' : 'rgba(255,214,110,0.6)';
   c.fill();
-  if (kind === 'jump') {
+  if (kind === 'burst') {
+    for (const ox of [34, 60]) {
+      c.beginPath();
+      c.moveTo(ox, 38);
+      c.lineTo(ox + 24, 64);
+      c.lineTo(ox, 90);
+      c.lineTo(ox + 12, 90);
+      c.lineTo(ox + 36, 64);
+      c.lineTo(ox + 12, 38);
+      c.closePath();
+      fillStroke(c, PAL.white, 3);
+    }
+  } else if (kind === 'jump') {
     c.beginPath();
     c.moveTo(64, 30);
     c.lineTo(88, 60);
@@ -485,5 +513,8 @@ export function generateSceneArt(scene: Phaser.Scene): void {
   makeTexture(scene, 'icon_pause', 48, 48, drawPauseIcon);
   makeTexture(scene, 'btn_jump', 128, 128, (c) => drawTouchButton(c, 'jump'));
   makeTexture(scene, 'btn_bark', 128, 128, (c) => drawTouchButton(c, 'bark'));
+  makeTexture(scene, 'btn_burst', 128, 128, (c) => drawTouchButton(c, 'burst'));
+  makeTexture(scene, 'icon_burst', 40, 36, (c) => drawBurstIcon(c, false));
+  makeTexture(scene, 'icon_burst_empty', 40, 36, (c) => drawBurstIcon(c, true));
   for (let n = 1; n <= 6; n++) makeTexture(scene, `badge_ch${n}`, 120, 120, (c) => drawBadge(c, n));
 }

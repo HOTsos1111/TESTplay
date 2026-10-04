@@ -3,6 +3,7 @@ import { generateMissingArt, queueAssetFiles } from '../systems/AssetRegistry';
 import { Audio } from '../systems/AudioManager';
 import { progress } from '../systems/ProgressStore';
 import { CSS, textStyle } from '../ui/theme';
+import { centerMenu } from '../ui/layout';
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -15,6 +16,7 @@ export class BootScene extends Phaser.Scene {
 
   create(): void {
     this.cameras.main.setBackgroundColor(CSS.outline);
+    centerMenu(this);
     const label = this.add.text(640, 340, 'Sniffing out the way home…', textStyle(30, CSS.cream)).setOrigin(0.5);
     const dots = this.add.text(640, 396, '', textStyle(30, CSS.butter)).setOrigin(0.5);
     let n = 0;

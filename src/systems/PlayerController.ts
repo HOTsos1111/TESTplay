@@ -22,6 +22,7 @@ export interface FrameInput {
   jumpPressed: boolean;
   jumpHeld: boolean;
   barkPressed: boolean;
+  burstPressed?: boolean;
 }
 
 export type PlayerEvent =
@@ -30,6 +31,8 @@ export type PlayerEvent =
   | { type: 'hoverStart' }
   | { type: 'hoverStop' }
   | { type: 'bark' }
+  | { type: 'burstStart' }
+  | { type: 'burstEnd' }
   | { type: 'bonk'; solid: Solid };
 
 export interface PlayerStats {
@@ -64,6 +67,12 @@ export class PlayerController {
   stats: PlayerStats;
   barkCooldown = 0;
   invulnerable = 0;
+  /** Burst meter 0..1; a burst needs it full. */
+  burstMeter = 1;
+  /** Remaining ground burst time. */
+  burstT = 0;
+  /** True while a burst's speed is being carried through a jump. */
+  burstCarry = false;
   /** Time spent airborne since leaving the ground. */
   airTime = 0;
   private coyote = 0;
@@ -100,6 +109,19 @@ export class PlayerController {
     return { x: this.x + o.x, y: this.y + o.y - h / 2, w: this.stats.barkRange, h };
   }
 
+  get bursting(): boolean {
+    return this.burstT > 0 || this.burstCarry;
+  }
+
+  /** Current horizontal speed including any burst. */
+  get effectiveSpeed(): number {
+    if (this.burstCarry) return this.speed * (1 + TUNING.burstSpeedBonus);
+    if (this.burstT <= 0) return this.speed;
+    // Ease off over the final 0.2 s on the ground.
+    const k = Math.min(1, this.burstT / 0.2);
+    return this.speed * (1 + TUNING.burstSpeedBonus * k);
+  }
+
   get wagFraction(): number {
     return this.stats.wagCapacity > 0 ? this.wag / this.stats.wagCapacity : 0;
   }
@@ -130,6 +152,18 @@ export class PlayerController {
       events.push({ type: 'bark' });
     }
 
+    // --- Burst: needs a full meter; the meter refills slowly while not bursting.
+    if (input.burstPressed && this.burstMeter >= 1 && !this.bursting) {
+      this.burstMeter = 0;
+      this.burstT = TUNING.burstDuration;
+      events.push({ type: 'burstStart' });
+    } else if (this.bursting) {
+      if (this.burstT > 0) this.burstT = Math.max(0, this.burstT - dt);
+      if (!this.bursting) events.push({ type: 'burstEnd' });
+    } else {
+      this.burstMeter = Math.min(1, this.burstMeter + dt / TUNING.burstChargeTime);
+    }
+
     // --- Jump: fresh presses only (held jump never re-triggers on landing).
     if (input.jumpPressed) this.buffer = TUNING.jumpBuffer;
     else this.buffer = Math.max(0, this.buffer - dt);
@@ -144,6 +178,7 @@ export class PlayerController {
       this.airTime = 0;
       this.jumpRising = true;
       this.supportTop = null;
+      if (this.burstT > 0) this.burstCarry = true;
       events.push({ type: 'jump' });
     }
 
@@ -174,7 +209,7 @@ export class PlayerController {
     // --- Integrate.
     const prevBottom = this.y;
     const prevX = this.x;
-    this.x += this.speed * dt;
+    this.x += this.effectiveSpeed * dt;
     if (!this.grounded) this.y += this.vy * dt;
 
     // --- Collide.
@@ -224,6 +259,10 @@ export class PlayerController {
           events.push({ type: 'hoverStop' });
         }
         events.push({ type: 'land', impact });
+        if (this.burstCarry) {
+          this.burstCarry = false;
+          if (this.burstT <= 0) events.push({ type: 'burstEnd' });
+        }
       }
     }
 

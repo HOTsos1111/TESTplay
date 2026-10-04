@@ -116,3 +116,36 @@ describe('PlayerController', () => {
     expect([b.w, b.h]).toEqual([a.w, a.h]);
   });
 });
+
+describe('burst', () => {
+  it('speeds the hero up, then needs the meter to refill before the next burst', () => {
+    const pc = new PlayerController(0, G);
+    const ev = run(pc, 0.05, { burstPressed: true });
+    expect(ev).toContain('burstStart');
+    expect(pc.effectiveSpeed).toBeGreaterThan(pc.speed * 1.5);
+    run(pc, TUNING.burstDuration + 0.1);
+    expect(pc.bursting).toBe(false);
+    expect(pc.effectiveSpeed).toBe(pc.speed);
+    const again = run(pc, 0.05, { burstPressed: true });
+    expect(again).not.toContain('burstStart');
+    run(pc, TUNING.burstChargeTime + 0.1);
+    expect(pc.burstMeter).toBe(1);
+    expect(run(pc, 0.05, { burstPressed: true })).toContain('burstStart');
+  });
+
+  it('a jump during a burst keeps the extra speed until landing and goes further than hover alone', () => {
+    const flight = (burst: boolean) => {
+      const pc = new PlayerController(0, G);
+      if (burst) run(pc, 0.05, { burstPressed: true });
+      const x0 = pc.x;
+      let i = 0;
+      pc.step(dt, { jumpPressed: true, jumpHeld: true, barkPressed: false }, floor);
+      while (!pc.grounded && i++ < 2000) pc.step(dt, { jumpPressed: false, jumpHeld: true, barkPressed: false }, floor);
+      return { dist: pc.x - x0, carried: pc };
+    };
+    const plain = flight(false);
+    const boosted = flight(true);
+    expect(boosted.dist).toBeGreaterThan(plain.dist * 1.4);
+    expect(boosted.carried.bursting).toBe(false);
+  });
+});
