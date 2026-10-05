@@ -329,7 +329,7 @@ try {
           w.__duck = false;
         }
         // Double-jump tall crate towers: second press near the top of the first jump.
-        const tower = s.solidsAhead.find((c) => c.kind === 'crate' && c.dx > -30 && c.dx < 300 && c.top > s.height + 110);
+        const tower = s.solidsAhead.find((c) => c.kind === 'crate' && c.dx > -30 && c.dx < 300 && c.top > 110 && c.top > s.height + 10);
         if (tower && !s.grounded && !s.doubleUsed && s.vy > -60) {
           input.touchDown('jump', 77);
           w.__bot.doubles = (w.__bot.doubles ?? 0) + 1;
