@@ -342,7 +342,8 @@ try {
           if (gap) mode = 'gap';
           const hz = s.hazardsAhead.find((h) => h.bottom < 18 && h.dx > 45 && h.dx < 125 && h.top > s.height);
           if (!mode && hz) mode = 'hop';
-          const crate = s.solidsAhead.find((c) => c.kind === 'crate' && c.dx > (c.top > s.height + 110 ? 280 : 140) && c.dx < (c.top > s.height + 110 ? 360 : 220) && c.top > s.height + 5);
+          // Stacked crates arrive as one solid per crate: judge each column by its tallest crate.
+          const crate = [...s.solidsAhead].sort((a, b) => b.top - a.top).find((c) => c.kind === 'crate' && c.dx > (c.top > s.height + 110 ? 280 : 140) && c.dx < (c.top > s.height + 110 ? 360 : 220) && c.top > s.height + 5);
           if (!mode && crate) mode = 'hop';
           if (mode) {
             input.touchDown('jump', 77);
