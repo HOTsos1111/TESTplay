@@ -103,8 +103,7 @@ export class TitleScene extends Phaser.Scene {
     const hasProgress = p.storySeen || p.completedChapters.length > 0 || p.checkpoint !== null || p.boneBalance > 0;
     const buttons: Button[] = [];
     const primary = new Button(this, cx, cy - 78, hasProgress ? COPY.continue : COPY.start, () => {
-      if (!progress.state.storySeen) this.scene.start('Story', { next: 'game' });
-      else this.scene.start('ChapterMap');
+      this.scene.start('ChapterMap');
     }, { width: 340, height: 84, fontSize: 38, color: COLOR.coral, icon: 'ui_play', iconScale: 0.5 });
     buttons.push(primary);
     this.tweens.add({ targets: primary, scale: 1.04, yoyo: true, repeat: -1, duration: 700, ease: 'Sine.easeInOut' });

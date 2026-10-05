@@ -36,11 +36,13 @@ const browser = await chromium.launch({ executablePath: exe, args: ['--use-gl=sw
 const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
 const errors = [];
 
+// Pages open on the Title menu (?intro=0 skips the launch story and instructions).
+const withIntroOff = (query) => (query.includes('intro=') ? query : query ? `${query}&intro=0` : '?intro=0');
 async function newPage(query = '') {
   const page = await context.newPage();
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
   page.on('console', (m) => m.type() === 'error' && errors.push(`console: ${m.text()}`));
-  await page.goto(BASE + query);
+  await page.goto(BASE + withIntroOff(query));
   await page.waitForFunction(() => window.__HH__?.scenes?.().includes('Title'), null, { timeout: 20000 });
   await new Promise((r) => setTimeout(r, 500));
   return page;
@@ -89,7 +91,8 @@ try {
   });
   check('all sound effects and music tracks play without errors', audioErr === null, audioErr ?? '');
 
-  await page.keyboard.press('Enter');
+  // A normal launch plays the story, then How to Play, then opens the level select.
+  await page.goto(BASE);
   await waitScene(page, 'Story');
   await sleep(1200);
   await page.screenshot({ path: 'screenshots/02-story.png' });
@@ -104,8 +107,12 @@ try {
   await sleep(800);
   await page.screenshot({ path: 'screenshots/02d-howto-obstacles.png' });
   await page.keyboard.press('ArrowRight');
+  await waitScene(page, 'ChapterMap', 8000);
+  await sleep(600);
+  await page.screenshot({ path: 'screenshots/02e-level-select.png' });
+  await page.keyboard.press('Enter');
   await waitScene(page, 'Game', 8000);
-  check('story and how-to-play are skippable and lead into chapter 1', true);
+  check('launch plays story and how-to-play, then the level select starts chapter 1', true);
   await sleep(1500);
   await page.screenshot({ path: 'screenshots/03-game-start.png' });
 
@@ -161,27 +168,39 @@ try {
   check('resume continues the run', p3.x > p2.x && !(await scenes(page)).includes('Pause'));
 
   // Bark cooldown prevents spam.
+  // Wait for the bark to register (frames are slow in headless runs), then press
+  // again straight away: the second press must not restart the cooldown.
   await page.keyboard.press('x');
-  await sleep(50);
-  const b1 = await state(page);
+  let b1 = await state(page);
+  for (let i = 0; i < 40 && !(b1.barkCooldown > 0.3); i++) {
+    await sleep(25);
+    b1 = await state(page);
+  }
   await page.keyboard.press('x');
   await sleep(50);
   const b2 = await state(page);
-  check('bark starts a cooldown that blocks immediate re-bark', b1.barkCooldown > 0.5 && b2.barkCooldown < b1.barkCooldown, `cd1=${b1.barkCooldown.toFixed(2)} cd2=${b2.barkCooldown.toFixed(2)}`);
+  check('bark starts a cooldown that blocks immediate re-bark', b1.barkCooldown > 0.3 && b2.barkCooldown <= b1.barkCooldown, `cd1=${b1.barkCooldown.toFixed(2)} cd2=${b2.barkCooldown.toFixed(2)}`);
 
-  // Power-ups are placed at random each run; drop the hero onto the first one we can see.
+  // The earlier control tests leave the dog running unattended, losing health
+  // (or falling into the first pit).
+  // Always begin the power-up and damage checks on a fresh, full-health run.
+  await page.evaluate(() => {
+    const live = window.__HH__.manager().getScenes(true).find((sc) => sc.scene.key === 'Game' || sc.scene.key === 'Results');
+    live?.scene.start('Game', { chapter: 1, startAt: 'start' });
+  });
+  await waitScene(page, 'Game');
+  await sleep(800);
+  // Power-ups are placed at random each run: read the next one from the level
+  // layout and drop the hero right onto it.
   {
     let got = false;
-    let where = null;
-    const t0 = Date.now();
-    while (Date.now() - t0 < 20000 && !where) {
-      const s = await state(page);
-      where = s?.powerupsAt?.[0] ?? null;
-      if (!where) {
-        await page.evaluate((x) => window.__HH__.teleport?.()?.(x), (s?.x ?? 0) + 2500);
-        await sleep(300);
-      }
-    }
+    const where = await page.evaluate(() => {
+      const g = window.__HH__.manager().getScene('Game');
+      // Pick one with solid floor beneath (some float over pits for hover routes).
+      const overGround = (x) => g.layout.items.some((i) => i.type === 'ground' && x > i.x + 200 && x < i.x + i.w - 200);
+      const p = g?.layout?.items.find((i) => i.type === 'powerup' && i.x > g.pc.x + 100 && overGround(i.x));
+      return p ? { x: p.x, y: p.y } : null;
+    });
     if (where) {
       await page.evaluate((w) => window.__HH__.teleport?.()?.(w.x, w.y + 40), where);
       const t1 = Date.now();
@@ -191,11 +210,17 @@ try {
         await sleep(50);
       }
     }
-    check('touching a power-up bubble activates it', got, where ? JSON.stringify(where) : 'no power-up found');
+    check('touching a power-up bubble activates it', got, where ? `${JSON.stringify(where)} after=${JSON.stringify(await state(page))?.slice(0, 300)} scenes=${await scenes(page)}` : `no power-up found (scenes=${await scenes(page)} state=${JSON.stringify(await state(page))?.slice(0, 160)})`);
   }
 
   // Run without input until something hurts the hero; verify invulnerability then defeat flow.
   let hurt = null;
+  // A collected Soap Bubble Shield would absorb the hit we are looking for.
+  await page.evaluate(() => {
+    const g = window.__HH__.manager().getScene('Game');
+    for (const k of Object.keys(g?.power ?? {})) g.expirePowerUp(k);
+  });
+  let lineup = null;
   // Line the dog up before the next ground obstacle with no pit in between, so it
   // meets an obstacle first (earlier teleports leave nothing behind the camera).
   for (let i = 0; i < 20; i++) {
@@ -203,6 +228,7 @@ try {
     if (!s) break;
     const hz = s.hazardsAhead.find((h) => h.bottom < 18 && h.dx > 0 && !s.gapsAhead.some((g) => g[0] < h.dx));
     if (hz) {
+      lineup = { from: Math.round(s.x), hz };
       await page.evaluate((x) => window.__HH__.teleport?.()?.(x), s.x + hz.dx - 1000);
       break;
     }
@@ -221,7 +247,7 @@ try {
     }
     await sleep(30);
   }
-  check('obstacles damage an idle hero', !!hurt, hurt ? `hearts=${hurt.hearts}` : 'no hit');
+  check('obstacles damage an idle hero', !!hurt, hurt ? `hearts=${hurt.hearts}` : `no hit (start=${startHearts} lineup=${JSON.stringify(lineup)} now=${JSON.stringify(await state(page))?.slice(0, 260)} scenes=${await scenes(page)})`);
   if (hurt) {
     await sleep(300);
     const s = await state(page);

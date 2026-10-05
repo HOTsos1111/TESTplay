@@ -11,7 +11,7 @@ import { centerMenu } from '../ui/layout';
 
 interface HowToData {
   /** Where "Let's go" leads: straight into chapter 1, or back to the title. */
-  next?: 'game' | 'title';
+  next?: 'game' | 'title' | 'map';
 }
 
 /** Action badge colours, shared by the controls and the obstacles pages. */
@@ -42,7 +42,7 @@ interface Tile {
  */
 export class HowToScene extends Phaser.Scene {
   private page = 0;
-  private next: 'game' | 'title' = 'game';
+  private next: 'game' | 'title' | 'map' = 'map';
   private layer!: Phaser.GameObjects.Container;
   private backdrop!: Backdrop;
   private nav!: MenuNav;
@@ -60,7 +60,7 @@ export class HowToScene extends Phaser.Scene {
   }
 
   create(data: HowToData): void {
-    this.next = data.next ?? 'game';
+    this.next = data.next ?? 'map';
     this.page = 0;
     this.t = 0;
     this.backdrop = new Backdrop(this, 0.5, 18);
@@ -86,6 +86,7 @@ export class HowToScene extends Phaser.Scene {
 
   private leave(): void {
     if (this.next === 'game') this.scene.start('Game', { chapter: 1 });
+    else if (this.next === 'map') this.scene.start('ChapterMap');
     else this.scene.start('Title');
   }
 
@@ -205,8 +206,13 @@ export class HowToScene extends Phaser.Scene {
     if (this.page === 0) this.controlsPage();
     else this.obstaclesPage();
 
-    const back = new Button(this, 150, 676, this.page === 0 ? 'Skip' : '◀ Back', () => (this.page === 0 ? this.leave() : this.go(0)), { width: 200, height: 56, fontSize: 24, color: 0x6f86a8 });
-    const fwd = new Button(this, 1130, 676, this.page === 0 ? 'Obstacles ▶' : this.next === 'game' ? "Let's Go!" : 'Got it!', () => this.go(this.page + 1), {
+    const back = new Button(this, 150, 676, this.page === 0 ? (this.next === 'title' ? 'Back' : 'Skip all ⏭') : '◀ Back', () => (this.page === 0 ? this.leave() : this.go(0)), {
+      width: 200,
+      height: 56,
+      fontSize: 22,
+      color: this.page === 0 && this.next !== 'title' ? COLOR.coral : 0x6f86a8,
+    });
+    const fwd = new Button(this, 1130, 676, this.page === 0 ? 'Obstacles ▶' : this.next === 'title' ? 'Got it!' : "Let's Go!", () => this.go(this.page + 1), {
       width: 240,
       height: 60,
       fontSize: 26,

@@ -9,6 +9,8 @@ const params = typeof location !== 'undefined' ? new URLSearchParams(location.se
 export const debugFlags = {
   hitboxes: params.get('debug') === '1',
   god: params.get('god') === '1',
+  /** ?intro=0 skips the launch story and instructions (automated checks). */
+  skipIntro: params.get('intro') === '0',
 };
 
 type Hook = () => unknown;

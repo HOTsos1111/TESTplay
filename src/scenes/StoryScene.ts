@@ -11,7 +11,7 @@ import { COLOR, CSS, textStyle } from '../ui/theme';
 import { centerMenu } from '../ui/layout';
 
 interface StoryData {
-  next?: 'game' | 'settings';
+  next?: 'game' | 'settings' | 'map';
 }
 
 const PANEL_TIME = 3.6;
@@ -45,7 +45,7 @@ export class StoryScene extends Phaser.Scene {
   private zT = 0;
   private flags = new Set<string>();
   private backdrop: Backdrop | null = null;
-  private next: 'game' | 'settings' = 'game';
+  private next: 'game' | 'settings' | 'map' = 'map';
   private ending = false;
 
   constructor() {
@@ -53,7 +53,7 @@ export class StoryScene extends Phaser.Scene {
   }
 
   create(data: StoryData): void {
-    this.next = data.next ?? 'game';
+    this.next = data.next ?? 'map';
     this.panel = -1;
     this.t = 0;
     this.ending = false;
@@ -64,7 +64,8 @@ export class StoryScene extends Phaser.Scene {
     bar.fillRect(-400, 630, 2080, 90);
     centerMenu(this);
     this.caption = this.add.text(640, 675, '', textStyle(32, CSS.white)).setOrigin(0.5).setDepth(DEPTH.hud + 1);
-    new Button(this, 1170, 50, 'Skip ▶', () => this.finish(), { width: 160, height: 56, fontSize: 24, color: 0x6f86a8 }).setDepth(DEPTH.hud + 2);
+    new Button(this, 1000, 50, 'Skip ▶', () => this.finish(), { width: 150, height: 56, fontSize: 24, color: 0x6f86a8 }).setDepth(DEPTH.hud + 2);
+    new Button(this, 1170, 50, 'Skip all ⏭', () => this.skipAll(), { width: 170, height: 56, fontSize: 22, color: COLOR.coral }).setDepth(DEPTH.hud + 2);
     this.add.text(20, 20, 'Tap or press Space to continue', textStyle(18, CSS.cream, 4)).setDepth(DEPTH.hud + 2);
 
     this.input.on('pointerdown', (_p: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) => {
@@ -226,6 +227,14 @@ export class StoryScene extends Phaser.Scene {
     }
   }
 
+  /** Straight to the level select, past the instructions too. */
+  private skipAll(): void {
+    if (this.ending) return;
+    this.ending = true;
+    progress.update((p) => (p.storySeen = true));
+    this.scene.start(this.next === 'game' ? 'Game' : 'ChapterMap', this.next === 'game' ? { chapter: 1 } : undefined);
+  }
+
   private finish(): void {
     if (this.ending) return;
     this.ending = true;
@@ -237,7 +246,7 @@ export class StoryScene extends Phaser.Scene {
     this.tweens.add({ targets: tag, alpha: 1, duration: 400 });
     this.time.delayedCall(1700, () => {
       if (this.next === 'settings') this.scene.start('Settings', { from: 'Title' });
-      else this.scene.start('HowTo', { next: 'game' });
+      else this.scene.start('HowTo', { next: this.next === 'game' ? 'game' : 'map' });
     });
   }
 

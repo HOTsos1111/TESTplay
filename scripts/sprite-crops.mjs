@@ -35,6 +35,13 @@ export const SPRITE_CROPS = [
   { key: 'tyre', sheet: E, rect: [448, 862, 128, 90], size: [96, 64] },
   // Title logo from the sheet header (keeps the swoosh and the little accent dashes).
   { key: 'logo', sheet: H, rect: [335, 6, 870, 114], keepFrac: 0.004 },
+  // Chapter postcards for the level select (raw crops of the environment panels).
+  { key: 'card_ch1', sheet: E, rect: [24, 142, 556, 200], raw: true, size: [556, 200] },
+  { key: 'card_ch2', sheet: E, rect: [782, 142, 556, 200], raw: true, size: [556, 200] },
+  { key: 'card_ch3', sheet: E, rect: [110, 388, 556, 196], raw: true, size: [556, 200] },
+  { key: 'card_ch4', sheet: E, rect: [786, 388, 556, 196], raw: true, size: [556, 200] },
+  { key: 'card_ch5', sheet: E, rect: [24, 626, 556, 176], raw: true, size: [556, 200] },
+  { key: 'card_ch6', sheet: E, rect: [786, 626, 556, 176], raw: true, size: [556, 200] },
   // Scenery: the distant skyline of the "Delivery Depot" panel (raw: background kept).
   { key: 'bg_depot_skyline', sheet: E, rect: [300, 140, 322, 128], raw: true },
 ];

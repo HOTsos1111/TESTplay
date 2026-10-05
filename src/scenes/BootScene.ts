@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { generateMissingArt, queueAssetFiles } from '../systems/AssetRegistry';
 import { Audio } from '../systems/AudioManager';
 import { progress } from '../systems/ProgressStore';
+import { debugFlags } from '../systems/debug';
 import { CSS, textStyle } from '../ui/theme';
 import { centerMenu } from '../ui/layout';
 
@@ -28,7 +29,9 @@ export class BootScene extends Phaser.Scene {
       const s = progress.state.settings;
       Audio.setVolumes(s.musicVolume, s.sfxVolume);
       label.destroy();
-      this.scene.start('Title');
+      // Every launch plays the opening story, then How to Play, then the level select.
+      if (debugFlags.skipIntro) this.scene.start('Title');
+      else this.scene.start('Story', { next: 'map' });
     });
   }
 }
