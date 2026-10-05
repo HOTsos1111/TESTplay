@@ -1,0 +1,28 @@
+{
+  "name": "chick-kin",
+  "private": true,
+  "version": "0.1.0",
+  "description": "CHICK KIN — three siblings, one big farm. A Soft-3D farmyard adventure about affectionate sibling rivalry.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "validate": "vitest run tests/validate.test.ts",
+    "check:browser": "node scripts/browser-check.mjs"
+  },
+  "dependencies": {
+    "@fontsource/fredoka": "5.3.0",
+    "@fontsource/nunito": "5.3.0",
+    "three": "0.186.1"
+  },
+  "devDependencies": {
+    "@types/three": "0.186.0",
+    "playwright-core": "^1.63.0",
+    "typescript": "~5.9.3",
+    "vite": "^8.3.2",
+    "vitest": "^5.0.3"
+  }
+}
