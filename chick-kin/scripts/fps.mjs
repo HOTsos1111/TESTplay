@@ -1,0 +1,13 @@
+import { chromium } from 'playwright-core';
+import { spawn } from 'node:child_process';
+const [query = ''] = process.argv.slice(2);
+const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--port', '4189', '--strictPort'], { stdio: ['ignore', 'pipe', 'pipe'] });
+await new Promise((res) => { server.stdout.on('data', (d) => { if (String(d).includes('localhost')) res(); }); setTimeout(res, 8000); });
+const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const page = await browser.newPage({ viewport: { width: +(process.env.W ?? 1280), height: +(process.env.H ?? 720) } });
+await page.goto('http://localhost:4189/' + query);
+await page.waitForTimeout(3000);
+const fps = await page.evaluate(() => new Promise((r) => { let n = 0; const t0 = performance.now(); const f = () => { n++; if (performance.now() - t0 > 3000) r(n / 3); else requestAnimationFrame(f); }; requestAnimationFrame(f); }));
+const info = await page.evaluate(() => { const s = window.__ck?.session; return s ? { t: s.match.t, state: s.match.state, x: s.match.player.x, calls: window.__ck.renderer.gl.info.render.calls, tris: window.__ck.renderer.gl.info.render.triangles, geos: window.__ck.renderer.gl.info.memory.geometries } : null; });
+console.log('fps', fps, info);
+await browser.close(); server.kill();

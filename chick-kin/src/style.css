@@ -1,0 +1,2 @@
+html, body { margin: 0; height: 100%; background: #2a1a10; overflow: hidden; }
+#stage { position: fixed; inset: 0; }

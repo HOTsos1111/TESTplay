@@ -33,7 +33,7 @@ export const CLASS_INFO: Record<ChickClass, ClassInfo> = {
   speedy: {
     id: 'speedy', name: 'Speedy', epithet: 'The Fast One', route: 'gold', routeName: 'Gold sprint route',
     ability: 'AB-01',
-    colors: { body: 0xf6c443, belly: 0xffe08a, wing: 0xf0b232, tuft: 0xff7f5c, face: 0xffd66b, accent: '#f5b82e', ui: '#f2b632', uiDark: '#b5761a' },
+    colors: { body: 0xf7c23c, belly: 0xffe49a, wing: 0xeeac2a, tuft: 0xff7a55, face: 0xffdb7a, accent: '#f5b82e', ui: '#f2b632', uiDark: '#b5761a' },
     look: 'Golden-yellow, slim oval body, swept-back coral tuft.',
     strengths: ['Great at speed', 'Quick moves'], weaknesses: ['Not as strong'],
     tuning: { run: 1.2, push: 0.75, jump: 0.95, flap: 0.9, bumpRes: 0.85 },
@@ -53,7 +53,7 @@ export const CLASS_INFO: Record<ChickClass, ClassInfo> = {
   nimble: {
     id: 'nimble', name: 'Nimble', epithet: 'The Agile One', route: 'teal', routeName: 'Teal aerial route',
     ability: 'AB-03',
-    colors: { body: 0xd9cdf2, belly: 0xf4efff, wing: 0xb9a6e8, tuft: 0x2cb7b0, face: 0xebe3fb, accent: '#8f78d6', ui: '#3bb8b0', uiDark: '#1f7a75' },
+    colors: { body: 0xc8b2ee, belly: 0xefe6ff, wing: 0xa98fe0, tuft: 0x22b5ad, face: 0xe4d8fb, accent: '#8f78d6', ui: '#3bb8b0', uiDark: '#1f7a75' },
     look: 'Pale lavender, petite light body, teal tuft.',
     strengths: ['Great at agility', 'Tricky high paths'], weaknesses: ['Not as strong', 'Easy to bump'],
     tuning: { run: 1.0, push: 0.75, jump: 1.2, flap: 1.25, bumpRes: 0.75 },
