@@ -348,8 +348,9 @@ export class Match {
           for (const a of occ) {
             const dx = a.x - cx, dy = ar.mode === 'side' ? 0 : a.y - cy;
             const d = Math.hypot(dx, dy) || 1;
-            a.vx = (dx / d || (a.id % 2 ? 1 : -1)) * 7;
-            if (ar.mode === 'top') a.vy = (dy / d) * 7; else a.vy = Math.max(a.vy, 4);
+            const side = ar.mode === 'side';
+            a.vx = (dx / d || (a.id % 2 ? 1 : -1)) * (side ? 9.5 : 7);
+            if (!side) a.vy = (dy / d) * 7; else a.vy = Math.max(a.vy, 5.5);
             a.grounded = ar.mode === 'side' ? false : a.grounded;
             a.stunT = Math.max(a.stunT, 0.35);
             a.anim = 'bumped';

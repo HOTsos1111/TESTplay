@@ -3,14 +3,14 @@ import type { ArenaRuntime } from './arena';
 import { topBlockers } from './physicsTop';
 
 export const CELL = 0.35;
-export const enum C { Free = 0, Wall = 1, Hop = 2, Gate = 3, Straw = 4 }
+export const enum C { Free = 0, Wall = 1, Hop = 2, Gate = 3, Straw = 4, Push = 5 }
 
 export class NavGrid {
   readonly cols: number;
   readonly rows: number;
   cells: Uint8Array;
   private builtAt = -1;
-  constructor(readonly ar: ArenaRuntime, readonly radius: number, readonly hopClear: number) {
+  constructor(readonly ar: ArenaRuntime, readonly radius: number, readonly hopClear: number, readonly push = 0) {
     this.cols = Math.ceil(ar.def.w / CELL);
     this.rows = Math.ceil(ar.def.h / CELL);
     this.cells = new Uint8Array(this.cols * this.rows);
@@ -23,9 +23,10 @@ export class NavGrid {
     this.cells.fill(0);
     const r = this.radius;
     for (const b of topBlockers(this.ar)) {
-      let kind: C = b.height * 0.8 < this.hopClear ? C.Hop : C.Wall;
+      let kind: C = b.height * 0.85 < this.hopClear - 0.2 ? C.Hop : C.Wall;
       if (b.ent?.t === 'gate') kind = C.Gate;
       else if (b.ent?.t === 'straw') kind = C.Straw;
+      else if ((b.ent?.t === 'crate' || b.ent?.t === 'bale') && this.push >= ((b.ent.def as { mass?: number }).mass ?? (b.ent.t === 'bale' ? 1 : 0.5))) kind = C.Push;
       const x0 = Math.max(0, Math.floor((b.x - r) / CELL)), x1 = Math.min(this.cols - 1, Math.floor((b.x + b.w + r) / CELL));
       const y0 = Math.max(0, Math.floor((b.y - r) / CELL)), y1 = Math.min(this.rows - 1, Math.floor((b.y + b.h + r) / CELL));
       for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
@@ -99,6 +100,7 @@ export class NavGrid {
       case C.Hop: return allow.hop ? 2.5 : Infinity;
       case C.Gate: return allow.gate ? 3 : Infinity;
       case C.Straw: return allow.straw ? 4 : Infinity;
+      case C.Push: return 3;
     }
   }
 

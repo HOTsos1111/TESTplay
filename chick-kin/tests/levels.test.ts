@@ -16,3 +16,15 @@ describe('every class completes every level', () => {
     }
   }
 });
+
+// Seeded generation variants stay solvable and reproduce from the saved seed (brief §10, §15).
+import { withVariants } from '../src/core/Generation';
+describe('generation 3 variants remain completable (weakest jumper)', () => {
+  for (const base of LEVELS) {
+    it(`${base.id} gen 3 variant — mighty`, () => {
+      const level = withVariants(base, 3, 4242);
+      const r = runLevel({ level, player: 'mighty', passiveRivals: true, maxSeconds: 260, generation: 3 });
+      expect(r.playerDone, `${base.id} gen3 mighty\n${r.stats}`).toBe(true);
+    });
+  }
+});

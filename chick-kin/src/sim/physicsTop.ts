@@ -27,7 +27,7 @@ export function topBlockers(ar: ArenaRuntime): Blocker[] {
 }
 
 /** Can a hop at height z pass over a blocker? (vault fences are low; nest walls are not) */
-export const clears = (z: number, height: number) => z > height * 0.8;
+export const clears = (z: number, height: number) => z > height * 0.85;
 
 export function stepTop(a: Actor, inp: ActorInput, ar: ArenaRuntime, others: Actor[], ctx: RuleCtx, dt: number) {
   const control = a.canAct;

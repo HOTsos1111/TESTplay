@@ -185,7 +185,7 @@ export class ArenaView {
     // initial placement
     if (d.t === 'perch' || d.t === 'finish' || d.t === 'mud' || d.t === 'seed' || d.t === 'wind' || d.t === 'straw' || d.t === 'bale' || d.t === 'crate' || d.t === 'mover' || d.t === 'gate') {
       const dd = d as { x: number; y: number; w: number; h: number };
-      if (this.side) o.position.set(dd.x + dd.w / 2, d.t === 'wind' ? dd.y + dd.h * 0.3 : dd.y, 0);
+      if (this.side) o.position.set(dd.x + dd.w / 2, d.t === 'wind' ? dd.y + dd.h * 0.3 : d.t === 'mud' || d.t === 'seed' ? dd.y + dd.h / 2 + 0.01 : dd.y, 0);
       else o.position.set(dd.x + dd.w / 2, 0, dd.y + dd.h / 2);
     } else if (d.t === 'spring' || d.t === 'wobbly') {
       o.position.copy(this.pos(d.x + d.w / 2, d.y + 0.3));

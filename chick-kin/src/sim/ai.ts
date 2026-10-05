@@ -34,12 +34,12 @@ export function skillFor(difficulty: 'relaxed' | 'standard' | 'expert', generati
 }
 
 const grids = new WeakMap<ArenaRuntime, Map<string, NavGrid>>();
-function gridFor(ar: ArenaRuntime, radius: number, hopClear: number) {
+function gridFor(ar: ArenaRuntime, radius: number, hopClear: number, push = 0) {
   let m = grids.get(ar);
   if (!m) { m = new Map(); grids.set(ar, m); }
-  const key = `${radius.toFixed(2)}:${hopClear.toFixed(2)}`;
+  const key = `${radius.toFixed(2)}:${hopClear.toFixed(2)}:${push.toFixed(2)}`;
   let g = m.get(key);
-  if (!g) { g = new NavGrid(ar, radius, hopClear); m.set(key, g); }
+  if (!g) { g = new NavGrid(ar, radius, hopClear, push); m.set(key, g); }
   g.refresh();
   return g;
 }
@@ -314,6 +314,20 @@ export class SiblingAI {
     const perch = ar.ents.find((e) => e.t === 'perch');
     if (!perch) return;
     const cx = perch.x + perch.w / 2;
+    // crowded stand-off: less pushy siblings step back along the beam and wait for a lone owner
+    const crowd = m.actors.filter((o) => o !== a && !o.finished && m.arenaOf(o) === ar && Math.abs(o.x - cx) < perch.w && Math.abs(o.y - a.y) < 1).length;
+    if (this.perchWaitT > 0) {
+      this.perchWaitT -= 1 / 120;
+      const tx = cx + this.perchAngle * 2.6;
+      out.mx = Math.abs(tx - a.x) > 0.25 ? Math.sign(tx - a.x) : 0;
+      if (out.mx === 0) a.facing = cx > a.x ? 1 : -1;
+      return;
+    }
+    if (crowd >= 2 && this.rng.chance((1 - this.personality.contest * 0.6) * 0.03)) {
+      this.perchWaitT = 2 + this.rng.next() * 2;
+      this.perchAngle = a.x < cx ? -1 : 1;
+      return;
+    }
     out.mx = Math.abs(cx - a.x) > 0.3 ? Math.sign(cx - a.x) : 0;
     const rival = m.actors.find((o) => o !== a && !o.finished && m.arenaOf(o) === ar && Math.abs(o.x - a.x) < 1.2 && Math.abs(o.y - a.y) < 0.5);
     if (rival && a.nudgeCd <= 0 && !this.out.interact && this.rng.chance(0.08 + this.personality.contest * 0.1)) { a.facing = Math.sign(rival.x - a.x) || 1; out.mx = Math.sign(rival.x - a.x) * 0.2; out.interact = true; }
@@ -358,7 +372,7 @@ export class SiblingAI {
       return out;
     }
 
-    const g = gridFor(ar, a.r + 0.06, a.g.top.hopHeight * a.tuning.jump * (a.g.canVault ? 1 : 0.85));
+    const g = gridFor(ar, a.r + 0.06, a.g.top.hopHeight * a.tuning.jump * (a.g.canVault ? 1 : 0.85), a.pushForce);
     if (!this.path || this.pathT <= 0) {
       this.path = g.path(a.x, a.y, tgt.x, tgt.y, { hop: true, gate: true, straw: true });
       this.pathT = 0.4;

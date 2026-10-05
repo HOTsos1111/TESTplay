@@ -22,7 +22,7 @@ export const M = {
   grass: () => mat('grass', () => new THREE.MeshStandardMaterial({ map: grassTex(0x6fae4c), roughness: 1 })),
   red: () => std(0xb8332c, 0.7),
   white: () => std(0xf7efe2, 0.6),
-  metal: () => std(0x6f7478, 0.45, { metalness: 0.6 }),
+  metal: () => std(0xaab2b8, 0.42, { metalness: 0.35 }),
   orange: () => std(0xf39a2c, 0.55),
   mud: () => mat('mud', () => new THREE.MeshStandardMaterial({ color: 0x5c3a1e, roughness: 0.25, metalness: 0.05 })),
   water: () => mat('water', () => new THREE.MeshStandardMaterial({ color: 0x5aa7c8, roughness: 0.1, metalness: 0.1, transparent: true, opacity: 0.85 })),
@@ -485,7 +485,7 @@ export function bucket() {
   const b = cyl(0.42, 0.32, 0.55, M.metal(), 18);
   b.position.y = 0.27; g.add(b);
   for (const y of [0.1, 0.45]) {
-    const band = new THREE.Mesh(new THREE.TorusGeometry(0.4 - y * 0.15, 0.025, 6, 24), std(0x4a4e52, 0.4, { metalness: 0.7 }));
+    const band = new THREE.Mesh(new THREE.TorusGeometry(0.4 - y * 0.15, 0.025, 6, 24), std(0x7a8288, 0.4, { metalness: 0.5 }));
     band.rotation.x = Math.PI / 2; band.position.y = y; g.add(band);
   }
   return g;

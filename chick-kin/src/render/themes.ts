@@ -61,10 +61,13 @@ export function buildBackdrop(theme: Theme, mode: 'side' | 'top', w: number, h: 
         post.position.set(x, -6, -4.8);
         g.add(post);
       }
-      // background hay and roosts
+      // back shelf (roost) with hay along the wall
+      const shelf = P.plankPlatform(w + 30, 1.6, 0);
+      shelf.position.set(w / 2, 0.9, -4.6);
+      g.add(shelf);
       for (let x = 2; x < w; x += 7) {
         const hb = P.hayBale(1.6, 1, 1.1);
-        hb.position.set(x + rnd(x) * 3, -0.05, -4 + rnd(x + 3));
+        hb.position.set(x + rnd(x) * 3, 0.9, -4.6);
         g.add(hb);
       }
       if (theme === 'rafters') {
