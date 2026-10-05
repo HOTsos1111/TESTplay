@@ -113,8 +113,9 @@ export const DEPTH = {
   enemy: 40,
   shadow: 44,
   hero: 50,
-  ground: 60,
-  groundShadow: 61,
+  /** The faux-3D floor's top face rises above foot level, so it sits behind everything on it. */
+  ground: -5,
+  groundShadow: 2,
   boss: 45,
   fx: 70,
   debug: 90,
