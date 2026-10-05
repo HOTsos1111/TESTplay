@@ -403,7 +403,7 @@ export class ChickModel {
       case 'determined': browTilt = 0.45; browY = -0.25; pupilS = 0.9; break;
       case 'startled': pupilS = 0.6; browY = 0.35; eyeScaleY *= 1.1; beakOpen = 0.6; break;
       case 'sulking': browTilt = -0.35; eyeScaleY *= 0.55; browY = -0.1; break;
-      case 'victory': eyeScaleY *= 0.35; browY = 0.25; break;
+      case 'victory': eyeScaleY *= 1.05; browY = 0.3; beakOpen = 0.7; break;
       default: break;
     }
     this.eyes.forEach((e, i) => {

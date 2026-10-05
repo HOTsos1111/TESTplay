@@ -29,7 +29,7 @@ const L21: LevelDef = {
         { t: 'crumb', x: 19.3, y: 3.1 }, { t: 'crumb', x: 22.9, y: 3.7 }, { t: 'crumb', x: 26.6, y: 3.7 },
         { t: 'power', x: 44.5, y: 0.6, pu: 'PU-01' },
         { t: 'finish', x: 63, y: 0, w: 2.5, h: 3 },
-        { t: 'deco', kind: 'ribbon-start', x: 3.6, y: 0 },
+        { t: 'deco', kind: 'ribbon-start', x: 0.5, y: 0 },
         { t: 'deco', kind: 'hay', x: 8, y: 0 }, { t: 'deco', kind: 'hay', x: 46, y: 0 },
       ],
       routes: [
@@ -69,7 +69,7 @@ const L22: LevelDef = {
         { t: 'crumb', x: 18.5, y: 3.3 }, { t: 'crumb', x: 20.5, y: 3.3 }, { t: 'crumb', x: 22.5, y: 3.3 },
         { t: 'power', x: 33, y: 1.5, pu: 'PU-01' },
         { t: 'finish', x: 67, y: 0, w: 2.5, h: 3 },
-        { t: 'deco', kind: 'ribbon-start', x: 3.6, y: 0 }, { t: 'deco', kind: 'hay', x: 60, y: 0 },
+        { t: 'deco', kind: 'ribbon-start', x: 0.5, y: 0 }, { t: 'deco', kind: 'hay', x: 60, y: 0 },
       ],
       routes: [
         { color: 'common', nodes: route([[2, 0], [11.7, 0, 'jump'], [14.2, 0], [25.7, 0, 'jump'], [28.2, 0], [31.0, 0], [32.6, 0.9], [34.2, 0.9], [35.4, 0], [39.6, 0, 'jump'], [42.2, 0], [55.6, 0, 'jump'], [58.2, 0], [68.5, 0]]) },
@@ -110,7 +110,7 @@ const L23: LevelDef = {
         { t: 'power', x: 44, y: 0.6, pu: 'PU-01' },
         { t: 'power', x: 6, y: 0.6, pu: 'PU-05' },
         { t: 'finish', x: 65, y: 0, w: 2.5, h: 3 },
-        { t: 'deco', kind: 'ribbon-start', x: 3.6, y: 0 }, { t: 'deco', kind: 'hay', x: 46, y: 0 },
+        { t: 'deco', kind: 'ribbon-start', x: 0.5, y: 0 }, { t: 'deco', kind: 'hay', x: 46, y: 0 },
       ],
       routes: [
         { color: 'common', nodes: route([[2, 0], [15.4, 0, 'peck'], [23.4, 0, 'peck'], [32.2, 0, 'peck'], [49.7, 0, 'jump'], [52.4, 0], [57.4, 0, 'peck'], [66.5, 0]]) },
@@ -156,7 +156,7 @@ const L24: LevelDef = {
         { t: 'checkpoint', x: 9, y: 0 }, { t: 'checkpoint', x: 32.4, y: 1.1 }, { t: 'checkpoint', x: 49, y: 0 },
         { t: 'crumb', x: 36, y: 2.7 }, { t: 'crumb', x: 39, y: 2.7 }, { t: 'crumb', x: 42, y: 2.7 },
         { t: 'finish', x: 69, y: 0, w: 2.5, h: 3 },
-        { t: 'deco', kind: 'ribbon-start', x: 3.6, y: 0 }, { t: 'deco', kind: 'hay', x: 56, y: 0 },
+        { t: 'deco', kind: 'ribbon-start', x: 0.5, y: 0 }, { t: 'deco', kind: 'hay', x: 56, y: 0 },
       ],
       routes: [
         { color: 'common', nodes: route([[2, 0], [11.8, 0], [13, -0.5], [30.6, -0.5], [31.8, 1.1], [32.3, 1.1, 'jump'], [35.0, 2.2], [43.6, 2.2], [44.6, 0], [46.8, 0, 'jump'], [49.6, 0], [70.5, 0]]) },
@@ -202,7 +202,7 @@ const L25: LevelDef = {
         { t: 'power', x: 13, y: 0.6, pu: 'PU-04' }, { t: 'power', x: 58, y: 1.6, pu: 'PU-01' }, { t: 'power', x: 83.5, y: 0.6, pu: 'PU-05' },
         { t: 'crumb', x: 38.5, y: 3.1 }, { t: 'crumb', x: 42.7, y: 3.7 }, { t: 'crumb', x: 46.7, y: 3.3 },
         { t: 'finish', x: 97, y: 0, w: 2.5, h: 3 },
-        { t: 'deco', kind: 'ribbon-start', x: 3.6, y: 0 }, { t: 'deco', kind: 'trophy', x: 101.5, y: 0, s: 1.2 },
+        { t: 'deco', kind: 'ribbon-start', x: 0.5, y: 0 }, { t: 'deco', kind: 'trophy', x: 101.5, y: 0, s: 1.2 },
       ],
       routes: [
         { color: 'common', nodes: route([[2, 0], [14.8, 0, 'jump'], [17.4, 0], [19.6, 0], [21.2, 0.9], [22.6, 0.9], [23.4, 0], [32.6, 0], [33.4, 0.5], [34.6, 1.0], [39.4, 1.0, 'peck'], [47.8, 1.0, 'jump'], [50.4, 1.0], [61.6, 1.0], [62.6, -0.5], [79.4, -0.5], [80.6, 0], [85.4, 0, 'peck'], [90.2, 0], [90.4, 0, 'jump'], [92.8, 0], [98.5, 0]]) },

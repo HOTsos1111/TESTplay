@@ -52,7 +52,7 @@ export class GameView {
 
   private viewFor(ar: ArenaRuntime) {
     let v = this.views.get(ar);
-    if (!v) { v = new ArenaView(ar, this.colors); this.views.set(ar, v); this.root.add(v.group); }
+    if (!v) { v = new ArenaView(ar, this.colors, this.m.actors.map((a) => (a.isPlayer ? 'YOU' : a.name))); this.views.set(ar, v); this.root.add(v.group); }
     return v;
   }
 

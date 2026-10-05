@@ -21,7 +21,7 @@ export class ArenaView {
   private rotors: THREE.Object3D[] = [];
   private spectators: THREE.Object3D[] = [];
 
-  constructor(readonly ar: ArenaRuntime, private ownerColors: string[]) {
+  constructor(readonly ar: ArenaRuntime, private ownerColors: string[], private ownerNames: string[] = []) {
     this.side = ar.mode === 'side';
     const d = ar.def;
     this.group.add(buildBackdrop(d.theme, d.mode, d.w, d.h));
@@ -174,7 +174,10 @@ export class ArenaView {
       case 'basket': {
         const owner = d.owner ?? -1;
         const col = owner >= 0 ? new THREE.Color(this.ownerColors[owner] ?? '#ffffff').getHex() : 0xffffff;
-        o = P.basket(d.r * 0.85, col); break;
+        o = P.basket(d.r * 0.85, col);
+        // ownership is never colour-only: a floating name tag marks each owned basket
+        if (owner >= 0) { const tag = labelSprite(this.ownerNames[owner] ?? `#${owner + 1}`, this.ownerColors[owner] ?? '#fff'); tag.position.y = d.r * 1.6 + 0.6; o.add(tag); }
+        break;
       }
       case 'cornpile': { const g = P.cornPile(); const stack = new THREE.Group(); g.add(stack); this.cornStacks.set(e.i, stack); o = g; break; }
       case 'gate': o = P.gate(Math.max(d.w, d.h)); if (d.h > d.w) o.rotation.y = Math.PI / 2; break;
@@ -366,4 +369,24 @@ export class ArenaView {
       if (m.isMesh) m.geometry.dispose();
     });
   }
+}
+
+/** Canvas text sprite (name tags); text is rendered at runtime, never baked into art. */
+export function labelSprite(text: string, color: string) {
+  const c = document.createElement('canvas');
+  c.width = 256; c.height = 96;
+  const x = c.getContext('2d')!;
+  x.fillStyle = 'rgba(62,38,20,0.9)';
+  x.beginPath(); x.roundRect(8, 12, 240, 72, 24); x.fill();
+  x.lineWidth = 6; x.strokeStyle = color; x.stroke();
+  x.fillStyle = '#fff6dc';
+  x.font = 'bold 44px Fredoka, Trebuchet MS, sans-serif';
+  x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.fillText(text, 128, 50);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true }));
+  sp.scale.set(1.6, 0.6, 1);
+  sp.renderOrder = 10;
+  return sp;
 }

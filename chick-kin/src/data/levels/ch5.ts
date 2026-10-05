@@ -29,7 +29,7 @@ const sprintArena: ArenaDef = {
     { t: 'checkpoint', x: 19, y: 0 }, { t: 'checkpoint', x: 41.5, y: 0 }, { t: 'checkpoint', x: 61, y: 0 }, { t: 'checkpoint', x: 84, y: 0 },
     { t: 'power', x: 14, y: 0.7, pu: 'PU-01' }, { t: 'power', x: 66, y: 2.6, pu: 'PU-01' }, { t: 'power', x: 58.5, y: 0.7, pu: 'PU-05' }, { t: 'power', x: 83, y: 0.7, pu: 'PU-04' },
     { t: 'finish', x: 108, y: 0, w: 2.5, h: 3 },
-    { t: 'deco', kind: 'ribbon-start', x: 3.6, y: 0 }, { t: 'deco', kind: 'scoreboard', x: 112, y: 0 }, { t: 'deco', kind: 'trophy', x: 114, y: 0, s: 1.3 },
+    { t: 'deco', kind: 'ribbon-start', x: 0.5, y: 0 }, { t: 'deco', kind: 'scoreboard', x: 112, y: 0 }, { t: 'deco', kind: 'trophy', x: 114, y: 0, s: 1.3 },
   ],
   routes: [
     { color: 'common', nodes: route([[2, 0], [15.6, 0, 'jump'], [18.6, 0], [23.4, 0], [25.0, 1.0], [26.6, 1.0], [27.6, 0], [33.4, 0, 'peck'], [39.6, 0], [57.6, 0, 'jump'], [60.8, 0], [69.4, 0, 'peck'], [75.4, 0, 'peck'], [109.5, 0]]) },

@@ -137,7 +137,7 @@
 .stamina { width: 180px; padding: 8px 12px; }
 .stamina .bar { height: 14px; }
 .objective-pop { position: absolute; top: 18%; left: 50%; transform: translateX(-50%); padding: 10px 26px; font-family: var(--font-display); font-weight: 700; font-size: clamp(22px, 3vw, 36px); text-align: center; animation: pop 0.35s ease-out; white-space: nowrap; }
-.countdown { position: absolute; top: 34%; left: 50%; transform: translate(-50%, -50%); font-family: var(--font-display); font-weight: 700; font-size: clamp(80px, 14vw, 170px); color: #fff3b0; -webkit-text-stroke: 5px #6a3a10; text-shadow: 0 8px 0 #3e2208; animation: pop 0.35s ease-out; }
+.countdown { position: absolute; top: 46%; left: 50%; transform: translate(-50%, -50%); font-family: var(--font-display); font-weight: 700; font-size: clamp(80px, 14vw, 170px); color: #fff3b0; -webkit-text-stroke: 5px #6a3a10; text-shadow: 0 8px 0 #3e2208; animation: pop 0.35s ease-out; }
 @keyframes pop { from { transform: translate(-50%, -50%) scale(0.6); opacity: 0; } to { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
 .objective-pop { animation: none; }
 .prompt { position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%); padding: 6px 14px; font-weight: 800; font-size: 15px; }
