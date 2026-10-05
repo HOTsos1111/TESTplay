@@ -189,8 +189,19 @@ try {
 
   // Run without input until something hurts the hero; verify invulnerability then defeat flow.
   let hurt = null;
-  // Start just before the first tyres so the dog meets an obstacle (not a pit) first.
-  await page.evaluate(() => window.__HH__.teleport?.()(1300));
+  // Line the dog up before the next ground obstacle with no pit in between, so it
+  // meets an obstacle first (earlier teleports leave nothing behind the camera).
+  for (let i = 0; i < 20; i++) {
+    const s = await state(page);
+    if (!s) break;
+    const hz = s.hazardsAhead.find((h) => h.bottom < 18 && h.dx > 0 && !s.gapsAhead.some((g) => g[0] < h.dx));
+    if (hz) {
+      await page.evaluate((x) => window.__HH__.teleport()(x), s.x + hz.dx - 1000);
+      break;
+    }
+    await page.evaluate((x) => window.__HH__.teleport()(x), s.x + 1200);
+    await sleep(300);
+  }
   await sleep(100);
   const startHearts = (await state(page))?.hearts ?? 0;
   const t1 = Date.now();
