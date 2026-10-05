@@ -189,6 +189,9 @@ try {
 
   // Run without input until something hurts the hero; verify invulnerability then defeat flow.
   let hurt = null;
+  // Start just before the first tyres so the dog meets an obstacle (not a pit) first.
+  await page.evaluate(() => window.__HH__.teleport?.()(1300));
+  await sleep(100);
   const startHearts = (await state(page))?.hearts ?? 0;
   const t1 = Date.now();
   while (Date.now() - t1 < 25000) {
@@ -297,13 +300,13 @@ try {
       const w = window;
       w.__bot = { minHearts: Infinity, barks: 0, jumps: 0, hits: [], frames: 0, t0: performance.now() };
       w.__hold = null;
-      let lastHearts = Infinity;
+      let lastHearts = null;
       const tick = () => {
         const s = w.__HH__.game?.();
         const input = w.__HH__.input?.();
         if (!s || !input) return;
         const now = performance.now();
-        if (s.hearts < lastHearts) w.__bot.hits.push(Math.round(s.x));
+        if (lastHearts !== null && s.hearts < lastHearts) w.__bot.hits.push(Math.round(s.x));
         lastHearts = s.hearts;
         w.__bot.minHearts = Math.min(w.__bot.minHearts, s.hearts);
         // Bark at anything barkable inside reach (cardboard, squirrels, acorns, the latch).
