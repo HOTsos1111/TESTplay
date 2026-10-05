@@ -1,0 +1,15 @@
+{
+  "name": "Homeward Hound",
+  "short_name": "Homeward Hound",
+  "description": "A tiny dachshund's long run home.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#302331",
+  "theme_color": "#302331",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
