@@ -218,3 +218,74 @@
   .title-side-sign { display: none; }
 }
 .reduced-motion * { animation: none !important; transition: none !important; }
+
+/* ---------- menus scroll instead of clipping on short screens ---------- */
+#ui .layer { overflow-y: auto; justify-content: safe center; align-items: safe center; }
+#ui .layer.passthrough { overflow: visible; }
+
+/* ---------- touch controls ---------- */
+.touch-controls { position: absolute; inset: 0; pointer-events: none; touch-action: none; }
+.tc-zone { position: absolute; left: 0; bottom: 0; width: 48%; height: 62%; pointer-events: auto; touch-action: none; }
+.tc-stick { position: absolute; left: 110px; top: calc(100% - 110px); width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; background: rgba(253, 245, 228, 0.18); border: 3px solid rgba(253, 245, 228, 0.55); transition: opacity 0.15s; opacity: 0.55; }
+.tc-stick.active { opacity: 1; }
+.tc-knob { position: absolute; left: 50%; top: 50%; width: 56px; height: 56px; transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(circle at 40% 35%, var(--gold-1), var(--gold-3)); border: 3px solid var(--wood-900); box-shadow: 0 3px 0 var(--wood-900); }
+.tc-pad { position: absolute; right: calc(14px + env(safe-area-inset-right, 0px)); bottom: calc(14px + env(safe-area-inset-bottom, 0px)); width: 210px; height: 190px; pointer-events: none; }
+.tc-btn { position: absolute; pointer-events: auto; touch-action: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 700; font-size: 14px; letter-spacing: 0.04em; color: #fff; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.5); border: 3px solid var(--wood-900); box-shadow: 0 4px 0 var(--wood-900); user-select: none; -webkit-user-select: none; }
+.tc-btn.down { transform: translateY(3px); box-shadow: 0 1px 0 var(--wood-900); filter: brightness(1.15); }
+.tc-jump { right: 0; bottom: 0; width: 92px; height: 92px; font-size: 17px; background: radial-gradient(circle at 40% 35%, var(--gold-1), var(--gold-2) 60%, var(--gold-3)); color: #3b2204; text-shadow: none; }
+.tc-peck { right: 102px; bottom: 6px; width: 70px; height: 70px; background: radial-gradient(circle at 40% 35%, var(--green-1), var(--green-3)); }
+.tc-ability { right: 14px; bottom: 104px; width: 70px; height: 70px; font-size: 12px; }
+.tc-ability.cooling::after { content: ''; position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(rgba(30, 18, 8, 0.65) var(--cd, 0deg), transparent 0); }
+.tc-duck { right: 112px; bottom: 96px; width: 58px; height: 58px; font-size: 12px; background: radial-gradient(circle at 40% 35%, var(--wood-300), var(--wood-700)); }
+
+/* HUD re-layout when the touch controls are showing */
+.hud.is-touch .br .ability { display: none; }
+.hud.is-touch .br { bottom: auto; top: 64px; right: 12px; }
+.hud.is-touch .bl { bottom: auto; top: 70px; left: 12px; }
+.hud.is-touch .rival-row { min-width: 0; font-size: 12px; padding: 2px 8px 2px 2px; }
+.hud.is-touch .rival-row img { width: 24px; height: 24px; }
+.hud.is-touch .rivals { gap: 3px; }
+.hud.is-touch .prompt { bottom: auto; top: 30%; }
+.hud.is-touch .caption { bottom: auto; top: 40%; }
+.hud.is-touch .stamina { width: 150px; }
+
+/* ---------- short landscape screens (phones) ---------- */
+@media (max-height: 520px) {
+  #ui .layer { padding: 8px 12px; }
+  .chick-card img { max-width: 92px; }
+  .select-cards { gap: 8px; margin: 8px 0 10px; }
+  .chick-card { padding: 6px 8px 8px; }
+  .pros, .chick-card .small { display: none; }
+  .btn { min-height: 44px; padding: 8px 18px; font-size: 16px; }
+  .btn.primary { padding: 8px 22px; font-size: 18px; }
+  .title-l { font-size: 20px; }
+  #ui .layer.title-screen .logo { font-size: 48px; padding: 8px 24px 10px; }
+  .title-side-sign { display: none; }
+  .chapter-info { display: none; }
+  .map-body { grid-template-columns: 1fr; }
+  .chapter-tab .ct-sub { display: none; }
+  .node .egg { width: 48px; height: 56px; font-size: 20px; }
+  .nodes::before { top: 40px; }
+  .results-wrap { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .rank { font-size: 15px; padding: 3px 8px; }
+  .rank img { width: 32px; height: 32px; }
+  .grow-panel img { width: 80px; height: 80px; }
+  .banner { font-size: 30px; padding: 6px 24px 8px; }
+  .big-stars { font-size: 28px; }
+  .objective-pop { font-size: 18px; top: 22%; }
+  .countdown { font-size: 90px; }
+  .ability { width: 76px; height: 76px; }
+  .tree { grid-template-columns: 1fr 1fr 1fr; }
+  .parent img { width: 90px; height: 90px; }
+}
+@media (max-width: 760px) and (max-height: 520px) {
+  .select-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+/* ---------- rotate hint for phones held upright ---------- */
+.rotate-hint { display: none; }
+@media (orientation: portrait) and (pointer: coarse) {
+  .rotate-hint { display: flex; position: fixed; inset: 0; z-index: 50; flex-direction: column; gap: 14px; align-items: center; justify-content: center; text-align: center; padding: 24px; background: rgba(40, 24, 12, 0.94); color: var(--ivory); font-family: var(--font-display); font-size: 22px; pointer-events: auto; }
+  .rotate-hint .phone { width: 46px; height: 80px; border: 4px solid var(--gold-2); border-radius: 10px; animation: tilt 1.8s ease-in-out infinite; }
+}
+@keyframes tilt { 0%, 30% { transform: rotate(0); } 60%, 100% { transform: rotate(-90deg); } }

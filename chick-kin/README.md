@@ -41,6 +41,8 @@ npm run check:browser  # end-to-end check in Chromium (uses the dev server; set 
 | Drop through a plank | Duck + Jump | LB + Ⓐ |
 | Pause | Esc / P | Start |
 
+On phones and tablets, play in landscape: drag anywhere on the left half for the joystick; the right-hand buttons are Jump, Peck, your Power and Duck.
+
 All keyboard actions are remappable (Settings → Controls); prompts show the active binding and device. Hold-or-toggle for scratch/tug is in Settings → Accessibility. Menus are fully navigable by keyboard and controller.
 
 ## The game loop

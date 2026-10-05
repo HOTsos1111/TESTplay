@@ -8,6 +8,7 @@ import { POWERS } from '../data/items';
 import type { SimEvent } from '../sim/events';
 import { rectOverlap } from '../sim/math';
 import * as THREE from 'three';
+import { TouchControls } from './TouchControls';
 
 const PLACE = ['1st', '2nd', '3rd', '4th'];
 
@@ -28,6 +29,7 @@ export class Hud {
   private popT = 0;
   private lastKey = '';
   onPause: (() => void) | null = null;
+  touch: TouchControls | null = null;
 
   constructor(private m: Match, private input: InputRouter, private cam: THREE.PerspectiveCamera) {
     this.tl = h('div', { class: 'tl' });
@@ -55,6 +57,11 @@ export class Hud {
     this.ability.style.background = `radial-gradient(circle at 40% 35%, ${CLASS_INFO[p.cls].colors.ui}, ${CLASS_INFO[p.cls].colors.uiDark})`;
     this.ability.innerHTML = `<div class="cd"></div><div class="ab-ico">${CLASS_INFO[p.cls].icon}</div><div>${ab.name}</div><div class="ab-state small"></div>`;
     this.el = h('div', { class: 'hud' }, this.tl, this.tc, this.tr, this.bl, this.br, this.prompt, this.caption, this.countdown, this.pop);
+    if (input.isTouch) {
+      this.touch = new TouchControls(input, ab.name.split(' ')[0].toUpperCase(), `radial-gradient(circle at 40% 35%, ${CLASS_INFO[p.cls].colors.ui}, ${CLASS_INFO[p.cls].colors.uiDark})`);
+      this.el.append(this.touch.el);
+      this.el.classList.add('is-touch');
+    }
     for (let i = 0; i < 4; i++) {
       const o = h('div', { class: 'offscreen', style: { display: 'none' } }, h('img', { alt: '' }));
       this.offscreen.push(o);
@@ -151,6 +158,11 @@ export class Hud {
     const cdFrac = Math.max(0, p.abilityCd) / ab.cooldown;
     (this.ability.querySelector('.cd') as HTMLElement).style.background = cdFrac > 0 ? `conic-gradient(rgba(30,18,8,0.65) ${cdFrac * 360}deg, transparent 0)` : 'none';
     this.ability.classList.toggle('ready', cdFrac <= 0);
+    if (this.touch) {
+      const b = this.touch.abilityBtn;
+      b.classList.toggle('cooling', cdFrac > 0);
+      b.style.setProperty('--cd', `${cdFrac * 360}deg`);
+    }
     (this.ability.querySelector('.ab-state') as HTMLElement).textContent = cdFrac <= 0 ? `Ready! [${this.input.prompt('ability').split(' / ')[0]}]` : `${Math.ceil(p.abilityCd)}s`;
 
     // stamina (chapter 3+ in side arenas)

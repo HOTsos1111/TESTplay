@@ -1,0 +1,27 @@
+import { chromium } from 'playwright-core';
+import { spawn } from 'node:child_process';
+const PORT = 4194;
+const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--port', String(PORT), '--strictPort'], { stdio: ['ignore', 'pipe', 'pipe'] });
+await new Promise((res) => { server.stdout.on('data', (d) => { if (String(d).includes('localhost')) res(); }); setTimeout(res, 8000); });
+const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+const page = await ctx.newPage();
+const errs = []; page.on('pageerror', (e) => errs.push(e.message));
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+await page.goto(`http://localhost:${PORT}/`);
+await page.evaluate(() => localStorage.clear()); await page.reload(); await sleep(7000);
+await page.screenshot({ path: 'screenshots/m-title.png' });
+await page.evaluate(() => window.__ck.click('Play')); await sleep(4000);
+await page.screenshot({ path: 'screenshots/m-select.png' });
+await page.evaluate(() => window.__ck.click('Confirm')); await sleep(4000);
+await page.screenshot({ path: 'screenshots/m-map.png' });
+await page.evaluate(() => window.__ck.flow.debugStart('2-2', 'speedy', 1, false)); await sleep(3000);
+// press jump via touch
+const jb = await page.locator('.tc-jump').boundingBox();
+await page.touchscreen.tap(jb.x + 40, jb.y + 40);
+await sleep(1500);
+await page.screenshot({ path: 'screenshots/m-play.png' });
+console.log('jump held state ok', await page.evaluate(() => window.__ck.flow.input.device));
+const p2 = await ctx.newPage(); await p2.setViewportSize({ width: 390, height: 844 }); await p2.goto(`http://localhost:${PORT}/`); await sleep(5000); await p2.screenshot({ path: 'screenshots/m-portrait.png' });
+console.log('errors', errs);
+await browser.close(); server.kill();

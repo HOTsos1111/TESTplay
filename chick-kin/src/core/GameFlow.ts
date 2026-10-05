@@ -56,6 +56,7 @@ export class GameFlow {
     this.r = new Renderer(stage);
     this.menu = new MenuScene(this.r);
     const s = this.save.data.settings;
+    if (this.save.lastStatus === 'fresh' && this.input.isTouch) s.quality = 'medium';
     this.applySettings(s);
     if (params.get('quality')) this.r.setQuality(params.get('quality') as Settings['quality']);
     if (this.save.data.bindings.keys) this.input.keys = this.save.data.bindings.keys;
@@ -63,6 +64,7 @@ export class GameFlow {
     this.input.onNav = (d) => this.onNav(d);
     this.nav.onMove = () => this.audio.play('ui.focus');
     this.savingEl = h('div', { class: 'saving' }, '✔ Saved');
+    document.body.append(h('div', { class: 'rotate-hint' }, h('div', { class: 'phone' }), 'Turn your phone sideways to play'));
     this.save.onSaved = () => { this.savingEl.classList.add('on'); this.audio.play('ui.saved'); setTimeout(() => this.savingEl.classList.remove('on'), 1400); };
     this.audio.onCaption = (t, k) => { if (this.save.data.settings.captions) this.hud?.showCaption(t, k); };
     this.menu.onBeat = (b) => { if (b === 'bloom') this.audio.play('story.bloom'); if (b === 'crack') this.audio.play('story.crack'); if (b === 'grown') this.audio.voice(this.save.data.current?.cls ?? 'speedy'); };
@@ -438,6 +440,7 @@ export class GameFlow {
 
   pause() {
     if (!this.session || this.paused) return;
+    this.hud?.touch?.release();
     this.paused = true;
     this.session.paused = true;
     this.audio.stems({ melody: 0.25, perc: 0.2, rival: 0, final: 0 });

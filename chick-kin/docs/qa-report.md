@@ -44,5 +44,5 @@ Issues found and fixed during review:
 - **Balance** has not been playtested by humans (see design-canonical.md §Known balance questions). The biggest risks are Mighty in finish-first races and four-way perch stand-offs.
 - **Frame rate on real hardware is unmeasured** (no GPU here). Workload numbers are in performance-report.md.
 - **Gamepads** are supported through the standard-mapping Gamepad API but were **not tested with physical controllers** in this environment. Button remapping for gamepads isn't in the UI yet.
-- **Touch/mobile** is not targeted (the brief targets desktop). Layouts are responsive, but there are no on-screen controls.
+- **Touch/mobile:** on-screen joystick + Jump/Peck/Power/Duck buttons, phone-landscape layouts and a rotate prompt were added for the shareable web link. Verified in Chromium phone emulation (844×390), not yet on physical phones.
 - Audio has been auditioned only for errors and routing; **mix loudness has not been measured** (all audio is TEMP).

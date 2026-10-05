@@ -18,12 +18,17 @@ export const DEFAULT_KEYS: KeyMap = {
 export type PadMap = Record<'jump' | 'interact' | 'ability' | 'duck' | 'pause', number>;
 export const DEFAULT_PAD: PadMap = { jump: 0, interact: 2, ability: 1, duck: 4, pause: 9 };
 
-export type Device = 'keyboard' | 'gamepad';
+export type Device = 'keyboard' | 'gamepad' | 'touch';
+
+/** On-screen touch controls write here (see ui/TouchControls). */
+export interface TouchState { mx: number; my: number; jump: boolean; interact: boolean; interactPressed: boolean; ability: boolean; duck: boolean }
 
 export class InputRouter {
   keys: KeyMap = structuredClone(DEFAULT_KEYS);
   pad: PadMap = { ...DEFAULT_PAD };
   device: Device = 'keyboard';
+  readonly touch: TouchState = { mx: 0, my: 0, jump: false, interact: false, interactPressed: false, ability: false, duck: false };
+  readonly isTouch = typeof window !== 'undefined' && (window.matchMedia?.('(pointer: coarse)').matches || 'ontouchstart' in window);
   /** Hold vs toggle for repeated interactions (scratch / tug). */
   interactToggle = false;
   private down = new Set<string>();
@@ -119,6 +124,14 @@ export class InputRouter {
       ability = ability || b(this.pad.ability) || b(5);
       duck = duck || b(this.pad.duck) || (gp.buttons[6]?.value ?? 0) > 0.5;
     }
+    const t = this.touch;
+    if (Math.hypot(t.mx, t.my) > 0.15) { mx = t.mx; my = t.my; }
+    jump = jump || t.jump;
+    interactHeld = interactHeld || t.interact;
+    interactPressed = interactPressed || t.interactPressed;
+    t.interactPressed = false;
+    ability = ability || t.ability;
+    duck = duck || t.duck;
     let interact = interactHeld;
     if (this.interactToggle) {
       if (interactPressed) this.toggled = !this.toggled;
@@ -133,6 +146,10 @@ export class InputRouter {
 
   /** Human-readable prompt for an action on the active device. */
   prompt(a: Action): string {
+    if (this.device === 'touch') {
+      const names: Record<Action, string> = { up: 'Stick', down: 'Stick', left: 'Stick', right: 'Stick', jump: 'JUMP', interact: 'PECK', ability: 'POWER', duck: 'DUCK', pause: '❚❚' };
+      return names[a];
+    }
     if (this.device === 'gamepad') {
       const names: Record<number, string> = { 0: 'Ⓐ', 1: 'Ⓑ', 2: 'Ⓧ', 3: 'Ⓨ', 4: 'LB', 5: 'RB', 9: 'Start' };
       if (a === 'left' || a === 'right' || a === 'up' || a === 'down') return 'Left stick';
