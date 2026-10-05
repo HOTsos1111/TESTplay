@@ -71,6 +71,8 @@ export interface ArenaDef {
   routes?: RouteDef[];
   /** Side: falling below this y respawns at the last checkpoint. */
   killY?: number;
+  /** Side: falling this far below the last checkpoint returns you to it (vertical climbs). */
+  fallRecovery?: number;
   /** Seconds before a collected crumb spot respawns (limited symmetric replenishment). */
   crumbRespawn?: number;
   /** Camera framing hint. */

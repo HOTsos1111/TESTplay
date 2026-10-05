@@ -151,7 +151,7 @@ export class Hud {
     const cdFrac = Math.max(0, p.abilityCd) / ab.cooldown;
     (this.ability.querySelector('.cd') as HTMLElement).style.background = cdFrac > 0 ? `conic-gradient(rgba(30,18,8,0.65) ${cdFrac * 360}deg, transparent 0)` : 'none';
     this.ability.classList.toggle('ready', cdFrac <= 0);
-    (this.ability.querySelector('.ab-state') as HTMLElement).textContent = cdFrac <= 0 ? `Ready! [${this.input.prompt('ability')}]` : `${Math.ceil(p.abilityCd)}s`;
+    (this.ability.querySelector('.ab-state') as HTMLElement).textContent = cdFrac <= 0 ? `Ready! [${this.input.prompt('ability').split(' / ')[0]}]` : `${Math.ceil(p.abilityCd)}s`;
 
     // stamina (chapter 3+ in side arenas)
     const showStamina = p.g.canFlap && ar.mode === 'side';

@@ -93,6 +93,7 @@ export function tickTimers(a: Actor, dt: number, ctx: RuleCtx) {
     }
   }
   if (a.peckT > 0) a.peckT -= dt;
+  if (a.nudgeCd > 0) a.nudgeCd -= dt;
   if (a.pushT > 0) a.pushT -= dt;
   for (const p of a.powers) {
     p.t -= dt;
@@ -134,4 +135,22 @@ export function speedMult(a: Actor, onMud: boolean): number {
   if (a.carryBundle) m *= 0.8;
   if (a.carryTreats > 0) m *= 1 - 0.05 * a.carryTreats;
   return Math.min(m, 2.2);
+}
+
+/**
+ * Generic peck-nudge (every class): a gentle shove to an adjacent sibling. No stun, no cargo drop,
+ * scaled by the target's bump resistance and bracing. Mighty's Fluff Bump remains the strong version.
+ */
+export function nudge(a: Actor, o: Actor, dirX: number, dirY: number, ctx: RuleCtx) {
+  if (a.nudgeCd > 0) return false;
+  a.nudgeCd = 0.9;
+  a.peckT = 0.2;
+  if (o.protectT > 0 || o.dodgeT > 0) return false;
+  const res = o.tuning.bumpRes * (o.bracing ? (o.cls === 'mighty' ? 3 : 2) : 1);
+  const k = (4.2 * Math.sqrt(a.pushForce)) / res;
+  const n = Math.hypot(dirX, dirY) || 1;
+  o.vx += (dirX / n) * k;
+  o.vy += (dirY / n) * k;
+  ctx.ev.emit({ type: 'peck', a: a.id, x: o.x, y: o.y });
+  return true;
 }

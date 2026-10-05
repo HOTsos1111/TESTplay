@@ -40,18 +40,18 @@ export class CameraDirector {
     } else {
       const fit = Math.max(arena.w / aspect, arena.h) ;
       if (mode === 'close' || mode === 'overhead') {
-        // whole nest in frame, gently following the player
-        const H = THREE.MathUtils.clamp(fit * 0.95, 9, 20);
-        const cx = arena.w / 2 + (f.x - arena.w / 2) * 0.18;
-        const cz = arena.h / 2 + (f.y - arena.h / 2) * 0.15;
-        tl.set(cx, 0, cz + 0.4);
-        tp.set(cx, H, cz + H * 0.62);
+        // contained nest: frame most of the arena, follow the player, angled enough to read faces
+        const H = THREE.MathUtils.clamp(fit * 0.62, 7.5, 14);
+        const cx = THREE.MathUtils.clamp(arena.w / 2 + (f.x - arena.w / 2) * 0.55, arena.w * 0.3, arena.w * 0.7);
+        const cz = THREE.MathUtils.clamp(arena.h / 2 + (f.y - arena.h / 2) * 0.55, arena.h * 0.3, arena.h * 0.72);
+        tl.set(cx, 0, cz + 0.2);
+        tp.set(cx, H, cz + H * 0.88);
       } else {
-        const H = 11.5;
+        const H = 10.5;
         const cx = THREE.MathUtils.clamp(f.x, Math.min(arena.w / 2, 7), Math.max(arena.w / 2, arena.w - 7));
         const cz = THREE.MathUtils.clamp(f.y, Math.min(arena.h / 2, 4.5), Math.max(arena.h / 2, arena.h - 5));
         tl.set(cx, 0, cz + 0.6);
-        tp.set(cx, H, cz + H * 0.78);
+        tp.set(cx, H, cz + H * 0.9);
       }
     }
     if (!this.init) { this.pos.copy(tp); this.look.copy(tl); this.init = true; }

@@ -23,6 +23,7 @@ export interface Ent {
   angle: number;                                 // bucket/wobbly angle
   active: boolean;                               // wind on / egg rolling / gate open
   warn: boolean;
+  taken: number;                                 // per-competitor bitmask (golden feathers are personal)
 }
 
 export interface LooseItem { id: number; kind: 'treat' | 'crumb' | 'bundle'; x: number; y: number; vx: number; vy: number; t: number; alive: boolean }
@@ -185,7 +186,7 @@ export class ArenaRuntime {
 function makeEnt(d: EntityDef, i: number): Ent {
   const e: Ent = {
     i, def: d, t: d.t, alive: true, x: 0, y: 0, w: 0, h: 0, px: 0, py: 0, vx: 0, vy: 0,
-    phase: 0, hp: 0, timer: 0, count: 0, owner: -1, tug: [0, 0, 0, 0], angle: 0, active: false, warn: false,
+    phase: 0, hp: 0, timer: 0, count: 0, owner: -1, tug: [0, 0, 0, 0], angle: 0, active: false, warn: false, taken: 0,
   };
   switch (d.t) {
     case 'mover': case 'straw': case 'bale': case 'crate': case 'mud': case 'seed': case 'wind': case 'perch': case 'finish': case 'gate':

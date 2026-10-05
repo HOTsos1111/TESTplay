@@ -37,7 +37,7 @@ function platforms(ar: ArenaRuntime): Platform[] {
 
 export function stepSide(a: Actor, inp: ActorInput, ar: ArenaRuntime, others: Actor[], ctx: RuleCtx, dt: number) {
   const g = a.g.side;
-  const control = a.canAct && !a.finished;
+  const control = a.canAct;
   const mx = control ? clamp(inp.mx, -1, 1) : 0;
   const jumpPressed = control && inp.jump && !a.prevJump;
   const abilityPressed = control && inp.ability && !a.prevAbility;
@@ -127,7 +127,11 @@ export function stepSide(a: Actor, inp: ActorInput, ar: ArenaRuntime, others: Ac
   if (a.grounded && a.g.canFlap) a.stamina = Math.min(a.staminaMax, a.stamina + dt * 2.2);
 
   const canStand = !a.ducking || !hitsAny({ x: a.x - a.w / 2 + 0.02, y: a.y + 0.02, w: a.w - 0.04, h: a.h }, solids);
-  if (a.jumpBuffer > 0 && (a.grounded || a.coyote > 0) && control && canStand) {
+  // drop through a one-way plank: duck + jump
+  if (a.dropT > 0) a.dropT -= dt;
+  if (jumpPressed && control && a.grounded && a.onOneWay && inp.duck) {
+    a.dropT = 0.22; a.grounded = false; a.groundRef = -1; a.jumpBuffer = 0; a.y -= 0.05; a.vy = -2;
+  } else if (a.jumpBuffer > 0 && (a.grounded || a.coyote > 0) && control && canStand) {
     a.vy = jumpVelocity(a);
     a.grounded = false; a.coyote = 0; a.jumpBuffer = 0;
     a.jumpCutDone = false; a.jumpHeld = true; a.ducking = false;
@@ -207,6 +211,11 @@ export function stepSide(a: Actor, inp: ActorInput, ar: ArenaRuntime, others: Ac
 
   // ---- fall out of the world → safe checkpoint, brief protection, small time penalty
   if (a.y < (ar.def.killY ?? -6)) respawn(a, ctx);
+  else if (ar.def.fallRecovery && a.grounded) {
+    // a long fall from a foothold returns you to the last lantern (if it is higher than where you landed)
+    if (a.lastGroundY - a.y > ar.def.fallRecovery && a.checkpointY > a.y + 1) respawn(a, ctx);
+    else a.lastGroundY = a.y;
+  }
 
   // Side view: each chick runs on its own depth lane (2.5D), so siblings pass each other.
   // They interact through abilities (Fluff Bump, Zoomies) rather than blocking a single lane.
@@ -216,12 +225,13 @@ export function stepSide(a: Actor, inp: ActorInput, ar: ArenaRuntime, others: Ac
 }
 
 export function respawn(a: Actor, ctx: RuleCtx) {
-  a.x = a.checkpointX; a.y = a.checkpointY + 0.05;
+  a.x = a.checkpointX; a.y = a.checkpointY + 0.05; a.lastGroundY = a.checkpointY;
   a.vx = 0; a.vy = 0; a.grounded = false; a.groundRef = -1;
   a.stunT = 0.6; a.protectT = 0.6 + 1.5;
   a.stamina = a.staminaMax;
   a.carryBundle = false; a.carryTreats = 0;
   a.anim = 'respawn'; a.animT = 0;
+  a.respawns++;
   ctx.ev.emit({ type: 'respawn', a: a.id, x: a.x, y: a.y });
 }
 
@@ -275,7 +285,8 @@ function resolveY(a: Actor, ar: ArenaRuntime, solids: (Rect & { ent?: Ent; oneWa
     }
     r.y = a.y;
   }
-  if (a.vy <= 0) {
+  a.onOneWay = false;
+  if (a.vy <= 0 && a.dropT <= 0) {
     for (const p of platforms(ar)) {
       if (r.x + r.w <= p.x || r.x >= p.x + p.w) continue;
       const platDy = p.ent ? p.ent.y - p.ent.py : 0;
@@ -283,6 +294,7 @@ function resolveY(a: Actor, ar: ArenaRuntime, solids: (Rect & { ent?: Ent; oneWa
         a.y = p.top; a.vy = 0; landed = true; a.grounded = true;
         a.groundRef = p.ent ? p.ent.i : -1;
         a.groundKind = p.kind;
+        a.onOneWay = !p.ent || p.ent.t === 'mover';
       }
     }
   }

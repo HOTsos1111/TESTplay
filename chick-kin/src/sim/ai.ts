@@ -67,6 +67,9 @@ export class SiblingAI {
   private pathT = 0;
   private target: { x: number; y: number; kind: string; ent?: Ent; looseId?: number } | null = null;
   private snackT = 0;
+  private perchWaitT = 0;
+  private seenRespawns = 0;
+  private perchAngle = 0;
 
   constructor(readonly actorId: number, readonly personality: Personality, readonly skill: Skill, seed: number) {
     this.rng = makeRng(seed);
@@ -75,11 +78,12 @@ export class SiblingAI {
   think(m: Match, dt: number): ActorInput {
     const a = m.actors[this.actorId];
     const ar = m.arenaOf(a);
-    if (m.state !== 'play' || a.finished) {
+    if (m.state !== 'play') {
       this.out = { mx: 0, my: 0, jump: false, interact: false, ability: false, duck: false };
       this.route = null;
       return this.out;
     }
+    if (a.finished) return this.celebrate(m, a, ar);
     this.thinkT -= dt;
     this.flapCd -= dt;
     this.peckCd -= dt;
@@ -93,6 +97,22 @@ export class SiblingAI {
       if (this.rng.chance(this.skill.mistakes * 0.35)) this.hesitateT = 0.15 + this.rng.next() * 0.25;
     }
     return ar.mode === 'side' ? this.thinkSide(m, a, ar, dt) : this.thinkTop(m, a, ar, dt);
+  }
+
+  /** Finished siblings step off contested goals (perches) and cheer; they never block an objective. */
+  private celebrate(m: Match, a: Actor, ar: ArenaRuntime): ActorInput {
+    const out: ActorInput = { mx: 0, my: 0, jump: false, interact: false, ability: false, duck: false };
+    const perch = ar.ents.find((e) => e.t === 'perch');
+    if (perch) {
+      const cx = perch.x + perch.w / 2, cy = perch.y + perch.h / 2;
+      const inside = a.x > perch.x - 1.2 && a.x < perch.x + perch.w + 1.2 && (ar.mode === 'side' ? a.y > perch.y - 0.6 && a.y < perch.y + perch.h + 0.6 : a.y > perch.y - 1.2 && a.y < perch.y + perch.h + 1.2);
+      if (inside) {
+        if (ar.mode === 'side') { out.mx = a.x < cx ? -1 : 1; }
+        else { const dx = a.x - cx, dy = a.y - cy, d = Math.hypot(dx, dy) || 1; out.mx = dx / d; out.my = dy / d; }
+      }
+    }
+    void m;
+    return out;
   }
 
   // ===================================================================== SIDE
@@ -109,15 +129,18 @@ export class SiblingAI {
     this.resync(a);
   }
 
-  /** After a respawn or phase change, continue from the most advanced reachable node near us. */
+  /** After a respawn, fall or phase change, continue from the most advanced node we can actually reach. */
   private resync(a: Actor) {
     if (!this.route) return;
-    let best = this.node, bestD = Infinity;
+    const reach = a.g.side.jumpHeight * a.tuning.jump + (a.g.canFlap ? 0.8 : 0);
+    let best = -1, bestD = Infinity;
     this.route.nodes.forEach((n, i) => {
-      const d = Math.hypot(n.x - a.x, (n.y - a.y) * 1.5);
-      if (d < bestD - 0.01 || (Math.abs(d - bestD) < 0.6 && i > best)) { bestD = d; best = i; }
+      const dy = n.y - a.y;
+      if (dy > reach || dy < -3) return;
+      const d = Math.abs(n.x - a.x) + Math.max(0, dy) * 1.5 + Math.max(0, -dy) * 0.5;
+      if (d < bestD - 0.5 || (d < bestD + 0.5 && i > best)) { bestD = Math.min(d, bestD); best = i; }
     });
-    this.node = best;
+    this.node = best >= 0 ? best : 0;
   }
 
   private thinkSide(m: Match, a: Actor, ar: ArenaRuntime, dt: number): ActorInput {
@@ -126,7 +149,7 @@ export class SiblingAI {
     const route = this.route;
     if (!route) return out;
     const nodes = route.nodes;
-    if (a.anim === 'respawn' && a.animT < 0.05) this.resync(a);
+    if (a.respawns !== this.seenRespawns) { this.seenRespawns = a.respawns; this.node = 0; this.resync(a); }
 
     // advance through reached nodes
     for (let guard = 0; guard < 3 && this.node < nodes.length; guard++) {
@@ -134,11 +157,14 @@ export class SiblingAI {
       const near = Math.abs(n.x - a.x) < 0.35 && a.y > n.y - 0.3 && a.y < n.y + 1.2;
       // Overshoot: already closer to the following node than this one is, at a similar height.
       const nn = nodes[this.node + 1];
-      const passed = nn && !n.a && a.grounded && Math.abs(a.y - n.y) < 0.4 && Math.abs(nn.y - n.y) < 0.4
+      const pn = nodes[this.node - 1];
+      const monotonic = !pn || Math.sign(n.x - pn.x) === Math.sign(nn ? nn.x - n.x : 0);
+      const passed = nn && !n.a && monotonic && a.grounded && Math.abs(a.y - n.y) < 0.4 && Math.abs(nn.y - n.y) < 0.4
         && Math.hypot(nn.x - a.x, nn.y - a.y) < Math.hypot(nn.x - n.x, nn.y - n.y);
       if ((near && (a.grounded || this.node === nodes.length - 1 || n.a === 'glide')) || passed) this.node++;
       else break;
     }
+    if (this.node >= nodes.length && a.grounded && a.y < nodes[nodes.length - 1].y - 0.8) this.resync(a); // knocked off: climb back
     if (this.node >= nodes.length) {
       // goal: stand in the finish / perch zone; contest it
       const last = nodes[nodes.length - 1];
@@ -147,7 +173,11 @@ export class SiblingAI {
       this.out = out;
       return out;
     }
-    const n = nodes[this.node];
+    let n = nodes[this.node];
+    if (a.grounded && n.y - a.y > a.g.side.jumpHeight * a.tuning.jump + (a.g.canFlap ? Math.floor(a.staminaMax) * 0.9 : 0) + 0.3) {
+      this.resync(a);
+      n = nodes[Math.min(this.node, nodes.length - 1)];
+    }
     const prev: RouteNode | undefined = nodes[this.node - 1];
     this.intent = { x: n.x, y: n.y, kind: 'route' };
     const dx = n.x - a.x;
@@ -155,6 +185,14 @@ export class SiblingAI {
     out.mx = dir;
 
     const act = prev?.a;
+    // standing on a plank above the next node: drop through (duck + jump)
+    if (a.grounded && a.onOneWay && n.y < a.y - 0.8 && Math.abs(dx) < 1.2) {
+      out.duck = true;
+      if (!this.out.jump) out.jump = true;
+      out.mx = 0;
+      this.out = out;
+      return out;
+    }
     // ---- wait for a moving platform / bucket phase
     if (act === 'wait' && prev?.wait && a.grounded && Math.abs(prev.x - a.x) < 0.6) {
       const e = ar.ents[prev.wait.e];
@@ -233,6 +271,8 @@ export class SiblingAI {
       if (closing && Math.abs(ex - a.x) < 1.3 && Math.abs(e.y - a.y) < 0.6) { out.jump = true; this.jumpHoldT = 0.3; }
     }
 
+    // jump is edge-triggered: a grounded chick that still holds jump must release it for a frame
+    if (a.grounded && out.jump && this.out.jump) out.jump = false;
     // ---- stuck recovery
     if (m.t - this.lastPos.t > 1.2) {
       const moved = Math.hypot(a.x - this.lastPos.x, a.y - this.lastPos.y);
@@ -275,7 +315,8 @@ export class SiblingAI {
     if (!perch) return;
     const cx = perch.x + perch.w / 2;
     out.mx = Math.abs(cx - a.x) > 0.3 ? Math.sign(cx - a.x) : 0;
-    const rival = m.actors.find((o) => o !== a && m.arenaOf(o) === ar && Math.abs(o.x - a.x) < 1.2 && Math.abs(o.y - a.y) < 0.5);
+    const rival = m.actors.find((o) => o !== a && !o.finished && m.arenaOf(o) === ar && Math.abs(o.x - a.x) < 1.2 && Math.abs(o.y - a.y) < 0.5);
+    if (rival && a.nudgeCd <= 0 && !this.out.interact && this.rng.chance(0.08 + this.personality.contest * 0.1)) { a.facing = Math.sign(rival.x - a.x) || 1; out.mx = Math.sign(rival.x - a.x) * 0.2; out.interact = true; }
     if (rival && a.abilityCd <= 0 && this.rng.next() < this.personality.contest * this.skill.abilityUse * 0.1) {
       a.facing = Math.sign(rival.x - a.x) || 1;
       out.mx = Math.sign(rival.x - a.x) * 0.3;
@@ -436,7 +477,23 @@ export class SiblingAI {
       case 'perch': case 'reach': case 'race': {
         const p = ar.ents.find((e) => e.t === 'perch' || e.t === 'finish');
         if (!p) return null;
-        return { x: p.x + p.w / 2 + (this.actorId - 1.5) * 0.15, y: p.y + p.h / 2, kind: 'perch', ent: p };
+        const cx = p.x + p.w / 2, cy = p.y + p.h / 2;
+        if (obj.kind === 'perch') {
+          // King-of-the-hill tactics: in a crowded stand-off, less pushy siblings back off and circle,
+          // then return when the perch has a lone owner to knock off.
+          const occupants = others.filter((o) => !o.finished && Math.hypot(o.x - cx, o.y - cy) < 1.6).length;
+          if (this.perchWaitT > 0) {
+            this.perchWaitT -= 1 / 120;
+            const rr = 3.4;
+            this.perchAngle += 0.004;
+            return { x: cx + Math.cos(this.perchAngle) * rr, y: cy + Math.sin(this.perchAngle) * rr, kind: 'wait' };
+          }
+          if (occupants >= 2 && this.rng.chance((1 - this.personality.contest * 0.6) * 0.03)) {
+            this.perchWaitT = 2 + this.rng.next() * 2.5;
+            this.perchAngle = Math.atan2(a.y - cy, a.x - cx);
+          }
+        }
+        return { x: cx + (this.actorId - 1.5) * 0.15, y: cy, kind: 'perch', ent: p };
       }
       case 'deliver': case 'mostDeliveries': {
         const bundle = obj.kind === 'deliver' && obj.cargo === 'bundle';
@@ -478,8 +535,10 @@ export class SiblingAI {
   }
 
   private perchContestTop(m: Match, a: Actor, ar: ArenaRuntime, out: ActorInput) {
-    const rival = m.actors.find((o) => o !== a && m.arenaOf(o) === ar && Math.hypot(o.x - a.x, o.y - a.y) < 1.1);
+    const rival = m.actors.find((o) => o !== a && !o.finished && m.arenaOf(o) === ar && Math.hypot(o.x - a.x, o.y - a.y) < 1.1);
     if (!rival) return;
+    // peck-nudge the neighbour off the perch (everyone can)
+    if (a.nudgeCd <= 0 && !this.out.interact && this.rng.chance(0.08 + this.personality.contest * 0.1)) out.interact = true;
     if (a.abilityCd <= 0 && this.rng.next() < this.personality.contest * this.skill.abilityUse * 0.08 && a.cls === 'mighty') {
       a.heading = Math.atan2(rival.y - a.y, rival.x - a.x);
       out.ability = true;

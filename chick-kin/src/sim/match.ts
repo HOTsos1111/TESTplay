@@ -4,7 +4,7 @@ import { ArenaRuntime, type Ent } from './arena';
 import { EventLog } from './events';
 import { stepSide, stepPushablesSide, peckSide } from './physicsSide';
 import { stepTop, stepPushablesTop, topBlockers } from './physicsTop';
-import { applyPower, tickTimers, type RuleCtx } from './rules';
+import { applyPower, tickTimers, nudge, type RuleCtx } from './rules';
 import type { LevelDef, ObjectiveDef, PhaseDef, ArenaDef } from './types';
 import type { ChickClass } from '../data/classes';
 import type { Stage } from '../data/growth';
@@ -103,7 +103,7 @@ export class Match {
     const [sx, sy] = arena.starts[slot % arena.starts.length];
     a.resetForPhase(sx, sy);
     a.facing = 1;
-    a.heading = arena.mode === 'top' ? -Math.PI / 2 : 0;
+    a.heading = arena.mode === 'top' ? Math.PI / 2 : 0; // face the camera at the start
   }
 
   step(dt: number, inputs: ActorInput[]) {
@@ -166,20 +166,24 @@ export class Match {
       if (e.t === 'crumb' || e.t === 'feather' || e.t === 'power') {
         if (!reachZ) continue;
         const d = Math.hypot(e.x - ax, e.y - ay);
-        let r = pickR;
+        let r = e.t === 'feather' ? pickR + 0.2 : pickR;
         if (magnet && e.t === 'crumb' && d < POWER_TUNING.magnetRadius && this.los(ar, ax, ay, e.x, e.y)) r = POWER_TUNING.magnetRadius;
         if (d > r) continue;
         if (a.finished && e.t !== 'power') continue;
+        if (e.t === 'feather') {
+          // personal: every sibling collects their own set
+          if (e.taken & (1 << a.id)) continue;
+          e.taken |= 1 << a.id;
+          a.st.feathers += 1;
+          this.ev.emit({ type: 'pickup', a: a.id, item: 'feather', x: e.x, y: e.y, value: 1 });
+          continue;
+        }
         e.alive = false;
         if (e.t === 'crumb') {
           const v = a.hasPower('PU-07') ? 2 : 1;
           a.st.crumbs += v;
           e.timer = ar.def.crumbRespawn ?? 0;
           this.ev.emit({ type: 'pickup', a: a.id, item: 'crumb', x: e.x, y: e.y, value: v });
-        } else if (e.t === 'feather') {
-          a.st.feathers += 1;
-          e.timer = 0;
-          this.ev.emit({ type: 'pickup', a: a.id, item: 'feather', x: e.x, y: e.y, value: 1 });
         } else {
           const pu = (e.def as { pu: keyof typeof POWERS }).pu;
           applyPower(a, pu, this.ctx);
@@ -208,7 +212,10 @@ export class Match {
     }
 
     if (side) {
-      if (pressed) peckSide(a, ar, this.ctx);
+      if (pressed && !peckSide(a, ar, this.ctx)) {
+        const o = _others.find((s) => Math.abs(s.y - a.y) < 0.5 && (s.x - a.x) * a.facing > -0.1 && Math.abs(s.x - a.x) < (a.w + s.w) / 2 + 0.35);
+        if (o) nudge(a, o, a.facing, 0, this.ctx);
+      }
       this.sideZones(a, ar);
       return;
     }
@@ -217,6 +224,10 @@ export class Match {
     if (!a.canAct || a.finished) { a.interactTarget = -1; a.interactT = 0; return; }
     if (pressed) {
       const target = this.interactTargetTop(a, ar);
+      if (!target) {
+        const o = _others.filter((s) => Math.abs(s.z - a.z) < 0.4 && Math.hypot(s.x - a.x, s.y - a.y) < a.r + s.r + 0.4).sort((p, q) => Math.hypot(p.x - a.x, p.y - a.y) - Math.hypot(q.x - a.x, q.y - a.y))[0];
+        if (o) nudge(a, o, o.x - a.x, o.y - a.y, this.ctx);
+      }
       if (target) {
         const e = target;
         if (e.t === 'basket') {
@@ -293,7 +304,7 @@ export class Match {
   private sideZones(a: Actor, ar: ArenaRuntime) {
     // checkpoints (only advance)
     ar.ents.forEach((e) => {
-      if (e.t === 'checkpoint' && e.i > a.cpIdx && Math.hypot(e.x - a.x, e.y - a.y) < 1.6 && a.grounded) {
+      if (e.t === 'checkpoint' && e.i > a.cpIdx && Math.abs(e.x - a.x) < 2.2 && a.y > e.y - 0.3 && a.y < e.y + 2.2) {
         a.cpIdx = e.i; a.checkpointX = e.x; a.checkpointY = e.y;
         this.ev.emit({ type: 'checkpoint', a: a.id, x: e.x, y: e.y });
       }
@@ -328,6 +339,24 @@ export class Match {
       const prev = e.owner;
       const wasContested = e.active;
       e.active = occ.length > 1; // contested occupancy pauses accumulation
+      // Anti-stall: a long stand-off makes the perch wobble, nudging everyone outward (fair to all).
+      if (e.active) {
+        e.timer += dt;
+        if (e.timer > 3) {
+          e.timer = 0;
+          const cx = e.x + e.w / 2, cy = e.y + e.h / 2;
+          for (const a of occ) {
+            const dx = a.x - cx, dy = ar.mode === 'side' ? 0 : a.y - cy;
+            const d = Math.hypot(dx, dy) || 1;
+            a.vx = (dx / d || (a.id % 2 ? 1 : -1)) * 7;
+            if (ar.mode === 'top') a.vy = (dy / d) * 7; else a.vy = Math.max(a.vy, 4);
+            a.grounded = ar.mode === 'side' ? false : a.grounded;
+            a.stunT = Math.max(a.stunT, 0.35);
+            a.anim = 'bumped';
+          }
+          this.ev.emit({ type: 'perchContest' });
+        }
+      } else e.timer = 0;
       if (occ.length === 1) {
         e.owner = occ[0].id;
         occ[0].st.perchTime += dt;

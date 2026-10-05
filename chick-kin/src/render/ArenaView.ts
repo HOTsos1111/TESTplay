@@ -230,7 +230,7 @@ export class ArenaView {
       const d = e.def;
       switch (e.t) {
         case 'crumb': case 'feather': case 'power': {
-          o.visible = e.alive;
+          o.visible = e.alive && !(e.t === 'feather' && player && (e.taken & (1 << player.id)));
           if (!e.alive) break;
           const bx = (d as { x: number }).x, by = (d as { y: number }).y;
           const base = this.side ? this.pos(bx, by - 0.15) : this.pos(bx, by, 0);

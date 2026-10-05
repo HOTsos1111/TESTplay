@@ -30,7 +30,7 @@ export function topBlockers(ar: ArenaRuntime): Blocker[] {
 export const clears = (z: number, height: number) => z > height * 0.8;
 
 export function stepTop(a: Actor, inp: ActorInput, ar: ArenaRuntime, others: Actor[], ctx: RuleCtx, dt: number) {
-  const control = a.canAct && !a.finished;
+  const control = a.canAct;
   let mx = control ? inp.mx : 0;
   let my = control ? inp.my : 0;
   const L = len(mx, my);
@@ -110,7 +110,7 @@ export function stepTop(a: Actor, inp: ActorInput, ar: ArenaRuntime, others: Act
     if (e.t !== 'egg' || !e.active) continue;
     const r = (e.def as { r?: number }).r ?? 0.35;
     const ex = e.x + r, ey = e.y + r;
-    if (Math.hypot(a.x - ex, a.y - ey) < a.r + r * 0.85 && a.z < r * 1.1) {
+    if (Math.hypot(a.x - ex, a.y - ey) < a.r + r * 0.85 && a.z < r * 0.75) {
       const sp = Math.hypot(e.vx, e.vy) || 1;
       bump(a, e.vx / sp + (a.x - ex) * 0.5, e.vy / sp + (a.y - ey) * 0.5, 6, 'hazard', ctx, 'OBS-01');
     }

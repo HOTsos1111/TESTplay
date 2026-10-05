@@ -63,6 +63,10 @@ export class Actor {
   onSeed = false;
   springLand = 0;
   vyBeforeLand = 0;
+  respawns = 0;
+  lastGroundY = 0;         // height of the last foothold (fall recovery)
+  dropT = 0;               // dropping through a one-way platform
+  onOneWay = false;
   stepDist = 0;
 
   abilityCd = 0;
@@ -80,6 +84,7 @@ export class Actor {
   interactTarget = -1;     // entity index being scratched / tugged
   peckT = 0;               // animation timer
   pushT = 0;
+  nudgeCd = 0;             // generic peck-nudge cooldown
 
   checkpointX = 0; checkpointY = 0;
   cpIdx = -1;
@@ -126,7 +131,7 @@ export class Actor {
     this.carryTreats = 0; this.carryBundle = false;
     this.interactT = 0; this.interactTarget = -1;
     this.stamina = this.staminaMax;
-    this.checkpointX = x; this.checkpointY = y; this.cpIdx = -1;
+    this.checkpointX = x; this.checkpointY = y; this.cpIdx = -1; this.lastGroundY = y;
     this.st = freshStats();
     this.finished = false;
     this.anim = 'idle';
