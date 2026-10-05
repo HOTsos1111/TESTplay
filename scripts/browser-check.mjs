@@ -189,11 +189,12 @@ try {
 
   // Run without input until something hurts the hero; verify invulnerability then defeat flow.
   let hurt = null;
+  const startHearts = (await state(page))?.hearts ?? 0;
   const t1 = Date.now();
   while (Date.now() - t1 < 25000) {
     const s = await state(page);
     if (!s) break;
-    if (s.hearts < 3) {
+    if (s.hearts < startHearts) {
       hurt = s;
       break;
     }
@@ -294,9 +295,9 @@ try {
     await waitScene(page, 'Game');
     await page.evaluate(() => {
       const w = window;
-      w.__bot = { minHearts: 3, barks: 0, jumps: 0, hits: [], frames: 0, t0: performance.now() };
+      w.__bot = { minHearts: Infinity, barks: 0, jumps: 0, hits: [], frames: 0, t0: performance.now() };
       w.__hold = null;
-      let lastHearts = 3;
+      let lastHearts = Infinity;
       const tick = () => {
         const s = w.__HH__.game?.();
         const input = w.__HH__.input?.();
@@ -353,7 +354,10 @@ try {
         } else if (w.__hold) {
           const h = w.__hold;
           if (!s.grounded) h.air = true;
-          const release = h.mode === 'gap' ? h.air && s.grounded : h.air && s.vy > 0;
+          // Across a gap, let go once the whole body is past it (like a player would)
+          // instead of hovering on and overshooting into the next pit.
+          const overGap = s.gapsAhead.some((g) => g[0] < 60 && g[1] > -50);
+          const release = h.mode === 'gap' ? h.air && (s.grounded || (!overGap && s.vy > 0)) : h.air && s.vy > 0;
           if (release) {
             input.touchUp(77);
             w.__hold = null;
@@ -397,7 +401,7 @@ try {
     // (hazards ahead, the glowing latch), injecting input like a touch player would.
     await page.evaluate(() => {
       const w = window;
-      w.__bot = { minHearts: 3, barks: 0, jumps: 0 };
+      w.__bot = { minHearts: Infinity, barks: 0, jumps: 0 };
       let holdUntil = 0;
       const tick = () => {
         const s = w.__HH__.game?.();
