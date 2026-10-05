@@ -274,7 +274,7 @@ export const CHUNKS: Record<string, ChunkDef> = {
     id: 'double_intro', length: 2400, entryHeight: 0, exitHeight: 0, requires: ['jump', 'double'], recovery: 500,
     powerupSlots: [{ x: 935, h: 260 }],
     hint: { id: 'double', x: 0 },
-    crates: [{ x: 900, stack: 3 }, { x: 964, stack: 3 }],
+    crates: [{ x: 900, stack: 2 }, { x: 964, stack: 2 }],
     bones: [
       { kind: 'arc', x: 935, h: 140, n: 5, width: 160, rise: 90 },
       { kind: 'line', x: 1500, h: 30, n: 5, spacing: 60 },
@@ -283,12 +283,12 @@ export const CHUNKS: Record<string, ChunkDef> = {
   duck_double_mix: {
     id: 'duck_double_mix', length: 3000, entryHeight: 0, exitHeight: 0, requires: ['jump', 'double', 'duck', 'bark'], recovery: 350,
     lowbars: [{ x: 600 }],
-    crates: [{ x: 1314, stack: 3 }, { x: 1378, stack: 3 }],
+    crates: [{ x: 1314, stack: 2 }, { x: 1378, stack: 2 }],
     cardboard: [{ x: 2000, stack: 3 }],
     tyres: [{ x: 2600 }],
     bones: [
       { kind: 'line', x: 615, h: 14, n: 3, spacing: 35 },
-      { kind: 'line', x: 1320, h: 230, n: 3, spacing: 50 },
+      { kind: 'line', x: 1320, h: 190, n: 3, spacing: 50 },
     ],
   },
   exit_gate: {
