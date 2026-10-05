@@ -1,3 +1,4 @@
+import SPRITE_SIZES from './spriteSizes.json';
 /**
  * Stable asset keys. Every entry is currently a procedural placeholder.
  *
@@ -24,7 +25,7 @@ const e = (
   note?: string,
 ): AssetEntry => ({ key, category, size, file: `assets/${category === 'story' ? 'backgrounds' : category}/${key}.png`, placeholder: true, note });
 
-export const ASSET_MANIFEST: AssetEntry[] = [
+const MANIFEST: AssetEntry[] = [
   // Hero rig parts (procedural rubber-hose rig; final art may switch to an atlas — see docs/asset_manifest.md).
   e('hero_body', 'player', [124, 58], 'pivot centre; sits at (0,-36) from feet'),
   e('hero_head', 'player', [76, 62], 'pivot (0.32,0.62) at neck'),
@@ -123,3 +124,30 @@ export const ASSET_MANIFEST: AssetEntry[] = [
   e('btn_bark', 'ui', [128, 128]),
   ...[1, 2, 3, 4, 5, 6].map((n) => e(`badge_ch${n}`, 'ui', [120, 120])),
 ];
+
+/**
+ * Hand-drawn sprites cut from the reference sheets in art-src/ by
+ * scripts/extract-sprites.mjs. They replace the procedural placeholders of the
+ * same key, and add the hero's pose sprites.
+ */
+const SPRITE_NOTES: Record<string, string> = {
+  hero_s_side: 'hero side pose (also defeat/sniff)',
+  hero_s_idle: 'hero idle',
+  hero_s_run: 'hero run',
+  hero_s_leap: 'hero jump/fall',
+  hero_s_prop: 'hero tail propeller (hover)',
+  hero_s_bark: 'hero bark',
+  hero_s_toy: 'hero proud with toy',
+  squirrel_flee: 'squirrel fleeing with the toy',
+};
+
+export const ASSET_MANIFEST: AssetEntry[] = (() => {
+  const list = MANIFEST.map((a) => ({ ...a }));
+  for (const [key, [w, h]] of Object.entries(SPRITE_SIZES as Record<string, number[]>)) {
+    const file = `sprites/${key}.png`;
+    const found = list.find((a) => a.key === key);
+    if (found) Object.assign(found, { file, placeholder: false, size: [w / 2, h / 2] });
+    else list.push({ key, category: key.startsWith('hero') ? 'player' : 'enemies', size: [w / 2, h / 2], file, placeholder: false, note: SPRITE_NOTES[key] });
+  }
+  return list;
+})();

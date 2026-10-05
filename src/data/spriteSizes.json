@@ -1,0 +1,90 @@
+{
+  "hero_s_side": [
+    402,
+    261
+  ],
+  "hero_s_idle": [
+    254,
+    218
+  ],
+  "hero_s_run": [
+    291,
+    184
+  ],
+  "hero_s_leap": [
+    309,
+    176
+  ],
+  "hero_s_prop": [
+    209,
+    204
+  ],
+  "hero_s_bark": [
+    165,
+    199
+  ],
+  "hero_s_toy": [
+    217,
+    185
+  ],
+  "squirrel_idle": [
+    174,
+    181
+  ],
+  "squirrel_run": [
+    174,
+    136
+  ],
+  "squirrel_taunt": [
+    130,
+    179
+  ],
+  "squirrel_throw": [
+    145,
+    130
+  ],
+  "squirrel_startled": [
+    143,
+    150
+  ],
+  "squirrel_flee": [
+    164,
+    142
+  ],
+  "acorn": [
+    40,
+    48
+  ],
+  "toy": [
+    124,
+    60
+  ],
+  "bone": [
+    80,
+    60
+  ],
+  "heart_full": [
+    80,
+    76
+  ],
+  "pu_magnet": [
+    96,
+    54
+  ],
+  "pu_shield": [
+    96,
+    104
+  ],
+  "pu_bacon": [
+    100,
+    96
+  ],
+  "cardboard": [
+    120,
+    112
+  ],
+  "barrel": [
+    96,
+    104
+  ]
+}

@@ -1,6 +1,5 @@
 import Phaser from 'phaser';
 import { ART_SCALE } from '../systems/AssetRegistry';
-import { HERO_PARTS, type EyeKind } from '../systems/art/heroArt';
 
 export type HeroMode = 'play' | 'idle' | 'defeat' | 'victory' | 'sniff' | 'hover-demo' | 'sleep' | 'startled';
 
@@ -14,36 +13,44 @@ export interface HeroVisualState {
   ducking?: boolean;
 }
 
-type PartKey = keyof typeof HERO_PARTS;
+type Pose = 'side' | 'idle' | 'run' | 'leap' | 'prop' | 'bark' | 'toy' | 'sleep';
 
 /**
- * Procedural rubber-hose rig for the hero. Purely cosmetic: squash, stretch,
- * ears and tail never influence the collision box held by PlayerController.
+ * Where each pose's body centre sits, as a fraction of the sprite width, so the
+ * dog stays planted over his hitbox when the pose changes. Sprites come from the
+ * character reference sheet (scripts/extract-sprites.mjs) and face right.
+ */
+const POSE_ORIGIN_X: Record<Pose, number> = {
+  side: 0.44,
+  idle: 0.47,
+  run: 0.45,
+  leap: 0.47,
+  prop: 0.5,
+  bark: 0.5,
+  toy: 0.45,
+  sleep: 0.44,
+};
+
+/**
+ * Hero visuals built from the hand-drawn pose sprites. Purely cosmetic: squash,
+ * stretch and pose never influence the collision box held by PlayerController.
  */
 export class HeroView {
   readonly root: Phaser.GameObjects.Container;
   private rig: Phaser.GameObjects.Container;
-  private head: Phaser.GameObjects.Container;
-  private body: Phaser.GameObjects.Image;
-  private headImg: Phaser.GameObjects.Image;
-  private ear: Phaser.GameObjects.Image;
-  private eye: Phaser.GameObjects.Image;
-  private mouth: Phaser.GameObjects.Image;
-  private tail: Phaser.GameObjects.Image;
+  private spr: Phaser.GameObjects.Image;
   private propeller: Phaser.GameObjects.Image;
-  private legs: { img: Phaser.GameObjects.Image; offset: number; front: boolean }[] = [];
 
   mode: HeroMode = 'play';
+  private pose: Pose = 'run';
   private t = 0;
   private phase = 0;
   private sqX = 1;
   private sqY = 1;
   private sqVX = 0;
   private sqVY = 0;
-  private earSpring = { a: 0.4, v: 0 };
   private barkT = 0;
   private hitT = 0;
-  private blinkT = 2.5;
   private wasGrounded = true;
   private modeT = 0;
   private stepAcc = 0;
@@ -51,12 +58,10 @@ export class HeroView {
   private burstAnimT = -1;
   private flipT = -1;
   private snapped = false;
-  /** Elastic body: how far the front half (F) and rear half (R) are pulled ahead, in px. */
+  /** Elastic body: how far the front (F) and rear (R) are pulled ahead, in px. */
   private elF = 0;
   private elR = 0;
   private elRV = 0;
-  private frontParts: { o: Phaser.GameObjects.Components.Transform; x: number }[] = [];
-  private rearParts: { o: Phaser.GameObjects.Components.Transform; x: number }[] = [];
   static readonly STRETCH_TIME = 0.24;
   static readonly STRETCH_PX = 135;
   /** Fired when the stretched rear end snaps forward (for the sound). */
@@ -65,44 +70,46 @@ export class HeroView {
   onStep?: () => void;
 
   static readonly BASE_SCALE = 0.92;
+  /** Sprite scale inside the rig (the sheet is drawn a little larger than the 2× contract). */
+  private static readonly SPRITE_SCALE = ART_SCALE * 1.08;
 
   constructor(private scene: Phaser.Scene, x: number, y: number) {
+    HeroView.ensureSleepTexture(scene);
     this.root = scene.add.container(x, y);
     this.rig = scene.add.container(0, 0);
     this.root.add(this.rig);
-
-    const part = (key: string, p: PartKey, px: number, py: number) => {
-      const spec = HERO_PARTS[p];
-      const img = scene.add.image(px, py, key).setOrigin(spec.ox, spec.oy).setScale(ART_SCALE);
-      return img;
-    };
-
-    const legFarFront = part('hero_leg_far', 'legFar', 40, -24);
-    const legFarRear = part('hero_leg_far', 'legFar', -34, -24);
-    this.tail = part('hero_tail', 'tail', -64, -48).setRotation(-0.5);
-    this.propeller = part('hero_propeller', 'propeller', -68, -50).setVisible(false);
-    this.body = part('hero_body', 'body', -6, -36);
-    const legNearFront = part('hero_leg_near', 'legNear', 30, -24);
-    const legNearRear = part('hero_leg_near', 'legNear', -42, -24);
-    const collar = part('hero_collar', 'collar', 34, -46);
-
-    this.head = scene.add.container(44, -54);
-    this.headImg = part('hero_head', 'head', 0, 0);
-    this.eye = part('hero_eye_determined', 'eye', 15, -12);
-    this.ear = part('hero_ear', 'ear', -15, -26);
-    this.mouth = part('hero_mouth', 'mouth', 22, 4).setVisible(false);
-    this.head.add([this.headImg, this.mouth, this.eye, this.ear]);
-
-    this.rig.add([legFarFront, legFarRear, this.tail, this.propeller, this.body, legNearFront, legNearRear, collar, this.head]);
-    this.legs = [
-      { img: legNearFront, offset: 0, front: true },
-      { img: legFarFront, offset: 0.7, front: true },
-      { img: legNearRear, offset: Math.PI, front: false },
-      { img: legFarRear, offset: Math.PI + 0.7, front: false },
-    ];
+    // Spinning blur over the tail swirl drawn in the propeller pose.
+    this.propeller = scene.add.image(-34, -100, 'hero_propeller').setScale(ART_SCALE * 1.5, ART_SCALE * 0.5).setAlpha(0.7).setVisible(false);
+    this.spr = scene.add.image(0, 2, 'hero_s_run').setOrigin(POSE_ORIGIN_X.run, 1).setScale(HeroView.SPRITE_SCALE);
+    this.rig.add([this.spr, this.propeller]);
     this.rig.setScale(HeroView.BASE_SCALE);
-    this.frontParts = [legNearFront, legFarFront, collar].map((o) => ({ o, x: o.x }));
-    this.rearParts = [legNearRear, legFarRear, this.propeller].map((o) => ({ o, x: o.x }));
+  }
+
+  /**
+   * A napping variant of the side pose: the open eye is painted over with fur
+   * and replaced by a closed, contented curve.
+   */
+  private static ensureSleepTexture(scene: Phaser.Scene): void {
+    if (scene.textures.exists('hero_s_sleep') || !scene.textures.exists('hero_s_side')) return;
+    const src = scene.textures.get('hero_s_side').getSourceImage() as HTMLImageElement | HTMLCanvasElement;
+    const tex = scene.textures.createCanvas('hero_s_sleep', src.width, src.height);
+    if (!tex) return;
+    const c = tex.getContext();
+    c.drawImage(src, 0, 0);
+    const ex = src.width * 0.762;
+    const ey = src.height * 0.27;
+    c.beginPath();
+    c.ellipse(ex, ey, src.width * 0.06, src.height * 0.13, 0, 0, Math.PI * 2);
+    c.fillStyle = '#B66B38';
+    c.fill();
+    c.beginPath();
+    c.moveTo(ex - 15, ey + 2);
+    c.quadraticCurveTo(ex, ey + 13, ex + 15, ey + 2);
+    c.lineWidth = 5;
+    c.lineCap = 'round';
+    c.strokeStyle = '#302331';
+    c.stroke();
+    tex.refresh();
   }
 
   setPosition(x: number, y: number): void {
@@ -129,7 +136,7 @@ export class HeroView {
   }
 
   /**
-   * Over-the-top rubber band: the front half shoots ahead while the rear digs in,
+   * Over-the-top rubber band: the front shoots ahead while the rear digs in,
    * then the rear springs after it, overshoots into a squash and wobbles.
    */
   private updateElastic(dt: number): void {
@@ -139,7 +146,6 @@ export class HeroView {
     const T = HeroView.STRETCH_TIME;
     if (t < T) {
       const k = t / T;
-      // Ease out with a little overshoot so the head "twangs" at full stretch.
       this.elF = HeroView.STRETCH_PX * (1 + 0.12 * Math.sin(k * Math.PI)) * (1 - Math.pow(1 - k, 3));
       this.elR = 0;
       return;
@@ -151,9 +157,7 @@ export class HeroView {
       this.sqX = 0.85;
       this.onSnap?.();
     }
-    // Afterwards the whole dog eases back to its normal place on screen.
     if (t > 0.6) this.elF -= this.elF * Math.min(1, dt * 5);
-    // Underdamped spring: the rear overshoots past the front, then wobbles.
     const [n, h] = HeroView.substeps(dt);
     for (let i = 0; i < n; i++) {
       this.elRV += ((this.elF - this.elR) * 900 - this.elRV * 9) * h;
@@ -166,7 +170,7 @@ export class HeroView {
   }
 
   bark(): void {
-    this.barkT = 0.26;
+    this.barkT = 0.3;
   }
 
   hit(): void {
@@ -193,9 +197,11 @@ export class HeroView {
     this.sqY = 1.14;
   }
 
-  private setEye(kind: EyeKind): void {
-    const key = `hero_eye_${kind}`;
-    if (this.eye.texture.key !== key) this.eye.setTexture(key);
+  private setPose(p: Pose): void {
+    if (this.pose === p && this.spr.texture.key === `hero_s_${p}`) return;
+    this.pose = p;
+    this.spr.setTexture(`hero_s_${p}`);
+    this.spr.setOrigin(POSE_ORIGIN_X[p], 1);
   }
 
   /** Springs are sub-stepped so long frames (tab switches, slow devices) stay stable. */
@@ -219,25 +225,7 @@ export class HeroView {
       this.sqVX = this.sqVY = 0;
     }
     this.sqX = Phaser.Math.Clamp(this.sqX, 0.55, 1.5);
-    this.sqY = Phaser.Math.Clamp(this.sqY, 0.6, 1.5);
-  }
-
-  private springEar(target: number, dt: number): void {
-    // Soft, under-damped spring: floppy velvet ears.
-    const k = 120;
-    const d = 5.5;
-    const e = this.earSpring;
-    const [n, h] = HeroView.substeps(dt);
-    for (let i = 0; i < n; i++) {
-      e.v += ((target - e.a) * k - e.v * d) * h;
-      e.a += e.v * h;
-    }
-    if (!Number.isFinite(e.a) || !Number.isFinite(e.v)) {
-      e.a = target;
-      e.v = 0;
-    }
-    e.a = Phaser.Math.Clamp(e.a, -0.6, 2.8);
-    e.v = Phaser.Math.Clamp(e.v, -40, 40);
+    this.sqY = Phaser.Math.Clamp(this.sqY, 0.55, 1.5);
   }
 
   /** Debug/test introspection of the cosmetic rig. */
@@ -250,167 +238,98 @@ export class HeroView {
     this.modeT += dt;
     this.barkT = Math.max(0, this.barkT - dt);
     this.hitT = Math.max(0, this.hitT - dt);
-    this.blinkT -= dt;
     this.springSquash(dt);
 
+    let pose: Pose = 'run';
     let rigY = 0;
     let rigRot = 0;
-    let bodyRot = 0;
-    let headX = 44;
-    let headY = -54;
-    let headRot = 0;
-    let headScale = 1;
-    let earTarget = 0.4;
-    let eye: EyeKind = 'determined';
     let showProp = false;
-    let tailRot = 0.55 + Math.sin(this.t * 14) * 0.4;
-    let mouth = false;
-    let stretch = 0;
-
-    const legAngles: number[] = [0, 0, 0, 0];
+    let alpha = 1;
 
     if (this.mode === 'play') {
       if (s.grounded) {
         if (!this.wasGrounded) this.phase = 0;
-        const stride = 3.4 * (s.speed / 320);
+        const stride = 3.4 * (Math.max(s.speed, 1) / 320);
         this.phase += dt * stride * Math.PI * 2;
         this.stepAcc += dt * stride;
         if (this.stepAcc >= 1) {
           this.stepAcc -= 1;
           this.onStep?.();
         }
-        for (let i = 0; i < 4; i++) legAngles[i] = Math.sin(this.phase + this.legs[i].offset) * 0.95;
-        rigY = -Math.abs(Math.sin(this.phase)) * 3.5;
-        bodyRot = Math.sin(this.phase - 0.9) * 0.04; // rear end lags the front
-        headY += Math.sin(this.phase + 0.6) * 1.6;
-        earTarget = 0.7 + Math.sin(this.phase - 1.3) * 0.35;
-        tailRot = 0.5 + Math.sin(this.t * 18) * 0.45;
+        // Bounding gallop: hop, slight rock, and a squash at each footfall.
+        const b = Math.abs(Math.sin(this.phase));
+        rigY = -b * 7;
+        rigRot = Math.sin(this.phase * 2) * 0.035;
+        this.sqY += (1 - b * 0.06 - this.sqY) * Math.min(1, dt * 10);
+        pose = 'run';
       } else if (s.hovering) {
+        pose = 'prop';
         showProp = true;
-        rigRot = 0.08;
-        for (let i = 0; i < 4; i++) legAngles[i] = Math.sin(this.t * 9 + this.legs[i].offset) * 0.45 + (this.legs[i].front ? -0.3 : 0.3);
-        earTarget = 1.1 + Math.sin(this.t * 7) * 0.15;
-        rigY = Math.sin(this.t * 10) * 1.5;
-      } else if (s.vy < 0) {
-        // Rising: front legs reach forward, rear legs kick back.
-        for (let i = 0; i < 4; i++) legAngles[i] = this.legs[i].front ? -0.85 : 0.9;
-        rigRot = Math.max(-0.14, s.vy / 4500);
-        earTarget = 0.25;
+        rigRot = Math.sin(this.t * 9) * 0.05;
+        rigY = Math.sin(this.t * 10) * 2;
       } else {
-        // Falling: legs dangle, ears lift.
-        for (let i = 0; i < 4; i++) legAngles[i] = Math.sin(this.t * 14 + this.legs[i].offset) * 0.25 + (this.legs[i].front ? -0.2 : 0.25);
-        rigRot = Math.min(0.12, s.vy / 6000);
-        earTarget = 2.3;
+        pose = 'leap';
+        rigRot = s.vy < 0 ? Math.max(-0.2, s.vy / 3200) : Math.min(0.25, s.vy / 3000);
       }
       if (this.barkT > 0) {
-        const k = this.barkT / 0.26;
-        // Cheeks inflate first, then a sharp forward pulse.
-        if (k > 0.75) headScale = 1 + (1 - k) * 0.5;
-        else {
-          headScale = 1.08;
-          headX += 7 * Math.sin(k * Math.PI);
-          headRot = -0.12;
-          mouth = true;
-        }
-        earTarget = 1.6;
+        pose = 'bark';
+        rigRot = 0;
+        const k = this.barkT / 0.3;
+        if (k > 0.7) this.sqY = Math.max(this.sqY, 1 + (1 - k) * 0.4);
       }
-      if (this.hitT > 0) {
-        eye = 'surprised';
-        rigRot += Math.sin(this.hitT * 40) * 0.12;
-        earTarget = 2.6;
-      }
-      this.root.alpha = s.invulnerable > 0 && Math.floor(s.invulnerable * 14) % 2 === 0 ? 0.35 : 1;
+      if (this.hitT > 0) rigRot += Math.sin(this.hitT * 40) * 0.14;
+      alpha = s.invulnerable > 0 && Math.floor(s.invulnerable * 14) % 2 === 0 ? 0.35 : 1;
     } else if (this.mode === 'idle') {
-      const breath = Math.sin(this.t * 2.2);
-      this.sqY = 1 + breath * 0.02;
-      headRot = Math.sin(this.t * 0.9) * 0.05 + (Math.sin(this.t * 13) > 0.97 ? -0.05 : 0);
-      tailRot = 0.6 + Math.sin(this.t * 7) * 0.4;
-      earTarget = 0.35;
-      eye = 'open';
-      this.root.alpha = 1;
+      pose = 'idle';
+      this.sqY = 1 + Math.sin(this.t * 2.2) * 0.02;
+    } else if (this.mode === 'hover-demo') {
+      pose = 'prop';
+      showProp = true;
+      rigY = Math.sin(this.t * 4) * 6;
+    } else if (this.mode === 'sniff') {
+      pose = 'side';
+      rigRot = 0.1 + Math.sin(this.t * 18) * 0.012;
+      rigY = 2;
     } else if (this.mode === 'sleep') {
-      // Curled up nap: low, slow breathing, legs tucked, ears limp, tail still.
+      pose = 'sleep';
       const breath = Math.sin(this.t * 1.6);
-      this.sqY = 0.9 + breath * 0.035;
+      this.sqY = 0.88 + breath * 0.03;
       this.sqX = 1.04;
-      rigY = 3;
-      for (let i = 0; i < 4; i++) legAngles[i] = this.legs[i].front ? -1.45 : 1.45;
-      headY += 14;
-      headRot = 0.18 + breath * 0.02;
-      tailRot = 1.2;
-      earTarget = -0.1;
-      eye = 'closed';
-      this.root.alpha = 1;
     } else if (this.mode === 'startled') {
-      // Jolted awake: a hop, ears flying, wide eyes.
+      pose = 'idle';
       const k = Math.min(1, this.modeT / 0.3);
       rigY = -Math.sin(k * Math.PI) * 26;
-      earTarget = 2.6;
-      eye = 'surprised';
-      tailRot = 0.2 + Math.sin(this.t * 30) * 0.3;
-      for (let i = 0; i < 4; i++) legAngles[i] = this.legs[i].front ? -0.6 : 0.6;
-      this.root.alpha = 1;
-    } else if (this.mode === 'hover-demo') {
-      showProp = true;
-      rigRot = 0.08;
-      rigY = Math.sin(this.t * 4) * 6;
-      for (let i = 0; i < 4; i++) legAngles[i] = Math.sin(this.t * 9 + this.legs[i].offset) * 0.45;
-      earTarget = 1.2;
-      eye = 'determined';
-    } else if (this.mode === 'sniff') {
-      headRot = -0.35 + Math.sin(this.t * 18) * 0.03;
-      headY -= 4;
-      earTarget = -0.2;
-      eye = this.modeT < 0.8 ? 'closed' : 'open';
-      tailRot = 0.8 + Math.sin(this.t * 12) * 0.3;
-      this.root.alpha = 1;
+      rigRot = -Math.sin(k * Math.PI) * 0.12;
     } else if (this.mode === 'victory') {
+      pose = 'idle';
       const b = Math.abs(Math.sin(this.t * 6.5));
       rigY = -b * 16;
       if (b < 0.1) this.sqY = 0.92;
-      tailRot = 0.7 + Math.sin(this.t * 26) * 0.55;
-      eye = 'happy';
-      earTarget = 1.4 - b;
-      mouth = true;
-      for (let i = 0; i < 4; i++) legAngles[i] = this.legs[i].front ? -0.4 * b : 0.4 * b;
-      this.root.alpha = 1;
     } else if (this.mode === 'defeat') {
+      pose = 'side';
       const k = Math.min(1, this.modeT / 0.35);
       rigY = -Math.sin(Math.min(1, this.modeT / 0.5) * Math.PI) * 30 * (1 - k * 0.6);
-      for (let i = 0; i < 4; i++) legAngles[i] = (this.legs[i].front ? -1.5 : 1.5) * k;
+      rigRot = 0.3 * k;
       this.sqY = 1 - 0.18 * k;
-      headRot = 0.25 * k;
-      headY += 6 * k;
-      eye = 'dizzy';
-      earTarget = 1.8;
-      tailRot = -0.2;
-      mouth = true;
-      this.root.alpha = 1;
     }
 
+    let stretchX = 1;
+    let stretchShift = 0;
     if (this.mode === 'play') {
       this.updateElastic(dt);
-      if (this.burstAnimT >= 0 && this.burstAnimT < HeroView.STRETCH_TIME) {
-        eye = this.burstAnimT < 0.1 ? 'surprised' : 'determined';
-        earTarget = 2.8;
-        mouth = true;
-        // Rear legs scrabble frantically while the front pulls away.
-        for (let i = 0; i < 4; i++) if (!this.legs[i].front) legAngles[i] = Math.sin(this.t * 60 + i) * 1.2;
+      if (this.burstAnimT >= 0) {
+        // Front pulls ahead while the rear stays put, then the rear snaps after it.
+        stretchX = Math.max(0.6, 1 + (this.elF - this.elR) / 150);
+        stretchShift = (this.elF + this.elR) / 2;
+        if (this.burstAnimT < HeroView.STRETCH_TIME) pose = 'leap';
       }
-      if (s.bursting) {
-        rigRot += 0.07;
-        earTarget = Math.max(earTarget, 2.4);
-        tailRot = 0.15 + Math.sin(this.t * 40) * 0.25;
+      if (s.bursting) rigRot += 0.06;
+      if (s.ducking && s.grounded) {
+        this.sqX += (1.22 - this.sqX) * Math.min(1, dt * 22);
+        this.sqY += (0.6 - this.sqY) * Math.min(1, dt * 22);
+        rigY = 0;
+        rigRot = 0;
       }
-    }
-
-    if (this.mode === 'play' && s.ducking && s.grounded) {
-      // Belly-to-the-floor squat: flat, wide, legs splayed, ears pinned back.
-      for (let i = 0; i < 4; i++) legAngles[i] = this.legs[i].front ? -1.25 : 1.25;
-      headY += 11;
-      earTarget = 2.3;
-      eye = 'determined';
-      rigY = 0;
     }
     if (this.flipT >= 0) {
       this.flipT += dt;
@@ -418,53 +337,26 @@ export class HeroView {
       rigRot += (1 - Math.pow(1 - k, 2)) * Math.PI * 2;
       if (k >= 1) this.flipT = -1;
     }
-
-    if (this.mode === 'play' && this.blinkT <= 0) {
-      if (this.blinkT < -0.12) this.blinkT = 2 + Math.random() * 3;
-      else if (eye === 'determined' || eye === 'open') eye = 'closed';
-    }
-
     this.wasGrounded = s.grounded;
-    this.springEar(earTarget, dt);
 
+    this.setPose(pose);
     const B = HeroView.BASE_SCALE;
-    if (this.mode === 'play' && s.ducking && s.grounded) {
-      this.sqX += (1.22 - this.sqX) * Math.min(1, dt * 22);
-      this.sqY += (0.58 - this.sqY) * Math.min(1, dt * 22);
-    }
-    this.rig.setScale(B * this.sqX * (1 + stretch), B * this.sqY * (1 - stretch * 0.22));
-    // Elastic body: front and rear halves move separately; the body stretches between them.
-    const F = this.elF;
-    const R = this.elR;
-    for (const p of this.frontParts) p.o.x = p.x + F;
-    for (const p of this.rearParts) p.o.x = p.x + R;
-    const ext = (F - R) / 112;
-    this.body.x = -6 + (F + R) / 2;
-    this.body.setScale(ART_SCALE * Math.max(0.45, 1 + ext), ART_SCALE * Phaser.Math.Clamp(1 - ext * 0.35, 0.6, 1.5));
+    this.rig.setScale(B * this.sqX, B * this.sqY);
     this.rig.y = rigY;
     this.rig.rotation = rigRot;
-    this.body.rotation = bodyRot;
-    this.head.setPosition(headX + this.elF, headY);
-    this.head.rotation = headRot;
-    this.headImg.setScale(ART_SCALE * headScale);
-    this.ear.rotation = this.earSpring.a;
-    this.setEye(eye);
-    this.mouth.setVisible(mouth);
-    this.tail.setVisible(!showProp);
+    this.spr.setScale(HeroView.SPRITE_SCALE * stretchX, HeroView.SPRITE_SCALE);
+    this.spr.x = stretchShift;
     this.propeller.setVisible(showProp);
     if (showProp) {
-      this.propeller.rotation -= dt * 38;
-      this.propeller.setScale(ART_SCALE * (1.25 + Math.sin(this.t * 50) * 0.08));
+      this.propeller.setScale(ART_SCALE * 1.5 * (1 + Math.sin(this.t * 50) * 0.08), ART_SCALE * 0.5);
+      this.propeller.setFlipX(Math.sin(this.t * 60) > 0);
     }
-    // Tail root tucks under the body's rear edge, so it stays attached however the body stretches.
-    this.tail.setPosition(this.body.x - 56 * (this.body.scaleX / ART_SCALE) + 10, -44);
-    this.tail.rotation = tailRot;
-    for (let i = 0; i < 4; i++) this.legs[i].img.rotation = legAngles[i];
+    this.root.alpha = alpha;
   }
 
   /** World-space position of the tail tip region (for hover streak fx). */
   get tailWorld(): { x: number; y: number } {
-    return { x: this.root.x - 64 * HeroView.BASE_SCALE, y: this.root.y - 50 * HeroView.BASE_SCALE };
+    return { x: this.root.x - 60 * HeroView.BASE_SCALE, y: this.root.y - 70 * HeroView.BASE_SCALE };
   }
 
   destroy(): void {

@@ -124,7 +124,7 @@ export class StoryScene extends Phaser.Scene {
 
   private sleepingHero(withToy: boolean): void {
     this.img(745, 616, 'story_dogbed', ART_SCALE * 1.35, DEPTH.hero - 1);
-    const h = this.addHero(720, 606, 1.5);
+    const h = this.addHero(720, 606, 1.15);
     h.setMode('sleep');
     if (withToy) this.toy = this.img(870, 606, 'toy', ART_SCALE * 1.2, DEPTH.hero + 1).setRotation(0.15);
   }
@@ -171,7 +171,7 @@ export class StoryScene extends Phaser.Scene {
         // SNATCH: he bolts, the hero wakes up.
         this.garden();
         this.img(745, 616, 'story_dogbed', ART_SCALE * 1.35, DEPTH.hero - 1);
-        const h = this.addHero(720, 606, 1.5);
+        const h = this.addHero(720, 606, 1.15);
         h.setMode('sleep');
         this.addBoss(860, 'run', true);
         this.addMinion(300, 486, 'taunt', true, -1);
