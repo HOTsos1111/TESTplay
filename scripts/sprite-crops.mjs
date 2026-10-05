@@ -33,6 +33,8 @@ export const SPRITE_CROPS = [
   { key: 'crate', sheet: E, rect: [314, 846, 124, 108], size: [128, 128] },
   { key: 'crate_parcel', sheet: E, rect: [28, 860, 130, 96], size: [128, 128] },
   { key: 'tyre', sheet: E, rect: [448, 862, 128, 90], size: [96, 64] },
+  // Title logo from the sheet header (keeps the swoosh and the little accent dashes).
+  { key: 'logo', sheet: H, rect: [335, 6, 870, 114], keepFrac: 0.004 },
   // Scenery: the distant skyline of the "Delivery Depot" panel (raw: background kept).
   { key: 'bg_depot_skyline', sheet: E, rect: [300, 140, 322, 128], raw: true },
 ];

@@ -5,6 +5,7 @@ import { ART_SCALE } from '../systems/AssetRegistry';
 import { Audio } from '../systems/AudioManager';
 import type { Fx } from '../systems/Fx';
 import type { Rect, Solid } from '../systems/PlayerController';
+import { drawGround3D } from '../systems/Ground3D';
 import { CARDBOARD_SKINS, CRATE_SKINS, LOW_HAZARD_SKINS, PLATFORM_SKINS } from '../systems/art/decorArt';
 
 /** Deterministic pick so a given spot in the level always looks the same. */
@@ -62,27 +63,26 @@ export abstract class Entity {
 // ---------------------------------------------------------------- static
 
 export class GroundPiece extends Entity {
-  private objs: Phaser.GameObjects.GameObject[] = [];
-  constructor(scene: Phaser.Scene, private x: number, private w: number, edgeLeft: boolean, edgeRight: boolean) {
+  private g: Phaser.GameObjects.Graphics;
+  private lastCentre = Number.NaN;
+  constructor(scene: Phaser.Scene, private x: number, private w: number, private edgeLeft: boolean, private edgeRight: boolean) {
     super();
-    const y = WORLD.groundY;
-    const capW = 24;
-    const tx = x + (edgeLeft ? capW : 0);
-    const tw = w - (edgeLeft ? capW : 0) - (edgeRight ? capW : 0);
-    if (tw > 0) {
-      const ts = scene.add.tileSprite(tx, y, tw, 120, 'ground_mid').setOrigin(0, 0).setTileScale(ART_SCALE).setDepth(DEPTH.ground);
-      ts.tilePositionX = (tx % 64) / ART_SCALE;
-      this.objs.push(ts);
-    }
-    if (edgeLeft) this.objs.push(scene.add.image(x, y, 'ground_edge_left').setOrigin(0, 0).setScale(ART_SCALE).setDepth(DEPTH.ground));
-    if (edgeRight) this.objs.push(scene.add.image(x + w - capW, y, 'ground_edge_right').setOrigin(0, 0).setScale(ART_SCALE).setDepth(DEPTH.ground));
-    this.solid = { x, y, w, h: 400, oneWay: false, kind: 'ground' };
+    this.g = scene.add.graphics().setDepth(DEPTH.ground);
+    this.solid = { x, y: WORLD.groundY, w, h: 400, oneWay: false, kind: 'ground' };
   }
   get right(): number {
     return this.x + this.w;
   }
+  update(_dt: number, ctx: GameContext): void {
+    // Faux-3D: the paving seams fan out from the view centre, so redraw as it moves.
+    const centre = Math.round((ctx.cameraLeft + ctx.cameraRight) / 2);
+    if (centre === this.lastCentre) return;
+    this.lastCentre = centre;
+    this.g.clear();
+    drawGround3D(this.g, this.x, this.x + this.w, centre, this.edgeLeft, this.edgeRight);
+  }
   destroy(): void {
-    for (const o of this.objs) o.destroy();
+    this.g.destroy();
   }
 }
 
@@ -718,32 +718,56 @@ export class Acorn extends Entity {
 export class LowBar extends Entity {
   private img: Phaser.GameObjects.Image;
   private chains: Phaser.GameObjects.Graphics;
-  private t = Math.random() * 4;
+  private t: number;
+  /** Current gap between the pipe's underside and the floor. */
+  private clearance: number = LowBar.CLEARANCE;
+  private speed: number;
   static readonly W = 104;
-  /** Height of the sign's bottom edge above the floor. */
-  static readonly CLEARANCE = 30;
+  /**
+   * Lowest point of the pipe's underside: it briefly dips below a ducking dog's
+   * back (22 px), so ducking needs timing too. Most of the cycle a duck fits.
+   */
+  static readonly CLEARANCE = 16;
+  /** Highest point: a standing dog fits under it, if the timing is right. */
+  static readonly MAX_CLEARANCE = 128;
   static readonly H = 58;
   constructor(scene: Phaser.Scene, private x: number) {
     super();
-    const bottom = WORLD.groundY - LowBar.CLEARANCE;
-    // Vertical supply pipes feeding the low pipe from the ceiling.
+    // Each pipe pumps up and down on its own hydraulic rhythm.
+    this.t = (x * 0.0137) % (Math.PI * 2);
+    this.speed = 2.2 + ((x * 0.0071) % 1.4);
     this.chains = scene.add.graphics().setDepth(DEPTH.enemy);
-    for (const cx of [x + 11, x + 82]) {
-      this.chains.fillStyle(0x302331, 1).fillRect(cx - 2, -20, 18, bottom - LowBar.H + 30);
-      this.chains.fillStyle(0x6f7e96, 1).fillRect(cx + 1, -20, 12, bottom - LowBar.H + 30);
-      this.chains.fillStyle(0xffffff, 0.25).fillRect(cx + 3, -20, 3, bottom - LowBar.H + 30);
-    }
-    this.img = scene.add.image(x - 3, bottom + 2, 'lowbar').setOrigin(0, 1).setScale(ART_SCALE).setDepth(DEPTH.enemy);
+    this.img = scene.add.image(x - 3, WORLD.groundY, 'lowbar').setOrigin(0, 1).setScale(ART_SCALE).setDepth(DEPTH.enemy);
+    this.place();
   }
   get right(): number {
     return this.x + LowBar.W;
   }
+  private place(): void {
+    const k = (1 - Math.cos(this.t * this.speed)) / 2;
+    this.clearance = LowBar.CLEARANCE + (LowBar.MAX_CLEARANCE - LowBar.CLEARANCE) * k;
+    const bottom = WORLD.groundY - this.clearance;
+    this.img.y = bottom + 2;
+    // Telescoping supply pipes from the ceiling down to the moving pipe.
+    const g = this.chains;
+    g.clear();
+    const len = bottom - LowBar.H + 30;
+    for (const cx of [this.x + 11, this.x + 82]) {
+      g.fillStyle(0x302331, 1).fillRect(cx - 2, -20, 18, len);
+      g.fillStyle(0x6f7e96, 1).fillRect(cx + 1, -20, 12, len);
+      g.fillStyle(0xffffff, 0.25).fillRect(cx + 3, -20, 3, len);
+      // Piston collar where the inner tube slides.
+      g.fillStyle(0x302331, 1).fillRect(cx - 4, len - 46, 22, 12);
+      g.fillStyle(0x8693a8, 1).fillRect(cx - 2, len - 44, 18, 8);
+    }
+  }
   update(dt: number): void {
     this.t += dt;
-    this.img.rotation = Math.sin(this.t * 2) * 0.015;
+    this.place();
+    this.img.rotation = Math.sin(this.t * 2) * 0.012;
   }
   hazard(): Rect {
-    const bottom = WORLD.groundY - LowBar.CLEARANCE;
+    const bottom = WORLD.groundY - this.clearance;
     return { x: this.x, y: bottom - LowBar.H, w: LowBar.W, h: LowBar.H };
   }
   destroy(): void {

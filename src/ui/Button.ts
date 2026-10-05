@@ -8,12 +8,16 @@ export interface ButtonOptions {
   color?: number;
   fontSize?: number;
   disabled?: boolean;
+  /** Optional icon texture shown left of the label. */
+  icon?: string;
+  iconScale?: number;
 }
 
 /** Rounded live-text button with hover, press, focus and disabled states. */
 export class Button extends Phaser.GameObjects.Container {
   private bg: Phaser.GameObjects.Graphics;
   readonly label: Phaser.GameObjects.Text;
+  private icon: Phaser.GameObjects.Image | null = null;
   private bw: number;
   private bh: number;
   private color: number;
@@ -31,6 +35,10 @@ export class Button extends Phaser.GameObjects.Container {
     this.bg = scene.add.graphics();
     this.label = scene.add.text(0, -2, text, textStyle(o.fontSize ?? 30)).setOrigin(0.5);
     this.add([this.bg, this.label]);
+    if (o.icon) {
+      this.icon = scene.add.image(0, -2, o.icon).setScale(o.iconScale ?? 0.5);
+      this.add(this.icon);
+    }
     this.setSize(this.bw, this.bh);
     this.setInteractive({ useHandCursor: true });
     this.on('pointerover', () => {
@@ -57,6 +65,7 @@ export class Button extends Phaser.GameObjects.Container {
 
   setText(t: string): this {
     this.label.setText(t);
+    this.redraw();
     return this;
   }
 
@@ -86,23 +95,42 @@ export class Button extends Phaser.GameObjects.Container {
     const g = this.bg;
     const w = this.bw;
     const h = this.bh;
-    const lift = this.pressed ? 2 : this.hovered || this.focused ? -2 : 0;
-    g.clear();
-    g.fillStyle(COLOR.outline, 1);
-    g.fillRoundedRect(-w / 2, -h / 2 + 6, w, h, 20);
+    const r = Math.min(24, h / 2.6);
+    const depth = 7;
+    const lift = this.pressed ? depth - 2 : this.hovered || this.focused ? -2 : 0;
     const fill = this.disabled ? 0x8a7f8c : this.color;
+    const c = Phaser.Display.Color.IntegerToColor(fill);
+    const dark = Phaser.Display.Color.GetColor(c.red * 0.62, c.green * 0.62, c.blue * 0.62);
+    g.clear();
+    // Soft drop shadow, then the darker "lip" that gives the chunky 3D press.
+    g.fillStyle(COLOR.outline, 0.35);
+    g.fillRoundedRect(-w / 2 + 4, -h / 2 + depth + 6, w, h, r);
+    g.fillStyle(COLOR.outline, 1);
+    g.fillRoundedRect(-w / 2 - 2, -h / 2 + depth - 2, w + 4, h + 4, r + 2);
+    g.fillStyle(dark, 1);
+    g.fillRoundedRect(-w / 2, -h / 2 + depth, w, h, r);
+    // Face with a glossy top and a gentle shade at the bottom.
     g.fillStyle(fill, 1);
-    g.fillRoundedRect(-w / 2, -h / 2 + lift, w, h, 20);
-    g.fillStyle(0xffffff, 0.22);
-    g.fillRoundedRect(-w / 2 + 10, -h / 2 + lift + 6, w - 20, h * 0.32, 12);
-    g.lineStyle(4, COLOR.outline, 1);
-    g.strokeRoundedRect(-w / 2, -h / 2 + lift, w, h, 20);
+    g.fillRoundedRect(-w / 2, -h / 2 + lift, w, h, r);
+    g.fillStyle(0x000000, 0.1);
+    g.fillRoundedRect(-w / 2 + 6, -h / 2 + lift + h * 0.55, w - 12, h * 0.4, { tl: 0, tr: 0, bl: r - 6, br: r - 6 });
+    g.fillStyle(0xffffff, 0.28);
+    g.fillRoundedRect(-w / 2 + 12, -h / 2 + lift + 6, w - 24, h * 0.34, r - 8);
+    g.fillStyle(0xffffff, 0.5);
+    g.fillCircle(-w / 2 + 22, -h / 2 + lift + 14, 4);
+    g.lineStyle(4.5, COLOR.outline, 1);
+    g.strokeRoundedRect(-w / 2, -h / 2 + lift, w, h, r);
     if (this.focused) {
-      g.lineStyle(4, COLOR.white, 1);
-      g.strokeRoundedRect(-w / 2 - 8, -h / 2 + lift - 8, w + 16, h + 16, 26);
+      g.lineStyle(5, COLOR.butter, 1);
+      g.strokeRoundedRect(-w / 2 - 9, -h / 2 + lift - 9, w + 18, h + 18 + depth, r + 8);
     }
-    this.label.y = -2 + lift;
+    // Lay out icon + label as one centred group.
+    const iw = this.icon ? this.icon.displayWidth + 12 : 0;
+    const total = iw + this.label.width;
+    if (this.icon) this.icon.setPosition(-total / 2 + this.icon.displayWidth / 2, -2 + lift);
+    this.label.setPosition(-total / 2 + iw + this.label.width / 2, -2 + lift);
     this.label.setAlpha(this.disabled ? 0.7 : 1);
+    this.icon?.setAlpha(this.disabled ? 0.6 : 1);
   }
 }
 

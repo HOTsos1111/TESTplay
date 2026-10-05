@@ -787,7 +787,162 @@ function drawLowSign(c: Ctx): void {
   }
 }
 
+// ------------------------------------------------------- extra parallax layers
+
+const CLOUD_W = 1600;
+const ROOF_BAND = { y0: 60, h: 320 } as const;
+
+/** Puffy outlined clouds in the guide's style; wraps horizontally. */
+function drawCloudLayer(c: Ctx): void {
+  const r = rng(91);
+  for (let i = 0; i < 7; i++) {
+    const x = (i / 7) * CLOUD_W + r() * 120;
+    const y = 50 + r() * 120;
+    const s = 0.7 + r() * 0.7;
+    wrapDraw(CLOUD_W, x - 90 * s, 200 * s, (ox) => {
+      const cx = ox + 90 * s;
+      c.beginPath();
+      c.moveTo(cx - 80 * s, y + 20 * s);
+      c.arc(cx - 52 * s, y + 4 * s, 28 * s, Math.PI * 0.6, Math.PI * 1.55);
+      c.arc(cx - 6 * s, y - 14 * s, 38 * s, Math.PI * 1.15, Math.PI * 1.95);
+      c.arc(cx + 44 * s, y + 2 * s, 30 * s, Math.PI * 1.35, Math.PI * 0.3);
+      c.closePath();
+      c.fillStyle = '#FFFDF6';
+      c.fill();
+      c.lineWidth = 3;
+      c.strokeStyle = 'rgba(111,150,180,0.55)';
+      c.stroke();
+      // Soft blue shade along the bottom.
+      c.save();
+      c.clip();
+      c.fillStyle = 'rgba(169,210,232,0.45)';
+      c.fillRect(cx - 100 * s, y + 8 * s, 200 * s, 40 * s);
+      c.restore();
+    });
+  }
+}
+
+/** Rooftop skyline between the warehouses and the bay wall: cranes, a water tower, masts. */
+function drawRoofline(c: Ctx): void {
+  const OUTL = '#302331';
+  // Yellow gantry crane.
+  wrapDraw(W, 150, 300, (ox) => {
+    for (const lx of [ox + 20, ox + 260]) {
+      c.beginPath();
+      c.moveTo(lx, 380);
+      c.lineTo(lx + (lx === ox + 20 ? 18 : -18), 120);
+      stroke(c, 11, OUTL);
+      stroke(c, 6, '#F2B84A');
+    }
+    rr(c, ox - 20, 108, 340, 18, 4);
+    fillStroke(c, '#F2B84A', 3.5, OUTL);
+    c.fillStyle = 'rgba(48,35,49,0.35)';
+    for (let x = ox - 10; x < ox + 310; x += 22) c.fillRect(x, 112, 10, 10);
+    c.beginPath();
+    c.moveTo(ox + 190, 126);
+    c.lineTo(ox + 190, 200);
+    stroke(c, 3, OUTL);
+    rr(c, ox + 168, 200, 44, 30, 4);
+    fillStroke(c, '#C98D52', 3, OUTL);
+  });
+  // Water tower.
+  wrapDraw(W, 640, 120, (ox) => {
+    for (const lx of [ox + 20, ox + 100]) {
+      c.beginPath();
+      c.moveTo(lx, 380);
+      c.lineTo(ox + 60 + (lx - ox - 60) * 0.6, 210);
+      stroke(c, 6, OUTL);
+    }
+    c.beginPath();
+    c.moveTo(ox + 20, 300);
+    c.lineTo(ox + 100, 250);
+    c.moveTo(ox + 100, 300);
+    c.lineTo(ox + 20, 250);
+    stroke(c, 3, OUTL);
+    rr(c, ox + 6, 150, 108, 66, 10);
+    fillStroke(c, '#6FA9B8', 3.5, OUTL);
+    c.fillStyle = 'rgba(255,255,255,0.25)';
+    c.fillRect(ox + 16, 158, 14, 50);
+    c.beginPath();
+    c.moveTo(ox, 152);
+    c.lineTo(ox + 60, 118);
+    c.lineTo(ox + 120, 152);
+    c.closePath();
+    fillStroke(c, '#C2614A', 3.5, OUTL);
+  });
+  // Radio mast with a blinking-light cap, and a flag.
+  wrapDraw(W, 960, 80, (ox) => {
+    c.beginPath();
+    c.moveTo(ox + 40, 380);
+    c.lineTo(ox + 40, 90);
+    stroke(c, 6, OUTL);
+    for (let y = 120; y < 360; y += 40) {
+      c.beginPath();
+      c.moveTo(ox + 30, y);
+      c.lineTo(ox + 50, y + 20);
+      stroke(c, 2, OUTL);
+    }
+    ell(c, ox + 40, 86, 6, 6);
+    fillStroke(c, '#F07562', 2.5, OUTL);
+  });
+  wrapDraw(W, 1130, 90, (ox) => {
+    c.beginPath();
+    c.moveTo(ox + 10, 380);
+    c.lineTo(ox + 10, 200);
+    stroke(c, 5, OUTL);
+    c.beginPath();
+    c.moveTo(ox + 12, 204);
+    c.quadraticCurveTo(ox + 50, 196, ox + 80, 212);
+    c.lineTo(ox + 80, 246);
+    c.quadraticCurveTo(ox + 50, 232, ox + 12, 240);
+    c.closePath();
+    fillStroke(c, PAL.teal, 3, OUTL);
+    ell(c, ox + 44, 224, 6, 5);
+    c.fillStyle = PAL.white;
+    c.fill();
+  });
+}
+
+/** Dark foreground silhouettes along the bottom edge (in front of the ground). */
+function drawFgTuft(c: Ctx): void {
+  // Rounded leafy bush silhouette (nothing spiky: it must never read as a hazard).
+  c.fillStyle = '#302331';
+  c.beginPath();
+  c.moveTo(2, 60);
+  for (const [x, y, r] of [[14, 40, 14], [32, 28, 18], [54, 30, 17], [74, 40, 14]]) c.arc(x, y, r, Math.PI, 0);
+  c.lineTo(88, 60);
+  c.closePath();
+  c.fill();
+}
+function drawFgBollard(c: Ctx): void {
+  rr(c, 8, 4, 32, 84, 10);
+  c.fillStyle = '#302331';
+  c.fill();
+  c.fillStyle = 'rgba(255,201,60,0.55)';
+  c.fillRect(8, 22, 32, 8);
+  c.fillRect(8, 42, 32, 8);
+}
+function drawFgWeeds(c: Ctx): void {
+  c.strokeStyle = '#302331';
+  c.lineWidth = 5;
+  c.lineCap = 'round';
+  for (const [x, h, bend] of [[14, 60, -10], [26, 78, 6], [40, 52, 12], [52, 70, -4]]) {
+    c.beginPath();
+    c.moveTo(x, 84);
+    c.quadraticCurveTo(x + bend, 84 - h / 2, x + bend * 1.6, 84 - h);
+    c.stroke();
+    ell(c, x + bend * 1.6, 84 - h, 6, 4, 0.4);
+    c.fillStyle = '#302331';
+    c.fill();
+  }
+}
+
 export function generateDecorArt(scene: Phaser.Scene): void {
+  makeTexture(scene, 'sky_clouds', CLOUD_W, 240, drawCloudLayer);
+  makeBand(scene, 'depot_roofline', W, ROOF_BAND, drawRoofline);
+  makeTexture(scene, 'fg_tuft', 90, 60, drawFgTuft);
+  makeTexture(scene, 'fg_bollard', 48, 90, drawFgBollard);
+  makeTexture(scene, 'fg_weeds', 70, 86, drawFgWeeds);
   makeTexture(scene, 'lowbar', 110, 62, drawLowSign);
   makeTexture(scene, 'actor_forklift', 124, 90, drawForklift);
   makeTexture(scene, 'actor_pigeon', 36, 28, drawPigeon);
@@ -818,3 +973,5 @@ export function generateDecorArt(scene: Phaser.Scene): void {
   makeTexture(scene, 'platform_mid_plank', 64, 18, drawPlankMid);
   makeTexture(scene, 'barrel', 48, 52, drawBarrel);
 }
+
+export { ROOF_BAND };

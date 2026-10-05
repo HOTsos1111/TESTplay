@@ -103,7 +103,14 @@ const MANIFEST: AssetEntry[] = [
   e('actor_beacon_off', 'backgrounds', [28, 28]),
   e('story_garden', 'story', [1280, 720]),
   e('story_dogbed', 'story', [200, 70]),
+  e('sky_clouds', 'backgrounds', [1600, 240], 'drifting cloud layer'),
+  e('depot_roofline', 'backgrounds', [1280, 320], 'rooftop parallax layer (band from y=60)'),
+  e('fg_tuft', 'fx', [90, 60], 'bottom foreground silhouette'),
+  e('fg_bollard', 'fx', [48, 90], 'bottom foreground silhouette'),
+  e('fg_weeds', 'fx', [70, 86], 'bottom foreground silhouette'),
   ...['full', 'empty', 'lost'].map((k) => e(`hp_link_${k}`, 'ui', [48, 32], 'sausage-link health')),
+  ...['ui_play', 'ui_gear', 'ui_expand'].map((k) => e(k, 'ui', [40, 40], 'button icon')),
+  ...['ui_paw', 'ui_paw_teal'].map((k) => e(k, 'ui', [40, 36], 'paw glyph')),
   e('story_truck_open', 'story', [520, 300]),
   e('story_truck_closed', 'story', [520, 300]),
   // FX.
@@ -139,6 +146,7 @@ const SPRITE_NOTES: Record<string, string> = {
   hero_s_prop: 'hero tail propeller (hover)',
   hero_s_bark: 'hero bark',
   hero_s_toy: 'hero proud with toy',
+  logo: 'title logo from the reference sheet header',
   squirrel_flee: 'squirrel fleeing with the toy',
   crate_parcel: 'sealed parcel crate skin',
 };

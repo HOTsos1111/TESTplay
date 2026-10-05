@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { DEPTH, VIEW } from '../data/config';
 import { ART_SCALE } from './AssetRegistry';
 import { BAND, rng } from './art/canvas';
-import { DECALS, ZONE_ACTORS, ZONE_DECALS } from './art/decorArt';
+import { DECALS, ROOF_BAND, ZONE_ACTORS, ZONE_DECALS } from './art/decorArt';
 
 export interface SceneryZone {
   /** World x where this zone takes over. */
@@ -17,6 +17,11 @@ const FAR = 0.08;
 const MID = 0.3;
 const NEAR = 0.62;
 const FG = 1.35;
+/** Rooftop skyline between the warehouses and the bay wall. */
+const ROOF = 0.45;
+/** Silhouettes along the bottom edge, in front of the ground. */
+const FG_LOW = 1.22;
+const CLOUDS = 0.03;
 
 interface Actor {
   kind: string;
@@ -44,6 +49,11 @@ interface Placed {
  */
 export class Scenery {
   private far: Phaser.GameObjects.TileSprite;
+  private clouds: Phaser.GameObjects.TileSprite;
+  private roof: Phaser.GameObjects.TileSprite;
+  private lowItems: Placed[] = [];
+  private lowCursor = 0;
+  private time = 0;
   private mids: Phaser.GameObjects.TileSprite[];
   private nears: Phaser.GameObjects.TileSprite[];
   private front = 0;
@@ -66,6 +76,8 @@ export class Scenery {
       scene.add.tileSprite(0, band.y0, w, band.h, key).setOrigin(0).setScrollFactor(0).setDepth(depth).setTileScale(ART_SCALE);
     const z0 = this.zoneAt(startCamX + VIEW.width * VIEW.heroScreenX);
     this.far = ts('depot_far', DEPTH.farBg);
+    this.clouds = ts('sky_clouds', DEPTH.farBg + 0.4, { y0: 10, h: 240 });
+    this.roof = ts('depot_roofline', DEPTH.midBg + 5, ROOF_BAND);
     this.mids = [ts(z0.mid, DEPTH.midBg, BAND.mid), ts(z0.mid, DEPTH.midBg + 0.5, BAND.mid).setAlpha(0)];
     this.nears = [ts(z0.near, DEPTH.nearBg, BAND.near), ts(z0.near, DEPTH.nearBg + 0.5, BAND.near).setAlpha(0)];
     this.zoneIndex = this.zones.indexOf(z0);
@@ -73,6 +85,7 @@ export class Scenery {
     this.decalCursor = startCamX * NEAR - 200;
     this.fgCursor = startCamX * FG + 300;
     this.actorCursor = startCamX * NEAR + 500;
+    this.lowCursor = startCamX * FG_LOW + 200;
   }
 
   private zoneAt(worldX: number): SceneryZone {
@@ -87,6 +100,8 @@ export class Scenery {
 
   layout(width: number): void {
     this.far.setSize(width, VIEW.height);
+    this.clouds.setSize(width, 240);
+    this.roof.setSize(width, ROOF_BAND.h);
     for (const t of this.mids) t.setSize(width, BAND.mid.h);
     for (const t of this.nears) t.setSize(width, BAND.near.h);
   }
@@ -119,13 +134,17 @@ export class Scenery {
       }
     }
 
+    this.time += dt;
     this.far.tilePositionX = (camX * FAR) / ART_SCALE;
+    this.clouds.tilePositionX = (camX * CLOUDS + this.time * 9) / ART_SCALE;
+    this.roof.tilePositionX = (camX * ROOF) / ART_SCALE;
     for (const m of this.mids) m.tilePositionX = (camX * MID) / ART_SCALE;
     for (const n of this.nears) n.tilePositionX = (camX * NEAR) / ART_SCALE;
 
     this.updateDecals(width, zone);
     this.updateActors(dt, width, zone, heroX - camX);
     this.updateForeground(dt, width, zone);
+    this.updateLowForeground(width);
     this.updateBirds(dt, width);
   }
 
@@ -276,6 +295,31 @@ export class Scenery {
       if (f.x + f.w < viewL - 200) {
         f.img.destroy();
         this.fgItems.splice(i, 1);
+      }
+    }
+  }
+
+  private updateLowForeground(width: number): void {
+    const viewL = this.camX * FG_LOW;
+    const viewR = viewL + width;
+    while (this.lowCursor < viewR + 300) {
+      const r = this.rand();
+      const key = r < 0.45 ? 'fg_tuft' : r < 0.75 ? 'fg_weeds' : 'fg_bollard';
+      const img = this.scene.add
+        .image(this.lowCursor, VIEW.height + 4, key)
+        .setOrigin(0.5, 1)
+        .setScale(ART_SCALE * (1.2 + this.rand() * 0.4))
+        .setScrollFactor(FG_LOW, 0)
+        .setDepth(DEPTH.fx + 11)
+        .setAlpha(0.95);
+      this.lowItems.push({ img, x: this.lowCursor, w: 120 });
+      this.lowCursor += 420 + this.rand() * 700;
+    }
+    for (let i = this.lowItems.length - 1; i >= 0; i--) {
+      const f = this.lowItems[i];
+      if (f.x + f.w < viewL - 200) {
+        f.img.destroy();
+        this.lowItems.splice(i, 1);
       }
     }
   }

@@ -590,6 +590,55 @@ function drawSausageLink(c: Ctx, state: 'full' | 'empty' | 'lost'): void {
   }
 }
 
+function drawUiPlay(c: Ctx): void {
+  c.beginPath();
+  c.moveTo(10, 6);
+  c.lineTo(34, 20);
+  c.lineTo(10, 34);
+  c.closePath();
+  fillStroke(c, PAL.white, 4);
+}
+
+function drawUiGear(c: Ctx): void {
+  c.save();
+  c.translate(20, 20);
+  c.beginPath();
+  for (let i = 0; i < 16; i++) {
+    const a = (i / 16) * Math.PI * 2;
+    const r = i % 2 === 0 ? 17 : 13;
+    const a2 = a + Math.PI / 16;
+    c.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+    c.lineTo(Math.cos(a2) * r, Math.sin(a2) * r);
+  }
+  c.closePath();
+  fillStroke(c, PAL.white, 3.5);
+  ell(c, 0, 0, 5.5, 5.5);
+  fillStroke(c, '#6F86A8', 3);
+  c.restore();
+}
+
+function drawUiExpand(c: Ctx): void {
+  c.lineWidth = 4;
+  for (const [x, y, dx, dy] of [[6, 6, 1, 1], [34, 6, -1, 1], [6, 34, 1, -1], [34, 34, -1, -1]] as const) {
+    c.beginPath();
+    c.moveTo(x, y + dy * 11);
+    c.lineTo(x, y);
+    c.lineTo(x + dx * 11, y);
+    stroke(c, 8);
+    stroke(c, 4, PAL.white);
+  }
+}
+
+function drawUiPaw(c: Ctx, color: string): void {
+  c.fillStyle = color;
+  ell(c, 20, 25, 9, 7.5);
+  c.fill();
+  for (const [x, y] of [[9, 16], [15, 9], [25, 9], [31, 16]]) {
+    ell(c, x, y, 3.6, 4.4);
+    c.fill();
+  }
+}
+
 function drawHeart(c: Ctx, state: 'full' | 'empty' | 'lost'): void {
   c.save();
   c.translate(20, 19);
@@ -792,6 +841,11 @@ export function generateSceneArt(scene: Phaser.Scene): void {
   makeTexture(scene, 'story_truck_closed', 520, 300, (c) => drawTruck(c, false));
   for (const s of ['full', 'empty', 'lost'] as const) makeTexture(scene, `heart_${s}`, 40, 38, (c) => drawHeart(c, s));
   for (const s of ['full', 'empty', 'lost'] as const) makeTexture(scene, `hp_link_${s}`, 48, 32, (c) => drawSausageLink(c, s));
+  makeTexture(scene, 'ui_play', 40, 40, drawUiPlay);
+  makeTexture(scene, 'ui_gear', 40, 40, drawUiGear);
+  makeTexture(scene, 'ui_expand', 40, 40, drawUiExpand);
+  makeTexture(scene, 'ui_paw', 40, 36, (c) => drawUiPaw(c, PAL.white));
+  makeTexture(scene, 'ui_paw_teal', 40, 36, (c) => drawUiPaw(c, PAL.teal));
   makeTexture(scene, 'icon_tail', 36, 36, (c) => drawTailIcon(c, false));
   makeTexture(scene, 'icon_tail_empty', 36, 36, (c) => drawTailIcon(c, true));
   makeTexture(scene, 'icon_bark', 40, 40, drawBarkIcon);
