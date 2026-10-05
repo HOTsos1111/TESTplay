@@ -178,12 +178,12 @@ try {
       const s = await state(page);
       where = s?.powerupsAt?.[0] ?? null;
       if (!where) {
-        await page.evaluate((x) => window.__HH__.teleport()(x), (s?.x ?? 0) + 2500);
+        await page.evaluate((x) => window.__HH__.teleport?.()?.(x), (s?.x ?? 0) + 2500);
         await sleep(300);
       }
     }
     if (where) {
-      await page.evaluate((w) => window.__HH__.teleport()(w.x, w.y + 40), where);
+      await page.evaluate((w) => window.__HH__.teleport?.()?.(w.x, w.y + 40), where);
       const t1 = Date.now();
       while (Date.now() - t1 < 5000 && !got) {
         const s = await state(page);
@@ -203,10 +203,10 @@ try {
     if (!s) break;
     const hz = s.hazardsAhead.find((h) => h.bottom < 18 && h.dx > 0 && !s.gapsAhead.some((g) => g[0] < h.dx));
     if (hz) {
-      await page.evaluate((x) => window.__HH__.teleport()(x), s.x + hz.dx - 1000);
+      await page.evaluate((x) => window.__HH__.teleport?.()?.(x), s.x + hz.dx - 1000);
       break;
     }
-    await page.evaluate((x) => window.__HH__.teleport()(x), s.x + 1200);
+    await page.evaluate((x) => window.__HH__.teleport?.()?.(x), s.x + 1200);
     await sleep(300);
   }
   await sleep(100);
@@ -312,7 +312,7 @@ try {
     await page.reload();
     await waitScene(page, 'Title');
     await sleep(400);
-    await page.evaluate(() => { window.__HH__.manager().start('Game', { chapter: 1, startAt: 'start' }); });
+    await page.evaluate(() => { window.__HH__.manager().getScene('Title').scene.start('Game', { chapter: 1, startAt: 'start' }); });
     await waitScene(page, 'Game');
     await page.evaluate(() => {
       const w = window;
@@ -322,7 +322,11 @@ try {
       const tick = () => {
         const s = w.__HH__.game?.();
         const input = w.__HH__.input?.();
-        if (!s || !input) return;
+        if (!s || !input) {
+          // State can be briefly unavailable (scene switch); keep polling.
+          if (!w.__HH__.scenes().includes('Results')) requestAnimationFrame(tick);
+          return;
+        }
         const now = performance.now();
         if (lastHearts !== null && s.hearts < lastHearts) w.__bot.hits.push(Math.round(s.x));
         lastHearts = s.hearts;
@@ -415,7 +419,7 @@ try {
   await page.reload();
   await waitScene(page, 'Title');
   await sleep(400);
-  await page.evaluate(() => { window.__HH__.manager().start('Game', { chapter: 1, startAt: 'encounter' }); });
+  await page.evaluate(() => { window.__HH__.manager().getScene('Title').scene.start('Game', { chapter: 1, startAt: 'encounter' }); });
   await waitScene(page, 'Game');
   {
     // In-page autopilot: reacts every animation frame using only what a player sees
@@ -427,7 +431,11 @@ try {
       const tick = () => {
         const s = w.__HH__.game?.();
         const input = w.__HH__.input?.();
-        if (!s || !input) return;
+        if (!s || !input) {
+          // State can be briefly unavailable (scene switch); keep polling.
+          if (!w.__HH__.scenes().includes('Results')) requestAnimationFrame(tick);
+          return;
+        }
         const now = performance.now();
         w.__bot.minHearts = Math.min(w.__bot.minHearts, s.hearts);
         const threat = s.hazardsAhead.find((h) => h.dx > 30 && h.dx < 170);

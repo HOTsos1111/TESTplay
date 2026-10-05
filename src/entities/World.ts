@@ -79,7 +79,12 @@ export class GroundPiece extends Entity {
     if (centre === this.lastCentre) return;
     this.lastCentre = centre;
     this.g.clear();
-    drawGround3D(this.g, this.x, this.x + this.w, centre, this.edgeLeft, this.edgeRight);
+    // Only draw the stretch that is on screen (arena floors can be thousands of px long).
+    const pad = 200;
+    const x0 = Math.max(this.x, ctx.cameraLeft - pad);
+    const x1 = Math.min(this.x + this.w, ctx.cameraRight + pad);
+    if (x1 <= x0) return;
+    drawGround3D(this.g, x0, x1, centre, this.edgeLeft && x0 === this.x, this.edgeRight && x1 === this.x + this.w);
   }
   destroy(): void {
     this.g.destroy();
