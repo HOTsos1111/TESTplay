@@ -73,9 +73,10 @@ export function toggleFullscreen(scene: Phaser.Scene): void {
   });
 }
 
-/** Try full screen once on phones when play starts (a tap is in progress). */
-export function autoFullscreen(scene: Phaser.Scene): void {
-  if (!isFullscreen() && fullscreenAllowed() && scene.sys.game.device.input.touch) void enterFullscreen();
+/** Launched from the home screen (manifest display: fullscreen / standalone). */
+export function isInstalledApp(): boolean {
+  if (typeof window === 'undefined' || !window.matchMedia) return false;
+  return window.matchMedia('(display-mode: fullscreen)').matches || window.matchMedia('(display-mode: standalone)').matches;
 }
 
 export function toast(scene: Phaser.Scene, text: string): void {

@@ -9,7 +9,7 @@ import { Backdrop } from '../ui/Backdrop';
 import { Button, MenuNav } from '../ui/Button';
 import { COLOR, CSS, textStyle } from '../ui/theme';
 import { centerMenu } from '../ui/layout';
-import { autoFullscreen, fullscreenAllowed, isFullscreen, NOT_ALLOWED_MSG, toggleFullscreen } from '../ui/fullscreen';
+import { fullscreenAllowed, isFullscreen, isInstalledApp, NOT_ALLOWED_MSG, toggleFullscreen } from '../ui/fullscreen';
 
 /**
  * Title screen in the style of the character sheets: the hand-drawn logo, a
@@ -103,7 +103,6 @@ export class TitleScene extends Phaser.Scene {
     const hasProgress = p.storySeen || p.completedChapters.length > 0 || p.checkpoint !== null || p.boneBalance > 0;
     const buttons: Button[] = [];
     const primary = new Button(this, cx, cy - 78, hasProgress ? COPY.continue : COPY.start, () => {
-      autoFullscreen(this);
       if (!progress.state.storySeen) this.scene.start('Story', { next: 'game' });
       else this.scene.start('ChapterMap');
     }, { width: 340, height: 84, fontSize: 38, color: COLOR.coral, icon: 'ui_play', iconScale: 0.5 });
@@ -116,14 +115,15 @@ export class TitleScene extends Phaser.Scene {
       toggleFullscreen(this);
       this.time.delayedCall(400, () => fs.setText(fsLabel()));
     }, { width: 220, height: 52, fontSize: 20, color: 0x6f86a8, icon: 'ui_expand', iconScale: 0.36 });
-    buttons.push(fs);
+    if (isInstalledApp()) fs.setVisible(false);
+    else buttons.push(fs);
     const help = new Button(this, 70, 44, '?', () => this.scene.start('HowTo', { next: 'title' }), { width: 74, height: 56, fontSize: 32, color: COLOR.teal });
     buttons.push(help);
     this.add.text(116, 44, 'How to Play', textStyle(20, CSS.cream, 4)).setOrigin(0, 0.5).setDepth(D + 1);
     for (const b of buttons) b.setDepth(D + 1);
     new MenuNav(this, buttons);
 
-    if (!fullscreenAllowed() && this.sys.game.device.input.touch) {
+    if (!isInstalledApp() && !fullscreenAllowed() && this.sys.game.device.input.touch) {
       this.add.text(640, 664, NOT_ALLOWED_MSG, { ...textStyle(17, CSS.cream, 4), wordWrap: { width: 900 } }).setOrigin(0.5).setDepth(D);
     }
     // Footer: credit with a paw, and the key controls on a soft pill.

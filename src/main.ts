@@ -13,7 +13,6 @@ import { UpgradeScene } from './scenes/UpgradeScene';
 import { Audio } from './systems/AudioManager';
 import { registerTestHook } from './systems/debug';
 import { gameWidthFor } from './ui/layout';
-import { enterFullscreen, fullscreenAllowed, isFullscreen } from './ui/fullscreen';
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,
@@ -44,12 +43,9 @@ window.addEventListener('resize', fitWidth);
 window.addEventListener('orientationchange', () => setTimeout(fitWidth, 200));
 game.events.once(Phaser.Core.Events.READY, fitWidth);
 
-// On phones, snap to full screen on the first tap (it must happen inside the tap itself).
-const firstTap = () => {
-  window.removeEventListener('touchend', firstTap);
-  if (!isFullscreen() && fullscreenAllowed()) void enterFullscreen();
-};
-window.addEventListener('touchend', firstTap, { passive: true });
+// Full screen is only entered from the Full screen button: switching automatically
+// makes the browser show its "to exit full screen…" bar over the menu buttons.
+// Launched from the home screen, the app is full screen without that bar.
 document.addEventListener('fullscreenchange', () => setTimeout(fitWidth, 150));
 
 // Browsers only allow audio after a user gesture.
