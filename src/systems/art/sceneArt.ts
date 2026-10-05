@@ -556,6 +556,40 @@ function drawTruck(c: Ctx, open: boolean): void {
 
 // ---------------------------------------------------------------- UI art
 
+/** One sausage link of the health chain, with the twisted casing joining it to the next. */
+function drawSausageLink(c: Ctx, state: 'full' | 'empty' | 'lost'): void {
+  const body = state === 'full' ? '#D0583F' : state === 'lost' ? '#FFFDF6' : 'rgba(255,253,246,0.35)';
+  // Twisted casing on the right (links the chain).
+  c.beginPath();
+  c.moveTo(36, 13);
+  c.quadraticCurveTo(41, 15, 46, 12);
+  c.lineTo(46, 20);
+  c.quadraticCurveTo(41, 17, 36, 19);
+  c.closePath();
+  fillStroke(c, state === 'full' ? '#E8B07A' : 'rgba(255,253,246,0.35)', 2.4);
+  rr(c, 3, 5, 36, 22, 11);
+  fillStroke(c, body, 3.2);
+  if (state === 'full') {
+    c.save();
+    rr(c, 3, 5, 36, 22, 11);
+    c.clip();
+    ell(c, 21, 27, 20, 6);
+    c.fillStyle = '#A8402E';
+    c.fill();
+    c.restore();
+    ell(c, 15, 11, 8, 2.6);
+    c.fillStyle = 'rgba(255,255,255,0.7)';
+    c.fill();
+    rr(c, 3, 5, 36, 22, 11);
+    stroke(c, 3.2);
+  } else if (state === 'empty') {
+    c.setLineDash([3, 3]);
+    rr(c, 8, 10, 26, 12, 6);
+    stroke(c, 1.6, 'rgba(48,35,49,0.45)');
+    c.setLineDash([]);
+  }
+}
+
 function drawHeart(c: Ctx, state: 'full' | 'empty' | 'lost'): void {
   c.save();
   c.translate(20, 19);
@@ -757,6 +791,7 @@ export function generateSceneArt(scene: Phaser.Scene): void {
   makeTexture(scene, 'story_truck_open', 520, 300, (c) => drawTruck(c, true));
   makeTexture(scene, 'story_truck_closed', 520, 300, (c) => drawTruck(c, false));
   for (const s of ['full', 'empty', 'lost'] as const) makeTexture(scene, `heart_${s}`, 40, 38, (c) => drawHeart(c, s));
+  for (const s of ['full', 'empty', 'lost'] as const) makeTexture(scene, `hp_link_${s}`, 48, 32, (c) => drawSausageLink(c, s));
   makeTexture(scene, 'icon_tail', 36, 36, (c) => drawTailIcon(c, false));
   makeTexture(scene, 'icon_tail_empty', 36, 36, (c) => drawTailIcon(c, true));
   makeTexture(scene, 'icon_bark', 40, 40, drawBarkIcon);

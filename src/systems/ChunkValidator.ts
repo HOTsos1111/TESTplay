@@ -72,8 +72,8 @@ export interface ValidationIssue {
 
 /** Safety margins: authored challenges may use at most this fraction of measured reach. */
 const MARGIN = 0.85;
-/** Approximate roll distance of a barrel before it reaches the hero (trigger 900 px, 170 vs ~350 px/s). */
-const BARREL_TRAVEL = 280;
+/** Approximate roll distance of a bin before it reaches the hero (trigger 900 px, 230 vs ~380 px/s). */
+const BARREL_TRAVEL = 340;
 
 /**
  * Checks one chunk against the abilities it declares, at the slowest and

@@ -57,7 +57,7 @@ export const TUNING = {
   barkLifetime: 0.18,
   /** Vertical extent of the bark pulse, centred on the head. */
   barkHeight: 130,
-  maxHearts: 3,
+  maxHearts: 6,
   invulnerability: 1.2,
   /** Upward kick applied when the hero is hit. */
   hitBounceVelocity: -480,

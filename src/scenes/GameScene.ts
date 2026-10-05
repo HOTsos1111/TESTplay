@@ -754,7 +754,8 @@ export class GameScene extends Phaser.Scene {
 
   private updateEntities(dt: number): void {
     const left = this.ctx.cameraLeft - WORLD.despawnBehind;
-    this.solids.length = 0;
+    // Keep last frame's solids while entities update: squirrels test for a fair,
+    // solid landing spot (isClearSpot) during their update.
     for (let i = this.entities.length - 1; i >= 0; i--) {
       const e = this.entities[i];
       if (e.alive) e.update(dt, this.ctx);
@@ -764,6 +765,7 @@ export class GameScene extends Phaser.Scene {
         continue;
       }
     }
+    this.solids.length = 0;
     for (const e of this.entities) if (e.solid) this.solids.push(e.solid);
     this.fx.update(dt);
   }

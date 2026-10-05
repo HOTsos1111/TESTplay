@@ -54,7 +54,7 @@ export class Hud {
       return o;
     };
     for (let i = 0; i < TUNING.maxHearts; i++) {
-      this.hearts.push(fixed(scene.add.image(44 + i * 46, 42, 'heart_full').setScale(ART_SCALE * 1.1)));
+      this.hearts.push(fixed(scene.add.image(40 + i * 42, 42, 'hp_link_full').setScale(ART_SCALE * 1.15)));
     }
     fixed(scene.add.image(48, 94, 'bone').setScale(ART_SCALE * 1.05));
     this.boneText = fixed(scene.add.text(76, 94, '0', textStyle(26)).setOrigin(0, 0.5));
@@ -165,9 +165,9 @@ export class Hud {
     }
     this.heartFlash = Math.max(0, this.heartFlash - dt);
     this.hearts.forEach((h, i) => {
-      const key = i < s.hearts ? 'heart_full' : i === s.hearts && this.heartFlash > 0 ? 'heart_lost' : 'heart_empty';
+      const key = i < s.hearts ? 'hp_link_full' : i === s.hearts && this.heartFlash > 0 ? 'hp_link_lost' : 'hp_link_empty';
       if (h.texture.key !== key) h.setTexture(key);
-      h.setScale(ART_SCALE * (1.1 + (i === s.hearts && this.heartFlash > 0 ? this.heartFlash * 0.6 : 0)));
+      h.setScale(ART_SCALE * (1.15 + (i === s.hearts && this.heartFlash > 0 ? this.heartFlash * 0.6 : 0)));
     });
     this.boneText.setText(String(s.bones));
     this.distText.setText(`${s.metres} m`);

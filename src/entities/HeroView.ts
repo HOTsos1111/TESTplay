@@ -20,6 +20,21 @@ type Pose = 'side' | 'idle' | 'run' | 'leap' | 'prop' | 'bark' | 'toy' | 'sleep'
  * dog stays planted over his hitbox when the pose changes. Sprites come from the
  * character reference sheet (scripts/extract-sprites.mjs) and face right.
  */
+/**
+ * The motion poses were drawn smaller on the reference sheet than the side view
+ * (measured by eye size), so scale them up to keep the dog one consistent size.
+ */
+const POSE_SCALE: Record<Pose, number> = {
+  side: 1,
+  sleep: 1,
+  idle: 1.2,
+  run: 1.27,
+  leap: 1.35,
+  prop: 1.35,
+  bark: 1.3,
+  toy: 1.3,
+};
+
 const POSE_ORIGIN_X: Record<Pose, number> = {
   side: 0.44,
   idle: 0.47,
@@ -31,7 +46,7 @@ const POSE_ORIGIN_X: Record<Pose, number> = {
   sleep: 0.44,
 };
 
-/** Cut lines on the side-view sprite (sprite px, 414×262) for the animated running rig. */
+/** Cut lines on the side-view sprite (sprite px, ~402×261) for the animated running rig. */
 const RIG = {
   belly: 212,
   legs: [
@@ -93,7 +108,7 @@ export class HeroView {
 
   static readonly BASE_SCALE = 0.92;
   /** Sprite scale inside the rig (the sheet is drawn a little larger than the 2× contract). */
-  private static readonly SPRITE_SCALE = ART_SCALE * 1.08;
+  private static readonly SPRITE_SCALE = ART_SCALE * 0.88;
 
   constructor(private scene: Phaser.Scene, x: number, y: number) {
     HeroView.ensureSleepTexture(scene);
@@ -102,8 +117,9 @@ export class HeroView {
     this.rig = scene.add.container(0, 0);
     this.root.add(this.rig);
     // Cut-out rig, aligned so its unrotated parts reproduce the side pose exactly.
-    const W = 414;
-    const H = 262;
+    const side = scene.textures.get('hero_s_side').getSourceImage();
+    const W = side.width;
+    const H = side.height;
     const s0 = HeroView.SPRITE_SCALE;
     const place = (key: string, px: number, py: number) =>
       scene.add.image((px - POSE_ORIGIN_X.side * W) * s0, (py - H) * s0 + 2, key).setOrigin(px / W, py / H).setScale(s0);
@@ -119,7 +135,7 @@ export class HeroView {
     this.cut = scene.add.container(0, 0, [this.parts.tail, this.parts.leg0, this.parts.leg1, this.parts.leg2, this.parts.leg3, this.parts.body, this.parts.ear]);
     this.rig.add(this.cut);
     // Spinning blur over the tail swirl drawn in the propeller pose.
-    this.propeller = scene.add.image(-34, -100, 'hero_propeller').setScale(ART_SCALE * 1.5, ART_SCALE * 0.5).setAlpha(0.7).setVisible(false);
+    this.propeller = scene.add.image(-37, -110, 'hero_propeller').setScale(ART_SCALE * 1.5, ART_SCALE * 0.5).setAlpha(0.7).setVisible(false);
     this.spr = scene.add.image(0, 2, 'hero_s_run').setOrigin(POSE_ORIGIN_X.run, 1).setScale(HeroView.SPRITE_SCALE);
     this.rig.add([this.spr, this.propeller]);
     this.rig.setScale(HeroView.BASE_SCALE);
@@ -512,7 +528,8 @@ export class HeroView {
     this.rig.setScale(B * this.sqX, B * this.sqY);
     this.rig.y = rigY;
     this.rig.rotation = rigRot;
-    this.spr.setScale(HeroView.SPRITE_SCALE * stretchX, HeroView.SPRITE_SCALE);
+    const ps = HeroView.SPRITE_SCALE * POSE_SCALE[this.pose];
+    this.spr.setScale(ps * stretchX, ps);
     this.spr.x = stretchShift;
     this.cut.setScale(stretchX, 1);
     this.cut.setPosition(stretchShift, cutY);

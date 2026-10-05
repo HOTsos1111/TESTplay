@@ -442,7 +442,7 @@ export class Squirrel extends Entity {
   private vy = 0;
   static readonly WARN_DISTANCE = 1000;
   static readonly MAX_LIFE = 20;
-  static readonly MAX_NUTS = 4;
+  static readonly MAX_NUTS = 6;
 
   constructor(scene: Phaser.Scene, x: number, bottom: number) {
     super();
@@ -505,9 +505,11 @@ export class Squirrel extends Entity {
     if (this.nuts.length >= Squirrel.MAX_NUTS) return;
     // Lob a cluster to land on the path in front of the hero; it stays there as
     // an obstacle to jump (or bark away). Only at spots that leave a fair landing.
+    // The pile takes ~0.75 s to land while the hero keeps running, so lead the
+    // target well ahead of him (and keep it on screen).
     let target = -1;
     for (let i = 0; i < 8 && target < 0; i++) {
-      const tx = Math.max(ctx.heroX + 230, this.x - rand(60, 340));
+      const tx = Math.min(ctx.cameraRight - 60, ctx.heroX + rand(480, 820));
       if (ctx.isClearSpot(tx)) target = tx;
     }
     if (target < 0) return;
@@ -575,8 +577,8 @@ export class Squirrel extends Entity {
         if (this.t >= this.stateTime) {
           this.bubble.setVisible(false);
           this.throwNut(ctx);
-          if (Math.random() < 0.3) this.pendingSecondThrow = 0.18;
-          this.throwCooldown = rand(0.9, 1.8);
+          if (Math.random() < 0.5) this.pendingSecondThrow = 0.22;
+          this.throwCooldown = rand(0.7, 1.3);
           this.go('throw', 0.3);
         }
         break;
@@ -649,7 +651,7 @@ export class Acorn extends Entity {
     return this.x + 20;
   }
   hazard(): Rect {
-    return this.mode === 'lob' ? { x: this.x - 16, y: this.y - 12, w: 32, h: 24 } : { x: this.x - 9, y: this.y - 9, w: 18, h: 18 };
+    return this.mode === 'lob' ? { x: this.x - 19, y: this.y - 14, w: 38, h: 28 } : { x: this.x - 9, y: this.y - 9, w: 18, h: 18 };
   }
   barkTarget(): Rect {
     return { x: this.x - 20, y: this.y - 18, w: 40, h: 36 };
@@ -774,7 +776,7 @@ export class Barrel extends Entity {
       Audio.play('parcel');
     }
     if (this.rolling) {
-      this.vx = Math.max(-170, this.vx - 600 * dt);
+      this.vx = Math.max(-230, this.vx - 700 * dt);
       this.x += this.vx * dt;
       // Wheelie bin: rattles and tips forward as it trundles along.
       this.img.rotation = -0.12 + Math.sin(this.t * 22) * 0.06;

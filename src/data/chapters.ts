@@ -25,7 +25,7 @@ export const CHAPTERS: ChapterDef[] = [
     opening: "That definitely wasn't our street.",
     encounter: 'The dogcatcher and his capture trolley',
     implemented: true,
-    speedStart: 340,
+    speedStart: 360,
     speedEnd: 400,
     chunks: [
       'depot_start',

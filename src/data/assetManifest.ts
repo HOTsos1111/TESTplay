@@ -103,6 +103,7 @@ const MANIFEST: AssetEntry[] = [
   e('actor_beacon_off', 'backgrounds', [28, 28]),
   e('story_garden', 'story', [1280, 720]),
   e('story_dogbed', 'story', [200, 70]),
+  ...['full', 'empty', 'lost'].map((k) => e(`hp_link_${k}`, 'ui', [48, 32], 'sausage-link health')),
   e('story_truck_open', 'story', [520, 300]),
   e('story_truck_closed', 'story', [520, 300]),
   // FX.
