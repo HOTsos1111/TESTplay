@@ -607,21 +607,34 @@ function drawPlankMid(c: Ctx): void {
 }
 
 function drawBarrel(c: Ctx): void {
-  ell(c, 24, 24, 21, 21);
-  fillStroke(c, '#4F7FA8', 3.5);
-  ell(c, 24, 24, 21, 21);
-  c.save();
-  c.clip();
-  c.fillStyle = '#3B6489';
-  c.fillRect(0, 10, 48, 4);
-  c.fillRect(0, 34, 48, 4);
-  c.restore();
-  ell(c, 24, 24, 7, 7);
-  fillStroke(c, PAL.butter, 2.5);
+  // Green wheelie bin (style guide), 48×52, rolling toward the hero on its wheel.
+  const green = '#3E9B5A';
   c.beginPath();
-  c.moveTo(24, 17);
-  c.lineTo(24, 31);
-  stroke(c, 2);
+  c.moveTo(8, 12);
+  c.lineTo(40, 12);
+  c.lineTo(37, 44);
+  c.lineTo(11, 44);
+  c.closePath();
+  fillStroke(c, green, 3.5);
+  c.fillStyle = 'rgba(255,255,255,0.25)';
+  c.fillRect(13, 16, 4, 24);
+  for (const x of [22, 30]) {
+    c.beginPath();
+    c.moveTo(x, 18);
+    c.lineTo(x - 0.5, 38);
+    stroke(c, 2, '#2C7444');
+  }
+  // Lid with handle.
+  rr(c, 4, 6, 40, 8, 3);
+  fillStroke(c, '#2F7D47', 3);
+  rr(c, 38, 2, 8, 6, 2);
+  fillStroke(c, '#2F7D47', 2.5);
+  // Wheel.
+  ell(c, 34, 44, 7.5, 7.5);
+  fillStroke(c, '#3A3340', 3);
+  ell(c, 34, 44, 2.6, 2.6);
+  c.fillStyle = '#C7CDD8';
+  c.fill();
 }
 
 // ------------------------------------------------------- background actors
@@ -729,37 +742,48 @@ function drawBeacon(c: Ctx, on: boolean): void {
 }
 
 function drawLowSign(c: Ctx): void {
-  // Low-clearance bar: chunky hazard-striped beam with a duck-down arrow.
-  rr(c, 3, 8, 104, 50, 8);
+  // Low overhead pipe (style guide): rusty steel pipe with bolted flanges and a hazard band.
+  const steel = '#6F7E96';
+  rr(c, 3, 12, 104, 44, 20);
+  fillStroke(c, steel, 4);
   c.save();
+  rr(c, 3, 12, 104, 44, 20);
   c.clip();
+  c.fillStyle = 'rgba(255,255,255,0.28)';
+  c.fillRect(0, 18, 110, 7);
+  c.fillStyle = 'rgba(30,26,30,0.22)';
+  c.fillRect(0, 44, 110, 12);
+  // Rust patches.
+  for (const [x, y, rx, ry] of [[22, 30, 6, 3.5], [80, 40, 7, 3], [64, 22, 4, 2.5], [38, 46, 4, 2.5]]) {
+    ell(c, x, y, rx, ry);
+    c.fillStyle = '#B5653A';
+    c.fill();
+  }
+  // Hazard band.
   c.fillStyle = '#FFC93C';
-  c.fillRect(0, 0, 110, 66);
+  c.fillRect(46, 0, 18, 66);
   c.fillStyle = PAL.outline;
-  for (let x = -60; x < 120; x += 24) {
+  for (let y = -10; y < 70; y += 12) {
     c.beginPath();
-    c.moveTo(x, 66);
-    c.lineTo(x + 12, 66);
-    c.lineTo(x + 52, 0);
-    c.lineTo(x + 40, 0);
+    c.moveTo(46, y);
+    c.lineTo(64, y + 10);
+    c.lineTo(64, y + 15);
+    c.lineTo(46, y + 5);
     c.closePath();
     c.fill();
   }
   c.restore();
-  rr(c, 3, 8, 104, 50, 8);
+  rr(c, 3, 12, 104, 44, 20);
   stroke(c, 4);
-  // Downward chevron badge.
-  ell(c, 55, 33, 16, 16);
-  fillStroke(c, PAL.white, 3);
-  c.beginPath();
-  c.moveTo(46, 28);
-  c.lineTo(55, 38);
-  c.lineTo(64, 28);
-  stroke(c, 4, PAL.coral);
-  // Hooks for the chains.
-  for (const x of [18, 92]) {
-    ell(c, x, 6, 4, 4);
-    stroke(c, 3);
+  // Flanges with bolts at each end.
+  for (const x of [8, 90]) {
+    rr(c, x, 8, 12, 52, 4);
+    fillStroke(c, '#8693A8', 3);
+    for (const y of [16, 34, 52]) {
+      ell(c, x + 6, y, 2, 2);
+      c.fillStyle = PAL.outline;
+      c.fill();
+    }
   }
 }
 
@@ -792,5 +816,5 @@ export function generateDecorArt(scene: Phaser.Scene): void {
   makeTexture(scene, 'cardboard_arrows', 60, 56, (c) => drawCardboardVariant(c, '#D8A05A', '#F6E7B8', true));
   makeTexture(scene, 'platform_mid_conveyor', 64, 18, drawConveyorMid);
   makeTexture(scene, 'platform_mid_plank', 64, 18, drawPlankMid);
-  makeTexture(scene, 'barrel', 48, 48, drawBarrel);
+  makeTexture(scene, 'barrel', 48, 52, drawBarrel);
 }

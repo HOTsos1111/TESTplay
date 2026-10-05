@@ -315,7 +315,7 @@ export class Bone extends Entity {
   pickup(): Rect {
     return { x: this.x - 18, y: this.y - 12, w: 36, h: 24 };
   }
-  /** Golden Bone magnet: drift toward a point. */
+  /** Bone Magnet: drift toward a point. */
   pull(tx: number, ty: number, speed: number, dt: number): void {
     const dx = tx - this.x;
     const dy = ty - this.y;
@@ -727,9 +727,13 @@ export class LowBar extends Entity {
   constructor(scene: Phaser.Scene, private x: number) {
     super();
     const bottom = WORLD.groundY - LowBar.CLEARANCE;
+    // Vertical supply pipes feeding the low pipe from the ceiling.
     this.chains = scene.add.graphics().setDepth(DEPTH.enemy);
-    this.chains.lineStyle(4, 0x302331, 1);
-    for (const cx of [x + 15, x + 89]) this.chains.lineBetween(cx, -20, cx, bottom - LowBar.H + 4);
+    for (const cx of [x + 11, x + 82]) {
+      this.chains.fillStyle(0x302331, 1).fillRect(cx - 2, -20, 18, bottom - LowBar.H + 30);
+      this.chains.fillStyle(0x6f7e96, 1).fillRect(cx + 1, -20, 12, bottom - LowBar.H + 30);
+      this.chains.fillStyle(0xffffff, 0.25).fillRect(cx + 3, -20, 3, bottom - LowBar.H + 30);
+    }
     this.img = scene.add.image(x - 3, bottom + 2, 'lowbar').setOrigin(0, 1).setScale(ART_SCALE).setDepth(DEPTH.enemy);
   }
   get right(): number {
@@ -749,7 +753,7 @@ export class LowBar extends Entity {
   }
 }
 
-/** Barrel that starts rolling toward the hero once he gets close. Jump it. */
+/** Wheelie bin that starts rolling toward the hero once he gets close. Jump it. */
 export class Barrel extends Entity {
   private img: Phaser.GameObjects.Image;
   private rolling = false;
@@ -758,7 +762,7 @@ export class Barrel extends Entity {
   static readonly TRIGGER = 900;
   constructor(scene: Phaser.Scene, private x: number) {
     super();
-    this.img = scene.add.image(x, WORLD.groundY - 24, 'barrel').setScale(ART_SCALE).setDepth(DEPTH.enemy);
+    this.img = scene.add.image(x, WORLD.groundY + 1, 'barrel').setOrigin(0.5, 1).setScale(ART_SCALE).setDepth(DEPTH.enemy);
   }
   get right(): number {
     return this.x + 24;
@@ -775,7 +779,8 @@ export class Barrel extends Entity {
     if (this.rolling) {
       this.vx = Math.max(-170, this.vx - 600 * dt);
       this.x += this.vx * dt;
-      this.img.rotation += (this.vx * dt) / 22;
+      // Wheelie bin: rattles and tips forward as it trundles along.
+      this.img.rotation = -0.12 + Math.sin(this.t * 22) * 0.06;
       if (Math.random() < dt * 6) ctx.fx.dust(this.x + 20, WORLD.groundY, 1);
     } else {
       this.img.rotation = Math.sin(this.t * 6) * 0.05;

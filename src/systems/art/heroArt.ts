@@ -9,12 +9,12 @@ import { ell, fillStroke, makeTexture, PAL, rr, stroke, type Ctx } from './canva
 export const HERO_PARTS = {
   body: { w: 124, h: 58, ox: 0.5, oy: 0.5 },
   head: { w: 80, h: 66, ox: 0.32, oy: 0.62 },
-  ear: { w: 40, h: 66, ox: 0.42, oy: 0.07 },
+  ear: { w: 40, h: 76, ox: 0.4, oy: 0.06 },
   legNear: { w: 18, h: 28, ox: 0.5, oy: 0.14 },
   legFar: { w: 18, h: 28, ox: 0.5, oy: 0.14 },
   tail: { w: 46, h: 26, ox: 0.9, oy: 0.62 },
   collar: { w: 18, h: 42, ox: 0.5, oy: 0.5 },
-  eye: { w: 36, h: 36, ox: 0.5, oy: 0.5 },
+  eye: { w: 40, h: 44, ox: 0.5, oy: 0.5 },
   mouth: { w: 22, h: 18, ox: 0.3, oy: 0.2 },
   propeller: { w: 64, h: 64, ox: 0.5, oy: 0.5 },
 } as const;
@@ -23,98 +23,146 @@ export type EyeKind = 'open' | 'determined' | 'surprised' | 'happy' | 'closed' |
 export const EYES: EyeKind[] = ['open', 'determined', 'surprised', 'happy', 'closed', 'dizzy'];
 
 function drawBody(c: Ctx): void {
-  // Long sausage body.
+  // Long sausage body (style guide: chestnut with a cream underside and chest).
   rr(c, 6, 9, 112, 40, 20);
   fillStroke(c, PAL.chestnut, 3.5);
-  // Lighter chest/belly band.
   c.save();
   rr(c, 6, 9, 112, 40, 20);
   c.clip();
-  ell(c, 70, 50, 52, 12);
-  c.fillStyle = PAL.chestnutLight;
+  // Cream belly running the length of the underside, widening into the chest.
+  c.beginPath();
+  c.moveTo(14, 52);
+  c.quadraticCurveTo(30, 40, 60, 42);
+  c.quadraticCurveTo(92, 42, 104, 26);
+  c.quadraticCurveTo(116, 30, 122, 52);
+  c.closePath();
+  c.fillStyle = PAL.cream;
   c.fill();
+  c.beginPath();
+  c.moveTo(18, 47);
+  c.quadraticCurveTo(34, 38, 60, 40);
+  c.quadraticCurveTo(90, 40, 103, 25);
+  stroke(c, 2.5);
   // Back shading.
-  ell(c, 60, 6, 56, 10);
+  ell(c, 58, 5, 56, 9);
   c.fillStyle = PAL.chestnutDark;
-  c.globalAlpha = 0.45;
+  c.globalAlpha = 0.4;
   c.fill();
   c.globalAlpha = 1;
   c.restore();
-  // Highlight.
+  // Highlight along the back.
   c.beginPath();
-  c.moveTo(30, 17);
-  c.quadraticCurveTo(60, 12, 92, 17);
-  stroke(c, 3, 'rgba(255,240,215,0.55)');
-  // Outline again so the clip edge stays crisp.
+  c.moveTo(28, 17);
+  c.quadraticCurveTo(56, 12, 86, 16);
+  stroke(c, 3, 'rgba(255,240,215,0.5)');
   rr(c, 6, 9, 112, 40, 20);
   stroke(c, 3.5);
 }
 
 function drawHead(c: Ctx): void {
-  // Short cute snout (cream), drawn under a big round skull.
-  ell(c, 54, 42, 16, 11, -0.08);
-  fillStroke(c, PAL.cream, 3);
-  ell(c, 28, 31, 26, 25);
+  // Long-ish snout: chestnut bridge, cream jaw, big shiny nose at the tip.
+  c.beginPath();
+  c.moveTo(34, 18);
+  c.quadraticCurveTo(54, 21, 70, 28);
+  c.quadraticCurveTo(78, 32, 75, 40);
+  c.quadraticCurveTo(70, 47, 56, 50);
+  c.quadraticCurveTo(44, 53, 36, 48);
+  c.closePath();
   fillStroke(c, PAL.chestnut, 3.5);
-  // Cheek blending into the muzzle, and a rosy blush.
-  ell(c, 43, 41, 10, 8);
+  c.save();
+  c.clip();
+  ell(c, 56, 49, 24, 10, -0.12);
   c.fillStyle = PAL.cream;
   c.fill();
-  ell(c, 33, 44, 7, 4.5);
-  c.fillStyle = 'rgba(240,117,98,0.55)';
+  c.restore();
+  // Round skull.
+  ell(c, 26, 31, 25, 25);
+  fillStroke(c, PAL.chestnut, 3.5);
+  // Cream cheek flowing into the jaw.
+  c.beginPath();
+  c.moveTo(30, 52);
+  c.quadraticCurveTo(38, 38, 52, 44);
+  c.quadraticCurveTo(46, 54, 30, 52);
+  c.closePath();
+  c.fillStyle = PAL.cream;
   c.fill();
-  // Forehead highlight.
-  ell(c, 22, 15, 10, 5, -0.3);
+  // Re-stroke the snout seam over the skull so the profile reads.
+  c.beginPath();
+  c.moveTo(44, 21);
+  c.quadraticCurveTo(58, 23, 70, 28);
+  stroke(c, 3.5);
+  // Forehead highlight and a little hair tuft.
+  ell(c, 18, 14, 9, 4.5, -0.4);
   c.fillStyle = 'rgba(255,240,215,0.35)';
   c.fill();
-  // Button nose.
-  ell(c, 68, 37, 6.5, 5.5);
-  fillStroke(c, PAL.outline, 0);
-  ell(c, 66.5, 35, 2, 1.4);
-  c.fillStyle = '#9f8aa2';
+  // Big glossy nose.
+  ell(c, 73, 32, 7.5, 6, 0.2);
+  fillStroke(c, PAL.nose, 2.5);
+  ell(c, 71, 29.5, 2.6, 1.6, 0.2);
+  c.fillStyle = 'rgba(255,255,255,0.7)';
   c.fill();
-  // Little smile.
+  // Happy grin that tucks up into the cheek.
   c.beginPath();
-  c.moveTo(50, 49);
-  c.quadraticCurveTo(57, 53, 64, 46);
-  stroke(c, 2.5);
+  c.moveTo(45, 45);
+  c.quadraticCurveTo(57, 50, 69, 42);
+  stroke(c, 2.8);
+  c.beginPath();
+  c.moveTo(47, 42);
+  c.quadraticCurveTo(44, 45, 46, 48);
+  stroke(c, 2.4);
+  // Rosy blush.
+  ell(c, 38, 42, 5.5, 3.2);
+  c.fillStyle = 'rgba(240,117,98,0.45)';
+  c.fill();
 }
 function drawEar(c: Ctx): void {
-  // Long, wide, floppy velvet ear with a soft curl at the tip.
+  // Long floppy velvet ear: a narrow root, widening into a rounded paddle.
   c.beginPath();
-  c.moveTo(12, 4);
-  c.quadraticCurveTo(34, 2, 33, 24);
-  c.quadraticCurveTo(34, 50, 24, 61);
-  c.quadraticCurveTo(14, 66, 8, 57);
-  c.quadraticCurveTo(2, 40, 5, 22);
-  c.quadraticCurveTo(6, 8, 12, 4);
+  c.moveTo(13, 3);
+  c.quadraticCurveTo(26, 1, 28, 16);
+  c.quadraticCurveTo(37, 44, 33, 62);
+  c.quadraticCurveTo(28, 75, 17, 73);
+  c.quadraticCurveTo(5, 71, 4, 56);
+  c.quadraticCurveTo(3, 30, 7, 13);
+  c.quadraticCurveTo(8, 5, 13, 3);
   c.closePath();
-  fillStroke(c, PAL.ear, 3);
+  fillStroke(c, PAL.ear, 3.2);
+  c.save();
+  c.clip();
+  ell(c, 27, 54, 9, 22, 0.15);
+  c.fillStyle = PAL.earDark;
+  c.globalAlpha = 0.55;
+  c.fill();
+  c.restore();
   c.beginPath();
-  c.moveTo(16, 14);
-  c.quadraticCurveTo(22, 34, 16, 52);
+  c.moveTo(14, 14);
+  c.quadraticCurveTo(19, 40, 14, 62);
   stroke(c, 2.5, 'rgba(255,225,170,0.22)');
 }
-function drawLeg(c: Ctx, color: string): void {
-  rr(c, 3.5, 2, 11, 20, 5.5);
+function drawLeg(c: Ctx, color: string, paw: string): void {
+  rr(c, 4, 2, 11, 19, 5.5);
   fillStroke(c, color, 3);
-  ell(c, 10, 22.5, 7.5, 4.2);
-  fillStroke(c, color === PAL.chestnut ? PAL.chestnutDark : '#6d3818', 3);
+  // Cream paw with toe lines.
+  ell(c, 10.5, 22.5, 7.5, 4.6);
+  fillStroke(c, paw, 3);
+  c.beginPath();
+  c.moveTo(10.5, 20);
+  c.lineTo(10.5, 25);
+  c.moveTo(14, 20.5);
+  c.lineTo(14, 24.5);
+  stroke(c, 1.6);
 }
 
 function drawTail(c: Ctx): void {
-  // Thick at the root (tucks under the body's rear), tapering to a curled tip.
+  // Thin, tapering tail with an upturned tip; the thick root tucks under the body.
   c.beginPath();
-  c.moveTo(43, 10);
-  c.quadraticCurveTo(26, 8, 12, 4);
-  c.quadraticCurveTo(4, 2, 3, 7);
-  c.quadraticCurveTo(4, 11, 12, 11);
-  c.quadraticCurveTo(26, 17, 43, 22);
+  c.moveTo(45, 11);
+  c.quadraticCurveTo(24, 15, 9, 6);
+  c.quadraticCurveTo(3, 1, 3, 4);
+  c.quadraticCurveTo(4, 9, 10, 12);
+  c.quadraticCurveTo(26, 22, 45, 22);
   c.closePath();
   fillStroke(c, PAL.chestnut, 3);
-  ell(c, 7, 7, 3, 2.2);
-  c.fillStyle = PAL.chestnutDark;
-  c.fill();
 }
 function drawCollar(c: Ctx): void {
   rr(c, 3, 3, 12, 32, 6);
@@ -123,42 +171,43 @@ function drawCollar(c: Ctx): void {
   c.moveTo(6, 8);
   c.lineTo(6, 28);
   stroke(c, 2, 'rgba(255,255,255,0.5)');
-  ell(c, 9, 36, 5, 5);
-  fillStroke(c, PAL.butter, 2.5);
+  // Round golden tag.
+  ell(c, 9, 37, 6, 6);
+  fillStroke(c, PAL.tag, 2.5);
+  ell(c, 9, 37, 2.5, 2.5);
+  stroke(c, 1.5, 'rgba(48,35,49,0.5)');
 }
 
 function drawEye(c: Ctx, kind: EyeKind): void {
-  const cx = 18;
-  const cy = 18;
+  const cx = 20;
+  const cy = 22;
   switch (kind) {
     case 'open':
     case 'determined': {
-      ell(c, cx, cy, 11, 13);
+      // Classic cartoon eye: tall white oval, big black pupil looking ahead.
+      ell(c, cx, cy, 12, 16);
       fillStroke(c, PAL.white, 3);
-      ell(c, cx + 2.5, cy + 1.5, 7.5, 9);
-      c.fillStyle = '#3B2A3E';
+      ell(c, cx + 4, cy + 2, 6.5, 9.5);
+      c.fillStyle = PAL.nose;
       c.fill();
-      ell(c, cx + 3, cy + 3, 4.5, 5.5);
-      c.fillStyle = PAL.outline;
-      c.fill();
-      ell(c, cx + 5.5, cy - 3, 3, 3.2);
+      ell(c, cx + 5.5, cy - 3, 2.6, 3.2);
       c.fillStyle = PAL.white;
       c.fill();
-      ell(c, cx - 0.5, cy + 6, 1.5, 1.5);
-      c.fill();
+      c.beginPath();
       if (kind === 'determined') {
-        // A brave little brow, not an angry lid.
-        c.beginPath();
-        c.moveTo(cx - 10, cy - 15);
-        c.quadraticCurveTo(cx, cy - 18, cx + 11, cy - 12);
-        stroke(c, 3.2);
+        c.moveTo(cx - 11, cy - 19);
+        c.quadraticCurveTo(cx, cy - 23, cx + 12, cy - 17);
+      } else {
+        c.moveTo(cx - 6, cy - 21);
+        c.quadraticCurveTo(cx + 1, cy - 24, cx + 8, cy - 21);
       }
+      stroke(c, 3.2);
       break;
     }
     case 'surprised': {
-      ell(c, cx, cy, 13, 15);
+      ell(c, cx, cy, 14, 18);
       fillStroke(c, PAL.white, 3);
-      ell(c, cx + 1, cy, 4, 4.5);
+      ell(c, cx + 1, cy, 4.5, 5.5);
       c.fillStyle = PAL.outline;
       c.fill();
       ell(c, cx + 3, cy - 3, 1.5, 1.5);
@@ -243,8 +292,8 @@ export function generateHeroArt(scene: Phaser.Scene): void {
   makeTexture(scene, 'hero_body', P.body.w, P.body.h, drawBody);
   makeTexture(scene, 'hero_head', P.head.w, P.head.h, drawHead);
   makeTexture(scene, 'hero_ear', P.ear.w, P.ear.h, drawEar);
-  makeTexture(scene, 'hero_leg_near', P.legNear.w, P.legNear.h, (c) => drawLeg(c, PAL.chestnut));
-  makeTexture(scene, 'hero_leg_far', P.legFar.w, P.legFar.h, (c) => drawLeg(c, '#8f4f27'));
+  makeTexture(scene, 'hero_leg_near', P.legNear.w, P.legNear.h, (c) => drawLeg(c, PAL.chestnut, PAL.cream));
+  makeTexture(scene, 'hero_leg_far', P.legFar.w, P.legFar.h, (c) => drawLeg(c, '#93552C', '#E6C38C'));
   makeTexture(scene, 'hero_tail', P.tail.w, P.tail.h, drawTail);
   makeTexture(scene, 'hero_collar', P.collar.w, P.collar.h, drawCollar);
   makeTexture(scene, 'hero_mouth', P.mouth.w, P.mouth.h, drawMouth);

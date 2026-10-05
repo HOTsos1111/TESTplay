@@ -187,64 +187,194 @@ function drawDepotNear(c: Ctx): void {
 
 // ------------------------------------------------------------ story art
 
+function cloud(c: Ctx, x: number, y: number, s: number): void {
+  c.beginPath();
+  c.arc(x, y, 22 * s, Math.PI * 0.5, Math.PI * 1.5);
+  c.arc(x + 26 * s, y - 16 * s, 26 * s, Math.PI, Math.PI * 1.9);
+  c.arc(x + 58 * s, y - 6 * s, 20 * s, Math.PI * 1.3, Math.PI * 0.5);
+  c.closePath();
+  fillStroke(c, PAL.white, 3);
+}
+
+function bush(c: Ctx, x: number, y: number, w: number, color: string, flowers: string | null, r: () => number): void {
+  c.beginPath();
+  const n = Math.max(3, Math.round(w / 34));
+  c.moveTo(x, y);
+  for (let i = 0; i <= n; i++) {
+    const bx = x + (i / n) * w;
+    c.arc(bx, y - 14, 22 + r() * 8, Math.PI, 0);
+  }
+  c.lineTo(x + w + 20, y);
+  c.closePath();
+  fillStroke(c, color, 3.5);
+  if (!flowers) return;
+  for (let i = 0; i < n * 3; i++) {
+    const fx = x + r() * w;
+    const fy = y - 10 - r() * 26;
+    for (let k = 0; k < 5; k++) {
+      ell(c, fx + Math.cos(k * 1.26) * 3.2, fy + Math.sin(k * 1.26) * 3.2, 2.6, 2.6);
+      c.fillStyle = flowers;
+      c.fill();
+    }
+    ell(c, fx, fy, 1.8, 1.8);
+    c.fillStyle = PAL.tag;
+    c.fill();
+  }
+}
+
 function drawGarden(c: Ctx): void {
-  const sky = c.createLinearGradient(0, 0, 0, H);
-  sky.addColorStop(0, '#9ED6EA');
-  sky.addColorStop(1, '#FCE9CC');
+  // "Home Sweet Home": the hero's garden, per the environment guide.
+  const sky = c.createLinearGradient(0, 0, 0, 600);
+  sky.addColorStop(0, '#8FD0E6');
+  sky.addColorStop(1, '#E4F4EC');
   c.fillStyle = sky;
   c.fillRect(0, 0, W, H);
-  ell(c, 200, 120, 50, 50);
-  c.fillStyle = '#FFE9A8';
-  c.fill();
-  // House.
-  rr(c, 760, 230, 420, 380, 8);
-  fillStroke(c, '#F2C9A0', 4);
+  cloud(c, 140, 120, 1.1);
+  cloud(c, 520, 80, 0.8);
+  cloud(c, 1080, 70, 0.9);
+  const r = rng(11);
+  // Distant rooftops and trees.
+  for (let x = -40; x < W; x += 170) {
+    const hh = 60 + r() * 50;
+    c.fillStyle = '#C9DCCF';
+    c.fillRect(x, 470 - hh, 110, hh + 40);
+    c.beginPath();
+    c.moveTo(x - 10, 470 - hh);
+    c.lineTo(x + 55, 470 - hh - 40);
+    c.lineTo(x + 120, 470 - hh);
+    c.closePath();
+    c.fillStyle = '#E2B6A6';
+    c.fill();
+    ell(c, x + 140, 450, 38, 46);
+    c.fillStyle = '#A9CFA0';
+    c.fill();
+  }
+  // Big tree on the left (squirrel territory).
   c.beginPath();
-  c.moveTo(730, 250);
-  c.lineTo(970, 100);
-  c.lineTo(1210, 250);
+  c.moveTo(70, 600);
+  c.quadraticCurveTo(96, 470, 84, 330);
+  c.lineTo(132, 330);
+  c.quadraticCurveTo(124, 470, 156, 600);
   c.closePath();
-  fillStroke(c, PAL.coral, 4);
-  rr(c, 820, 300, 110, 100, 8);
-  fillStroke(c, '#FFF1CF', 4);
-  rr(c, 1010, 400, 100, 210, 10);
+  fillStroke(c, '#8A5A3A', 4);
+  c.beginPath();
+  c.moveTo(110, 380);
+  c.quadraticCurveTo(170, 350, 230, 300);
+  stroke(c, 18, PAL.outline);
+  stroke(c, 12, '#8A5A3A');
+  for (const [x, y, rad] of [[40, 270, 80], [140, 210, 96], [250, 260, 78], [90, 330, 60], [200, 320, 62]]) {
+    ell(c, x, y, rad, rad * 0.86);
+    fillStroke(c, '#5DAA55', 4);
+  }
+  for (const [x, y] of [[90, 220], [170, 180], [230, 250], [60, 300]]) {
+    ell(c, x, y, 26, 18);
+    c.fillStyle = '#7CC26B';
+    c.fill();
+  }
+  // House on the right: cream walls, terracotta roof, teal door, flower boxes.
+  rr(c, 780, 250, 470, 360, 6);
+  fillStroke(c, '#F6E3C0', 4);
+  c.fillStyle = 'rgba(214,170,120,0.25)';
+  for (let y = 270; y < 600; y += 26) for (let x = 790 + ((y / 26) % 2) * 20; x < 1240; x += 60) c.fillRect(x, y, 34, 3);
+  c.beginPath();
+  c.moveTo(748, 262);
+  c.lineTo(1015, 110);
+  c.lineTo(1282, 262);
+  c.closePath();
+  fillStroke(c, '#D9674A', 4);
+  c.save();
+  c.clip();
+  c.fillStyle = 'rgba(48,35,49,0.18)';
+  for (let y = 150; y < 262; y += 22) c.fillRect(740, y, 560, 3);
+  c.restore();
+  rr(c, 1120, 120, 48, 90, 4);
+  fillStroke(c, '#C0573E', 4);
+  // Windows with flower boxes.
+  for (const wx of [820, 1130]) {
+    rr(c, wx, 320, 100, 96, 10);
+    fillStroke(c, '#BFE3EF', 4);
+    c.beginPath();
+    c.moveTo(wx + 50, 322);
+    c.lineTo(wx + 50, 414);
+    c.moveTo(wx + 2, 368);
+    c.lineTo(wx + 98, 368);
+    stroke(c, 3.5);
+    rr(c, wx - 8, 416, 116, 20, 5);
+    fillStroke(c, '#C98D52', 3.5);
+    bush(c, wx - 4, 418, 100, '#5DAA55', PAL.coral, r);
+  }
+  // Teal front door with a yellow knob and a lamp.
+  rr(c, 975, 400, 96, 210, 46);
   fillStroke(c, PAL.teal, 4);
-  ell(c, 1090, 510, 6, 6);
-  fillStroke(c, PAL.butter, 2.5);
-  // Lawn.
+  rr(c, 990, 430, 66, 70, 30);
+  stroke(c, 3, PAL.tealDark);
+  ell(c, 1055, 520, 7, 7);
+  fillStroke(c, PAL.tag, 2.5);
+  rr(c, 1086, 400, 18, 30, 5);
+  fillStroke(c, PAL.butter, 3);
+  // Lawn with mowing stripes.
   c.fillStyle = '#9CCB7A';
   c.fillRect(0, 600, W, 120);
+  c.fillStyle = 'rgba(255,255,255,0.12)';
+  for (let x = 0; x < W; x += 120) c.fillRect(x, 600, 60, 120);
   c.fillStyle = PAL.outline;
   c.fillRect(0, 598, W, 4);
-  // Fence.
-  for (let x = 0; x < 700; x += 46) {
+  // Picket fence along the back of the garden.
+  for (let x = 250; x < 770; x += 40) {
     c.beginPath();
-    c.moveTo(x + 4, 600);
-    c.lineTo(x + 4, 470);
-    c.lineTo(x + 20, 452);
-    c.lineTo(x + 36, 470);
-    c.lineTo(x + 36, 600);
+    c.moveTo(x + 6, 600);
+    c.lineTo(x + 6, 488);
+    c.lineTo(x + 20, 472);
+    c.lineTo(x + 34, 488);
+    c.lineTo(x + 34, 600);
     c.closePath();
     fillStroke(c, PAL.white, 3);
   }
-  rr(c, 0, 500, 700, 14, 4);
+  rr(c, 246, 512, 528, 12, 4);
   fillStroke(c, PAL.white, 3);
-  // Flowers.
-  const r = rng(5);
-  for (let i = 0; i < 14; i++) {
-    const fx = r() * 700;
-    const fy = 620 + r() * 70;
-    ell(c, fx, fy, 6, 6);
-    fillStroke(c, [PAL.coral, PAL.butter, '#C59BE0'][i % 3], 2);
+  rr(c, 246, 560, 528, 12, 4);
+  fillStroke(c, PAL.white, 3);
+  // Bushes and flower beds in front of the fence and house.
+  bush(c, 250, 602, 160, '#4E9A4E', '#F3A0BA', r);
+  bush(c, 640, 602, 120, '#4E9A4E', PAL.white, r);
+  bush(c, 1150, 602, 120, '#4E9A4E', PAL.coral, r);
+  // Flower pots.
+  for (const px of [180, 1260]) {
+    c.beginPath();
+    c.moveTo(px - 22, 570);
+    c.lineTo(px + 22, 570);
+    c.lineTo(px + 16, 604);
+    c.lineTo(px - 16, 604);
+    c.closePath();
+    fillStroke(c, '#D9674A', 3);
+    bush(c, px - 22, 572, 30, '#5DAA55', PAL.tag, r);
+  }
+}
+
+function drawDogBed(c: Ctx): void {
+  // Round cushion bed, 200×70: teal rim, cream cushion.
+  ell(c, 100, 44, 96, 24);
+  fillStroke(c, PAL.teal, 4);
+  ell(c, 100, 38, 78, 15);
+  fillStroke(c, PAL.cream, 3);
+  c.beginPath();
+  c.ellipse(100, 44, 96, 24, 0, 0.1, Math.PI - 0.1);
+  stroke(c, 3, PAL.tealDark);
+  for (const x of [40, 100, 160]) {
+    ell(c, x, 58, 5, 3);
+    c.fillStyle = PAL.tealDark;
+    c.fill();
   }
 }
 
 function drawTruck(c: Ctx, open: boolean): void {
-  // 520×300 delivery truck, cargo box on left with rear doors facing the viewer's left.
+  // 520×300 teal parcel van, cargo box on the left, rear doors facing the viewer's left.
   rr(c, 20, 20, 340, 220, 14);
-  fillStroke(c, '#F4EFE6', 4);
+  fillStroke(c, PAL.cream, 4);
   c.fillStyle = PAL.teal;
-  c.fillRect(24, 170, 332, 22);
+  c.fillRect(24, 168, 332, 26);
+  c.fillStyle = PAL.outline;
+  c.fillRect(24, 166, 332, 3);
   // Cab.
   c.beginPath();
   c.moveTo(360, 80);
@@ -253,7 +383,7 @@ function drawTruck(c: Ctx, open: boolean): void {
   c.lineTo(500, 240);
   c.lineTo(360, 240);
   c.closePath();
-  fillStroke(c, PAL.coral, 4);
+  fillStroke(c, PAL.teal, 4);
   c.beginPath();
   c.moveTo(380, 98);
   c.lineTo(445, 98);
@@ -261,6 +391,8 @@ function drawTruck(c: Ctx, open: boolean): void {
   c.lineTo(380, 150);
   c.closePath();
   fillStroke(c, PAL.sky, 3);
+  rr(c, 484, 196, 20, 14, 4);
+  fillStroke(c, PAL.butter, 2.5);
   // Wheels.
   for (const wx of [100, 420]) {
     ell(c, wx, 250, 36, 36);
@@ -275,17 +407,21 @@ function drawTruck(c: Ctx, open: boolean): void {
     c.fill();
     c.fillStyle = 'rgba(255,214,110,0.2)';
     c.fillRect(40, 190, 130, 40);
-    // Swung door.
+    // A couple of parcels inside.
+    rr(c, 50, 170, 50, 46, 4);
+    fillStroke(c, '#C98D52', 3);
+    rr(c, 110, 186, 40, 30, 4);
+    fillStroke(c, '#C98D52', 3);
     c.beginPath();
     c.moveTo(30, 32);
     c.lineTo(-10, 46);
     c.lineTo(-10, 220);
     c.lineTo(30, 232);
     c.closePath();
-    fillStroke(c, '#E6DFD2', 4);
+    fillStroke(c, '#EFE0C4', 4);
   } else {
     rr(c, 30, 32, 150, 200, 6);
-    fillStroke(c, '#E6DFD2', 4);
+    fillStroke(c, '#EFE0C4', 4);
     c.beginPath();
     c.moveTo(105, 34);
     c.lineTo(105, 230);
@@ -295,17 +431,16 @@ function drawTruck(c: Ctx, open: boolean): void {
     rr(c, 110, 120, 8, 30, 3);
     fillStroke(c, '#9AA9C2', 2);
   }
-  // Logo (shape only): a parcel with wings.
-  rr(c, 230, 70, 60, 46, 6);
-  fillStroke(c, '#C98D52', 3);
-  c.beginPath();
-  c.moveTo(230, 86);
-  c.quadraticCurveTo(206, 70, 200, 96);
-  c.quadraticCurveTo(214, 92, 230, 100);
-  c.moveTo(290, 86);
-  c.quadraticCurveTo(314, 70, 320, 96);
-  c.quadraticCurveTo(306, 92, 290, 100);
-  fillStroke(c, PAL.white, 3);
+  // Logo (shape only): a big teal paw print in a circle.
+  ell(c, 270, 96, 44, 44);
+  fillStroke(c, PAL.white, 3.5);
+  c.fillStyle = PAL.teal;
+  ell(c, 270, 108, 17, 14);
+  c.fill();
+  for (const [x, y] of [[248, 88], [262, 76], [278, 76], [292, 88]]) {
+    ell(c, x, y, 7, 8.5);
+    c.fill();
+  }
 }
 
 // ---------------------------------------------------------------- UI art
@@ -504,6 +639,7 @@ export function generateSceneArt(scene: Phaser.Scene): void {
   makeBand(scene, 'depot_mid', W, BAND.mid, drawDepotMid);
   makeBand(scene, 'depot_near', W, BAND.near, drawDepotNear);
   makeTexture(scene, 'story_garden', W, H, drawGarden);
+  makeTexture(scene, 'story_dogbed', 200, 70, drawDogBed);
   makeTexture(scene, 'story_truck_open', 520, 300, (c) => drawTruck(c, true));
   makeTexture(scene, 'story_truck_closed', 520, 300, (c) => drawTruck(c, false));
   for (const s of ['full', 'empty', 'lost'] as const) makeTexture(scene, `heart_${s}`, 40, 38, (c) => drawHeart(c, s));

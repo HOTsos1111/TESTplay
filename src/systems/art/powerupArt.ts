@@ -17,68 +17,81 @@ function drawBubble(c: Ctx): void {
   stroke(c, 3, 'rgba(255,255,255,0.9)');
 }
 
-function drawGoldenBone(c: Ctx): void {
+function miniBone(c: Ctx, x: number, y: number, rot: number, s: number): void {
   c.save();
-  c.translate(24, 24);
-  c.rotate(-0.5);
-  for (const [x, y] of [[-14, -5], [-14, 5], [14, -5], [14, 5]]) {
-    ell(c, x, y, 7, 7);
-    fillStroke(c, PAL.butter, 2.5);
+  c.translate(x, y);
+  c.rotate(rot);
+  c.scale(s, s);
+  for (const [bx, by] of [[-6, -2.5], [-6, 2.5], [6, -2.5], [6, 2.5]]) {
+    ell(c, bx, by, 3.2, 3.2);
+    fillStroke(c, PAL.cream, 1.6 / s);
   }
-  rr(c, -14, -5, 28, 10, 3);
-  c.fillStyle = PAL.butter;
+  rr(c, -6, -2.5, 12, 5, 1.5);
+  c.fillStyle = PAL.cream;
   c.fill();
-  c.beginPath();
-  c.moveTo(-12, -5);
-  c.lineTo(12, -5);
-  c.moveTo(-12, 5);
-  c.lineTo(12, 5);
-  stroke(c, 2.5);
-  c.fillStyle = 'rgba(255,255,255,0.7)';
-  c.fillRect(-10, -3, 14, 2);
   c.restore();
-  // Magnet sparkles.
-  for (const [x, y] of [[6, 8], [42, 40], [40, 6]]) {
-    c.beginPath();
-    c.moveTo(x, y - 5);
-    c.lineTo(x + 1.5, y - 1.5);
-    c.lineTo(x + 5, y);
-    c.lineTo(x + 1.5, y + 1.5);
-    c.lineTo(x, y + 5);
-    c.lineTo(x - 1.5, y + 1.5);
-    c.lineTo(x - 5, y);
-    c.lineTo(x - 1.5, y - 1.5);
-    c.closePath();
-    c.fillStyle = PAL.white;
-    c.fill();
-  }
 }
 
-function drawCollar(c: Ctx): void {
-  // Spiked collar ring with a glowing shield-shaped gem.
-  ell(c, 24, 24, 18, 16);
-  stroke(c, 10, PAL.outline);
-  ell(c, 24, 24, 18, 16);
-  stroke(c, 6, '#7A4FB5');
-  for (let i = 0; i < 8; i++) {
-    const a = (i / 8) * Math.PI * 2;
-    const x = 24 + Math.cos(a) * 18;
-    const y = 24 + Math.sin(a) * 16;
-    c.beginPath();
-    c.moveTo(x + Math.cos(a) * 7, y + Math.sin(a) * 7);
-    c.lineTo(x + Math.cos(a + 1.6) * 3, y + Math.sin(a + 1.6) * 3);
-    c.lineTo(x + Math.cos(a - 1.6) * 3, y + Math.sin(a - 1.6) * 3);
-    c.closePath();
-    fillStroke(c, '#E6E9F0', 1.5);
+/** Bone Magnet: red horseshoe magnet with bones zipping in. */
+function drawMagnet(c: Ctx): void {
+  c.save();
+  c.translate(21, 30);
+  c.rotate(-0.5);
+  c.scale(0.9, 0.9);
+  c.beginPath();
+  c.arc(0, 0, 15, Math.PI, 0, true);
+  c.lineTo(15, -14);
+  c.lineTo(6, -14);
+  c.lineTo(6, 0);
+  c.arc(0, 0, 6, 0, Math.PI, false);
+  c.lineTo(-6, -14);
+  c.lineTo(-15, -14);
+  c.closePath();
+  fillStroke(c, '#E04A3A', 3);
+  rr(c, -15, -20, 9, 8, 1.5);
+  fillStroke(c, '#C9D1DC', 2.5);
+  rr(c, 6, -20, 9, 8, 1.5);
+  fillStroke(c, '#C9D1DC', 2.5);
+  c.beginPath();
+  c.arc(0, 0, 11, Math.PI * 0.9, Math.PI * 0.4, true);
+  stroke(c, 2, 'rgba(255,255,255,0.55)');
+  c.restore();
+  miniBone(c, 38, 10, 0.4, 1);
+  miniBone(c, 41, 28, -0.3, 0.85);
+  // Speed dashes.
+  c.beginPath();
+  c.moveTo(30, 6);
+  c.lineTo(26, 5);
+  c.moveTo(32, 30);
+  c.lineTo(28, 31);
+  stroke(c, 2, PAL.outline);
+}
+
+/** Soap Bubble Shield: iridescent bubble with a paw print. */
+function drawSoapBubble(c: Ctx): void {
+  const g = c.createRadialGradient(20, 20, 3, 24, 26, 22);
+  g.addColorStop(0, 'rgba(255,255,255,0.9)');
+  g.addColorStop(0.6, 'rgba(160,226,224,0.55)');
+  g.addColorStop(1, 'rgba(66,183,176,0.85)');
+  ell(c, 24, 26, 21, 21);
+  c.fillStyle = g;
+  c.fill();
+  stroke(c, 3, PAL.tealDark);
+  // Paw print.
+  ell(c, 24, 31, 6.5, 5.5);
+  c.fillStyle = PAL.tealDark;
+  c.fill();
+  for (const [x, y] of [[16.5, 24], [21, 20], [27, 20], [31.5, 24]]) {
+    ell(c, x, y, 2.6, 3);
+    c.fill();
   }
   c.beginPath();
-  c.moveTo(24, 32);
-  c.lineTo(16, 38);
-  c.lineTo(16, 45);
-  c.quadraticCurveTo(24, 50, 32, 45);
-  c.lineTo(32, 38);
-  c.closePath();
-  fillStroke(c, PAL.teal, 2.5);
+  c.arc(24, 26, 16, -2.7, -1.9);
+  stroke(c, 3, 'rgba(255,255,255,0.95)');
+  ell(c, 42, 10, 3.5, 3.5);
+  fillStroke(c, 'rgba(200,240,238,0.7)', 1.6, PAL.tealDark);
+  ell(c, 6, 44, 2.6, 2.6);
+  fillStroke(c, 'rgba(200,240,238,0.7)', 1.4, PAL.tealDark);
 }
 
 function drawWhistle(c: Ctx): void {
@@ -86,9 +99,9 @@ function drawWhistle(c: Ctx): void {
   c.translate(24, 26);
   c.rotate(-0.35);
   rr(c, -18, -7, 24, 14, 4);
-  fillStroke(c, '#D7DEE8', 3);
+  fillStroke(c, PAL.teal, 3);
   ell(c, 10, 3, 11, 11);
-  fillStroke(c, '#D7DEE8', 3);
+  fillStroke(c, PAL.teal, 3);
   ell(c, 10, 3, 4, 4);
   c.fillStyle = PAL.outline;
   c.fill();
@@ -98,44 +111,53 @@ function drawWhistle(c: Ctx): void {
   for (const r of [8, 14]) {
     c.beginPath();
     c.arc(38, 12, r, -1.2, 0.2);
-    stroke(c, 2.5, PAL.coral);
+    stroke(c, 2.5, PAL.teal);
   }
 }
 
-function drawBacon(c: Ctx): void {
-  c.beginPath();
-  c.moveTo(6, 30);
-  c.bezierCurveTo(14, 18, 20, 38, 28, 24);
-  c.bezierCurveTo(34, 12, 40, 26, 44, 16);
-  c.lineTo(44, 28);
-  c.bezierCurveTo(40, 38, 34, 24, 28, 36);
-  c.bezierCurveTo(20, 50, 14, 30, 6, 42);
-  c.closePath();
-  fillStroke(c, '#D9604A', 3);
-  c.beginPath();
-  c.moveTo(8, 36);
-  c.bezierCurveTo(14, 26, 20, 44, 28, 30);
-  c.bezierCurveTo(34, 18, 40, 32, 44, 22);
-  stroke(c, 3.5, '#FFD9C4');
-  // Steam wiggles: it's hot and fresh.
-  for (const x of [16, 30]) {
-    c.beginPath();
-    c.moveTo(x, 14);
-    c.quadraticCurveTo(x - 4, 9, x, 5);
-    c.quadraticCurveTo(x + 4, 1, x, -3);
-    stroke(c, 2, 'rgba(255,255,255,0.85)');
+/** Speed Biscuit: a golden dog biscuit with speed streaks. */
+function drawBiscuit(c: Ctx): void {
+  for (const [x, y, w] of [[2, 16, 12], [0, 26, 14], [4, 36, 10]]) {
+    rr(c, x, y, w, 3.5, 1.7);
+    c.fillStyle = PAL.tag;
+    c.fill();
   }
+  c.save();
+  c.translate(29, 26);
+  c.rotate(-0.4);
+  c.scale(0.92, 0.92);
+  for (const [bx, by] of [[-12, -5], [-12, 5], [12, -5], [12, 5]]) {
+    ell(c, bx, by, 7, 7);
+    fillStroke(c, '#E8A94E', 2.6);
+  }
+  rr(c, -12, -6, 24, 12, 3);
+  c.fillStyle = '#E8A94E';
+  c.fill();
+  c.beginPath();
+  c.moveTo(-10, -6);
+  c.lineTo(10, -6);
+  c.moveTo(-10, 6);
+  c.lineTo(10, 6);
+  stroke(c, 2.6);
+  for (const [dx, dy] of [[-12, -3], [-5, 1], [3, -2], [9, 2], [13, -5]]) {
+    ell(c, dx, dy, 1.2, 1.2);
+    c.fillStyle = '#9A5A22';
+    c.fill();
+  }
+  c.restore();
 }
 
 function drawShieldBubble(c: Ctx): void {
+  // Soap bubble around the hero: clear centre, teal/pink iridescent rim.
   const g = c.createRadialGradient(80, 50, 20, 80, 50, 78);
-  g.addColorStop(0, 'rgba(122,79,181,0)');
-  g.addColorStop(0.75, 'rgba(122,79,181,0.12)');
-  g.addColorStop(1, 'rgba(160,120,230,0.45)');
+  g.addColorStop(0, 'rgba(160,226,224,0)');
+  g.addColorStop(0.72, 'rgba(160,226,224,0.12)');
+  g.addColorStop(0.9, 'rgba(243,160,186,0.25)');
+  g.addColorStop(1, 'rgba(66,183,176,0.5)');
   ell(c, 80, 50, 76, 46);
   c.fillStyle = g;
   c.fill();
-  stroke(c, 3, 'rgba(220,200,255,0.9)');
+  stroke(c, 3, 'rgba(200,240,238,0.95)');
   c.beginPath();
   c.ellipse(80, 50, 64, 36, 0, -2.7, -1.9);
   stroke(c, 4, 'rgba(255,255,255,0.8)');
@@ -143,9 +165,9 @@ function drawShieldBubble(c: Ctx): void {
 
 export function generatePowerUpArt(scene: Phaser.Scene): void {
   makeTexture(scene, 'pu_bubble', 64, 64, drawBubble);
-  makeTexture(scene, 'pu_magnet', 48, 48, drawGoldenBone);
-  makeTexture(scene, 'pu_shield', 48, 52, drawCollar);
+  makeTexture(scene, 'pu_magnet', 48, 48, drawMagnet);
+  makeTexture(scene, 'pu_shield', 48, 52, drawSoapBubble);
   makeTexture(scene, 'pu_whistle', 52, 48, drawWhistle);
-  makeTexture(scene, 'pu_bacon', 50, 48, drawBacon);
+  makeTexture(scene, 'pu_bacon', 50, 48, drawBiscuit);
   makeTexture(scene, 'shield_bubble', 160, 100, drawShieldBubble);
 }

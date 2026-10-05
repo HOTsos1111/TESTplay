@@ -82,8 +82,8 @@ export const CHAPTERS: ChapterDef[] = [
     implemented: false, speedStart: 370, speedEnd: 440, chunks: [], encounterId: null, music: 'depot', zones: [],
   },
   {
-    id: 6, key: 'home', title: 'Almost Home', objective: 'Reach the garden gate.',
-    opening: "Almost home. Of course he's back.", encounter: "The dogcatcher's contraption",
+    id: 6, key: 'home', title: 'Almost Home', objective: 'Take your toy back from Boss Nutso.',
+    opening: 'That smell. Squirrel. BIG squirrel.', encounter: 'Boss battle: Boss Nutso, king of the squirrels',
     implemented: false, speedStart: 380, speedEnd: 460, chunks: [], encounterId: null, music: 'depot', zones: [],
   },
 ];

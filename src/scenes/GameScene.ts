@@ -483,7 +483,7 @@ export class GameScene extends Phaser.Scene {
   private damage(): void {
     if (this.pc.invulnerable > 0 || this.phase === 'defeat' || this.phase === 'victory' || debugFlags.god) return;
     if (this.power.shield) {
-      // The Spiked Collar takes the hit instead.
+      // The Soap Bubble Shield takes the hit instead.
       delete this.power.shield;
       this.pc.invulnerable = POWERUP_TUNING.shieldGraceInvulnerability;
       Audio.play('shield_pop');

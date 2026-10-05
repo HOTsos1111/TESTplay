@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { ART_SCALE } from '../systems/AssetRegistry';
 import { HERO_PARTS, type EyeKind } from '../systems/art/heroArt';
 
-export type HeroMode = 'play' | 'idle' | 'defeat' | 'victory' | 'sniff' | 'hover-demo';
+export type HeroMode = 'play' | 'idle' | 'defeat' | 'victory' | 'sniff' | 'hover-demo' | 'sleep' | 'startled';
 
 export interface HeroVisualState {
   grounded: boolean;
@@ -88,8 +88,8 @@ export class HeroView {
 
     this.head = scene.add.container(44, -54);
     this.headImg = part('hero_head', 'head', 0, 0);
-    this.eye = part('hero_eye_determined', 'eye', 12, -17);
-    this.ear = part('hero_ear', 'ear', -9, -27);
+    this.eye = part('hero_eye_determined', 'eye', 15, -12);
+    this.ear = part('hero_ear', 'ear', -15, -26);
     this.mouth = part('hero_mouth', 'mouth', 22, 4).setVisible(false);
     this.head.add([this.headImg, this.mouth, this.eye, this.ear]);
 
@@ -327,6 +327,28 @@ export class HeroView {
       tailRot = 0.6 + Math.sin(this.t * 7) * 0.4;
       earTarget = 0.35;
       eye = 'open';
+      this.root.alpha = 1;
+    } else if (this.mode === 'sleep') {
+      // Curled up nap: low, slow breathing, legs tucked, ears limp, tail still.
+      const breath = Math.sin(this.t * 1.6);
+      this.sqY = 0.9 + breath * 0.035;
+      this.sqX = 1.04;
+      rigY = 3;
+      for (let i = 0; i < 4; i++) legAngles[i] = this.legs[i].front ? -1.45 : 1.45;
+      headY += 14;
+      headRot = 0.18 + breath * 0.02;
+      tailRot = 1.2;
+      earTarget = -0.1;
+      eye = 'closed';
+      this.root.alpha = 1;
+    } else if (this.mode === 'startled') {
+      // Jolted awake: a hop, ears flying, wide eyes.
+      const k = Math.min(1, this.modeT / 0.3);
+      rigY = -Math.sin(k * Math.PI) * 26;
+      earTarget = 2.6;
+      eye = 'surprised';
+      tailRot = 0.2 + Math.sin(this.t * 30) * 0.3;
+      for (let i = 0; i < 4; i++) legAngles[i] = this.legs[i].front ? -0.6 : 0.6;
       this.root.alpha = 1;
     } else if (this.mode === 'hover-demo') {
       showProp = true;

@@ -47,10 +47,12 @@ export const HINTS: Record<string, HintCopy> = {
 };
 
 export const STORY_PANELS = [
-  'Morning. Squeak. Squeak. Life is perfect.',
-  'A squirrel. With THE toy. And that face.',
-  'Over the fence! Into the… truck?',
-  'The doors close. “Yip.”',
-  'The city looks enormous from down here.',
-  'Wait — that smell on the collar. Home.',
+  'Nap time. Favourite squeaky toy. Life is perfect.',
+  'Something is sneaking over the fence…',
+  'BOSS NUTSO, king of the squirrels. He wants THE toy.',
+  'SNATCH! Hey — that’s MINE!',
+  'He leaps onto a delivery van… so do we!',
+  'SLAM! The doors shut. The van rumbles away. “Yip.”',
+  'Miles from home. And Nutso’s minions are everywhere.',
+  'Sniff… the toy, that squirrel, and home: all THIS way!',
 ] as const;

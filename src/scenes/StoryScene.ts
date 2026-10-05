@@ -14,11 +14,21 @@ interface StoryData {
   next?: 'game' | 'settings';
 }
 
-const PANEL_TIME = 3.4;
+const PANEL_TIME = 3.6;
+const GROUND = 604;
+const BOSS_SCALE = ART_SCALE * 1.05;
+
+interface Bobber {
+  img: Phaser.GameObjects.Image;
+  baseY: number;
+  phase: number;
+  amp: number;
+}
 
 /**
- * Opening sequence (~20 s, skippable). Built from the same live rig and
- * props as gameplay, with live-text captions.
+ * Opening sequence (~29 s, skippable): Boss Nutso steals the hero's toy from
+ * his nap, rides off on a delivery van and the hero follows him into the city.
+ * Built from the same live rig and props as gameplay, with live-text captions.
  */
 export class StoryScene extends Phaser.Scene {
   private panel = -1;
@@ -28,8 +38,12 @@ export class StoryScene extends Phaser.Scene {
   private hero: HeroView | null = null;
   private heroSpeed = 0;
   private heroGroundY = 600;
-  private squirrel: Phaser.GameObjects.Image | null = null;
+  private boss: Phaser.GameObjects.Image | null = null;
   private toy: Phaser.GameObjects.Image | null = null;
+  private van: Phaser.GameObjects.Image | null = null;
+  private bobbers: Bobber[] = [];
+  private zT = 0;
+  private flags = new Set<string>();
   private backdrop: Backdrop | null = null;
   private next: 'game' | 'settings' = 'game';
   private ending = false;
@@ -63,12 +77,17 @@ export class StoryScene extends Phaser.Scene {
   }
 
   private clearPanel(): void {
+    this.tweens.killAll();
     this.layer.removeAll(true);
     this.hero?.destroy();
     this.hero = null;
-    this.squirrel = null;
+    this.boss = null;
     this.toy = null;
+    this.van = null;
+    this.bobbers = [];
+    this.flags.clear();
     this.backdrop = null;
+    this.cameras.main.setBackgroundColor(CSS.outline);
   }
 
   private addHero(x: number, y: number, scale = 1.2): HeroView {
@@ -76,6 +95,38 @@ export class StoryScene extends Phaser.Scene {
     this.hero.root.setScale(scale);
     this.heroGroundY = y;
     return this.hero;
+  }
+
+  private img(x: number, y: number, key: string, scale = ART_SCALE, depth: number = DEPTH.enemy): Phaser.GameObjects.Image {
+    const i = this.add.image(x, y, key).setOrigin(0.5, 1).setScale(scale).setDepth(depth);
+    this.layer.add(i);
+    return i;
+  }
+
+  private addBoss(x: number, pose: string, faceRight: boolean, y = GROUND + 8): Phaser.GameObjects.Image {
+    this.boss = this.img(x, y, `boss_${pose}`, BOSS_SCALE, DEPTH.enemy).setFlipX(faceRight);
+    return this.boss;
+  }
+
+  private addMinion(x: number, y: number, pose: string, faceRight: boolean, delay = 0): Phaser.GameObjects.Image {
+    const m = this.img(x, y, `squirrel_${pose}`, ART_SCALE * 1.15).setFlipX(faceRight);
+    this.bobbers.push({ img: m, baseY: y, phase: Math.random() * 6, amp: 6 });
+    if (delay >= 0) {
+      m.setScale(0);
+      this.tweens.add({ targets: m, scale: ART_SCALE * 1.15, delay, duration: 260, ease: 'Back.Out', onStart: () => Audio.play('squirrel') });
+    }
+    return m;
+  }
+
+  private garden(): void {
+    this.layer.add(this.add.image(0, 0, 'story_garden').setOrigin(0).setScale(ART_SCALE).setDepth(DEPTH.farBg));
+  }
+
+  private sleepingHero(withToy: boolean): void {
+    this.img(745, 616, 'story_dogbed', ART_SCALE * 1.35, DEPTH.hero - 1);
+    const h = this.addHero(720, 606, 1.5);
+    h.setMode('sleep');
+    if (withToy) this.toy = this.img(870, 606, 'toy', ART_SCALE * 1.2, DEPTH.hero + 1).setRotation(0.15);
   }
 
   private advance(): void {
@@ -91,57 +142,84 @@ export class StoryScene extends Phaser.Scene {
     this.caption.setAlpha(0);
     this.tweens.add({ targets: this.caption, alpha: 1, duration: 300 });
     this.heroSpeed = 0;
-    const L = this.layer;
+    this.zT = 0;
     switch (this.panel) {
       case 0: {
-        L.add(this.add.image(0, 0, 'story_garden').setOrigin(0).setScale(ART_SCALE));
-        const h = this.addHero(520, 600);
-        h.setMode('idle');
-        this.toy = this.add.image(640, 588, 'toy').setScale(ART_SCALE).setDepth(DEPTH.hero + 1);
+        // Nap time.
+        this.garden();
+        this.sleepingHero(true);
         Audio.play('squeak');
         break;
       }
       case 1: {
-        L.add(this.add.image(0, 0, 'story_garden').setOrigin(0).setScale(ART_SCALE));
-        const h = this.addHero(420, 600);
-        h.setMode('play');
-        this.squirrel = this.add.image(640, 452, 'squirrel_taunt').setOrigin(0.5, 1).setScale(ART_SCALE * 1.4).setDepth(DEPTH.enemy);
-        this.toy = this.add.image(610, 400, 'toy').setScale(ART_SCALE).setDepth(DEPTH.enemy + 1).setRotation(-0.4);
-        Audio.play('squirrel');
+        // Something creeps in over the fence.
+        this.garden();
+        this.sleepingHero(true);
+        this.addBoss(-140, 'sneak', true);
         break;
       }
       case 2: {
-        L.add(this.add.image(0, 0, 'story_garden').setOrigin(0).setScale(ART_SCALE));
-        L.add(this.add.image(1240, 640, 'story_truck_open').setOrigin(1, 1).setScale(ART_SCALE * 1.2));
-        const h = this.addHero(100, 600);
-        h.setMode('play');
-        this.heroSpeed = 330;
-        this.squirrel = this.add.image(380, 600, 'squirrel_run').setOrigin(0.5, 1).setScale(ART_SCALE * 1.2).setDepth(DEPTH.enemy);
-        this.toy = this.add.image(380, 540, 'toy').setScale(ART_SCALE).setDepth(DEPTH.enemy + 1);
+        // Boss Nutso grabs the toy; his minions cheer from the fence.
+        this.garden();
+        this.sleepingHero(true);
+        this.addBoss(600, 'sneak', true);
+        this.addMinion(300, 486, 'taunt', true, 700);
+        this.addMinion(440, 486, 'idle', true, 950);
         break;
       }
       case 3: {
-        this.cameras.main.setBackgroundColor('#1e1520');
-        L.add(this.add.image(640, 620, 'story_truck_closed').setOrigin(0.5, 1).setScale(ART_SCALE * 1.6));
-        L.add(this.add.text(380, 330, 'yip.', textStyle(40, CSS.cream)).setOrigin(0.5).setAlpha(0).setName('yip'));
+        // SNATCH: he bolts, the hero wakes up.
+        this.garden();
+        this.img(745, 616, 'story_dogbed', ART_SCALE * 1.35, DEPTH.hero - 1);
+        const h = this.addHero(720, 606, 1.5);
+        h.setMode('sleep');
+        this.addBoss(860, 'run', true);
+        this.addMinion(300, 486, 'taunt', true, -1);
+        this.addMinion(440, 486, 'idle', true, -1);
+        Audio.play('squeak');
         break;
       }
       case 4: {
-        this.cameras.main.setBackgroundColor(CSS.outline);
-        this.backdrop = new Backdrop(this, 0, 0, this.layer);
-        L.add(this.add.image(1150, 640, 'story_truck_open').setOrigin(1, 1).setScale(ART_SCALE * 0.9));
-        const h = this.addHero(700, 600, 0.75);
-        h.setMode('idle');
+        // The van: Nutso bounds onto the roof, the hero dives in the back.
+        this.garden();
+        this.van = this.img(1250, 650, 'story_truck_open', ART_SCALE * 1.1, DEPTH.enemy - 1).setOrigin(1, 1);
+        this.addBoss(200, 'run', true);
+        const h = this.addHero(-60, 604, 1.0);
+        h.setMode('play');
+        this.heroSpeed = 330;
         break;
       }
       case 5: {
+        // Doors shut, the van drives off with Nutso riding on top.
+        this.backdrop = new Backdrop(this, 0.1, 520, this.layer);
+        this.van = this.img(640, 650, 'story_truck_closed', ART_SCALE * 1.2, DEPTH.enemy - 1);
+        this.addBoss(560, 'flex', false, 322);
+        this.boss!.setScale(BOSS_SCALE * 0.75);
+        this.layer.add(this.add.text(440, 420, 'yip.', textStyle(40, CSS.cream)).setOrigin(0.5).setAlpha(0).setName('yip').setDepth(DEPTH.hud - 1));
+        Audio.play('boss_hit');
+        break;
+      }
+      case 6: {
+        // The depot: lost, and surrounded by minions.
+        this.backdrop = new Backdrop(this, 0.25, 0, this.layer);
+        const h = this.addHero(640, 600, 0.95);
+        h.setMode('startled');
+        this.addMinion(220, 604, 'taunt', true, 300);
+        this.addMinion(400, 604, 'idle', true, 650);
+        this.addMinion(880, 604, 'taunt', false, 1000);
+        this.addMinion(1060, 604, 'throw', false, 1300);
+        this.addMinion(1200, 604, 'idle', false, 1600);
+        break;
+      }
+      case 7: {
+        // Nose to the ground: follow the scent.
         this.backdrop = new Backdrop(this, 0, 0, this.layer);
         const h = this.addHero(560, 600, 1.4);
         h.setMode('sniff');
         for (let i = 0; i < 6; i++) {
-          const s = this.add.image(760 + i * 70, 440 - Math.sin(i * 0.8) * 30, 'scent').setScale(ART_SCALE * 1.4).setAlpha(0);
-          L.add(s);
-          this.tweens.add({ targets: s, alpha: 0.85, delay: 400 + i * 160, duration: 300 });
+          const sc = this.add.image(760 + i * 70, 440 - Math.sin(i * 0.8) * 30, 'scent').setScale(ART_SCALE * 1.4).setAlpha(0);
+          this.layer.add(sc);
+          this.tweens.add({ targets: sc, alpha: 0.85, delay: 400 + i * 160, duration: 300 });
         }
         break;
       }
@@ -163,42 +241,122 @@ export class StoryScene extends Phaser.Scene {
     });
   }
 
+  /** Fires a one-off beat inside a panel once its time is reached. */
+  private at(time: number, key: string, fn: () => void): void {
+    if (this.t >= time && !this.flags.has(key)) {
+      this.flags.add(key);
+      fn();
+    }
+  }
+
+  private zzz(dt: number, x: number, y: number): void {
+    this.zT -= dt;
+    if (this.zT > 0) return;
+    this.zT = 0.75;
+    const z = this.add.text(x, y, 'z', textStyle(26, CSS.white, 5)).setOrigin(0.5).setDepth(DEPTH.hud - 1);
+    this.layer.add(z);
+    this.tweens.add({ targets: z, x: x + 40, y: y - 90, alpha: 0, scale: 1.6, duration: 1800, onComplete: () => z.destroy() });
+  }
+
   update(_t: number, dms: number): void {
     const dt = Math.min(dms / 1000, 0.1);
     this.t += dt;
     if (!this.ending && this.t >= PANEL_TIME) this.advance();
     this.backdrop?.update(dt);
+    for (const b of this.bobbers) b.img.y = b.baseY - Math.abs(Math.sin(this.t * 7 + b.phase)) * b.amp;
+    const boss = this.boss;
+    switch (this.panel) {
+      case 0:
+        this.zzz(dt, 850, 520);
+        if (this.toy && Math.sin(this.t * 2.2) > 0.995) Audio.play('squeak');
+        break;
+      case 1:
+        this.zzz(dt, 850, 520);
+        if (boss) {
+          // Tiptoe: slow steps with a sneaky bob.
+          boss.x = Math.min(560, boss.x + 190 * dt);
+          boss.y = GROUND + 8 - Math.abs(Math.sin(this.t * 5)) * 10;
+        }
+        break;
+      case 2:
+        if (this.t < 0.7) this.zzz(dt, 850, 520);
+        this.at(0.6, 'grab', () => {
+          boss?.setTexture('boss_grab');
+          this.toy?.destroy();
+          this.toy = null;
+          Audio.play('squeak');
+          Audio.play('squirrel_angry');
+          this.cameras.main.shake(120, 0.004);
+        });
+        if (boss && this.t > 0.6) boss.y = GROUND + 8 - Math.abs(Math.sin(this.t * 4)) * 6;
+        if (this.t > 0.7) this.zzz(dt, 850, 520);
+        break;
+      case 3:
+        if (boss) {
+          boss.x += 560 * dt;
+          boss.y = GROUND + 8 - Math.abs(Math.sin(this.t * 12)) * 16;
+        }
+        this.at(0.45, 'wake', () => {
+          this.hero?.setMode('startled');
+          Audio.play('bark');
+        });
+        this.at(1.2, 'chase', () => {
+          this.hero?.setMode('play');
+          this.heroSpeed = 380;
+        });
+        break;
+      case 4: {
+        if (boss && this.van) {
+          // Run up, then a big arcing leap onto the van roof, then flex.
+          const roofY = this.van.y - this.van.displayHeight + 26;
+          if (this.t < 0.75) {
+            boss.x += 560 * dt;
+            boss.y = GROUND + 8 - Math.abs(Math.sin(this.t * 12)) * 14;
+          } else if (this.t < 1.35) {
+            const k = (this.t - 0.75) / 0.6;
+            boss.x = 620 + 330 * k;
+            boss.y = Phaser.Math.Linear(GROUND + 8, roofY, k) - Math.sin(k * Math.PI) * 140;
+          } else {
+            this.at(1.35, 'roof', () => {
+              boss.setTexture('boss_flex').setFlipX(false);
+              Audio.play('squirrel_angry');
+              this.cameras.main.shake(140, 0.005);
+            });
+            boss.x = 950;
+            boss.y = roofY - Math.abs(Math.sin(this.t * 5)) * 6;
+          }
+        }
+        // The hero dives into the open doors.
+        const h = this.hero;
+        if (h && h.root.x > 680) {
+          this.at(0, 'dive', () => {
+            this.heroSpeed = 140;
+            Audio.play('jump');
+            this.tweens.add({ targets: h.root, alpha: 0, scale: 0.6, duration: 380 });
+          });
+          this.heroGroundY = Math.max(570, this.heroGroundY - 120 * dt);
+        }
+        break;
+      }
+      case 5: {
+        if (this.van) this.van.y = 650 - Math.abs(Math.sin(this.t * 9)) * 3;
+        if (boss) boss.y = 322 - Math.abs(Math.sin(this.t * 9)) * 3 - Math.abs(Math.sin(this.t * 4)) * 5;
+        const yip = this.layer.getByName('yip') as Phaser.GameObjects.Text | null;
+        this.at(1.4, 'yip', () => {
+          yip?.setAlpha(1);
+          Audio.play('bark');
+          this.cameras.main.shake(120, 0.004);
+        });
+        break;
+      }
+      case 6:
+        this.at(1.0, 'look', () => this.hero?.setMode('idle'));
+        break;
+    }
     if (this.hero) {
-      if (this.heroSpeed > 0) {
-        this.hero.root.x += this.heroSpeed * dt;
-        if (this.hero.root.x > 1000) this.hero.root.setAlpha(Math.max(0, 1 - (this.hero.root.x - 1000) / 80));
-      }
+      if (this.heroSpeed > 0) this.hero.root.x += this.heroSpeed * dt;
       this.hero.root.y = this.heroGroundY;
-      this.hero.update(dt, { grounded: true, vy: 0, hovering: false, speed: this.heroSpeed, invulnerable: 0 });
-    }
-    if (this.panel === 0 && this.toy) {
-      const s = 1 + Math.max(0, Math.sin(this.t * 6)) * 0.15;
-      this.toy.setScale(ART_SCALE * s, ART_SCALE / s);
-      if (Math.sin(this.t * 6) > 0.98 && Math.random() < 0.3) Audio.play('squeak');
-    }
-    if (this.panel === 1 && this.squirrel) {
-      this.squirrel.y = 452 - Math.abs(Math.sin(this.t * 8)) * 8;
-      this.toy!.y = this.squirrel.y - 52;
-    }
-    if (this.panel === 2 && this.squirrel) {
-      this.squirrel.x += 380 * dt;
-      this.squirrel.y = 600 - Math.abs(Math.sin(this.t * 12)) * 16;
-      this.toy!.setPosition(this.squirrel.x - 10, this.squirrel.y - 50);
-      if (this.squirrel.x > 1000) this.squirrel.setAlpha(Math.max(0, 1 - (this.squirrel.x - 1000) / 80));
-      this.toy!.setAlpha(this.squirrel.alpha);
-    }
-    if (this.panel === 3) {
-      const yip = this.layer.getByName('yip') as Phaser.GameObjects.Text | null;
-      if (yip && this.t > 1.4 && yip.alpha === 0) {
-        yip.setAlpha(1);
-        Audio.play('bark');
-        this.cameras.main.shake(120, 0.004);
-      }
+      this.hero.update(dt, { grounded: true, vy: 0, hovering: false, speed: this.heroSpeed || 320, invulnerable: 0 });
     }
   }
 }
