@@ -16,7 +16,8 @@
         -webkit-user-select: none; user-select: none;
         -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
       }
-      #game { width: 100%; height: 100%; }
+      /* Fixed to the frame edges so page padding never shrinks the play area. */
+  #game { position: fixed; inset: 0; width: 100%; height: 100%; }
       #game canvas { display: block; touch-action: none; }
       #rotate-hint {
         display: none; position: fixed; inset: 0; z-index: 10;

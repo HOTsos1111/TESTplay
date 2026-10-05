@@ -34,7 +34,9 @@ const game = new Phaser.Game({
 
 // Match the game's width to the screen's shape so wide phones are filled edge to edge.
 const fitWidth = () => {
-  const w = gameWidthFor(window.innerWidth, window.innerHeight);
+  // Size from the actual play area (it can be smaller than the window inside an app viewer).
+  const box = document.getElementById('game')?.getBoundingClientRect();
+  const w = gameWidthFor(box?.width || window.innerWidth, box?.height || window.innerHeight);
   if (game.scale.width !== w) game.scale.setGameSize(w, VIEW.height);
 };
 window.addEventListener('resize', fitWidth);
