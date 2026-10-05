@@ -110,6 +110,7 @@ const MANIFEST: AssetEntry[] = [
   e('fg_weeds', 'fx', [70, 86], 'bottom foreground silhouette'),
   ...['full', 'empty', 'lost'].map((k) => e(`hp_link_${k}`, 'ui', [48, 32], 'sausage-link health')),
   ...['ui_play', 'ui_gear', 'ui_expand'].map((k) => e(k, 'ui', [40, 40], 'button icon')),
+  ...['up', 'down', 'lr'].map((k) => e(`ui_stick_${k}`, 'ui', [96, 106], 'joystick glyph for How to Play')),
   ...['ui_paw', 'ui_paw_teal'].map((k) => e(k, 'ui', [40, 36], 'paw glyph')),
   e('story_truck_open', 'story', [520, 300]),
   e('story_truck_closed', 'story', [520, 300]),

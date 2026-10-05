@@ -97,8 +97,15 @@ try {
   await sleep(1500);
   await page.screenshot({ path: 'screenshots/02b-story.png' });
   await page.keyboard.press('Escape');
+  await waitScene(page, 'HowTo', 8000);
+  await sleep(800);
+  await page.screenshot({ path: 'screenshots/02c-howto-controls.png' });
+  await page.keyboard.press('ArrowRight');
+  await sleep(800);
+  await page.screenshot({ path: 'screenshots/02d-howto-obstacles.png' });
+  await page.keyboard.press('ArrowRight');
   await waitScene(page, 'Game', 8000);
-  check('story is skippable and leads into chapter 1', true);
+  check('story and how-to-play are skippable and lead into chapter 1', true);
   await sleep(1500);
   await page.screenshot({ path: 'screenshots/03-game-start.png' });
 

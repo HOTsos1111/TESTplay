@@ -117,6 +117,9 @@ export class TitleScene extends Phaser.Scene {
       this.time.delayedCall(400, () => fs.setText(fsLabel()));
     }, { width: 220, height: 52, fontSize: 20, color: 0x6f86a8, icon: 'ui_expand', iconScale: 0.36 });
     buttons.push(fs);
+    const help = new Button(this, 70, 44, '?', () => this.scene.start('HowTo', { next: 'title' }), { width: 74, height: 56, fontSize: 32, color: COLOR.teal });
+    buttons.push(help);
+    this.add.text(116, 44, 'How to Play', textStyle(20, CSS.cream, 4)).setOrigin(0, 0.5).setDepth(D + 1);
     for (const b of buttons) b.setDepth(D + 1);
     new MenuNav(this, buttons);
 

@@ -3,6 +3,7 @@ import { VIEW } from './data/config';
 import { BootScene } from './scenes/BootScene';
 import { ChapterMapScene } from './scenes/ChapterMapScene';
 import { GameScene } from './scenes/GameScene';
+import { HowToScene } from './scenes/HowToScene';
 import { PauseScene } from './scenes/PauseScene';
 import { ResultsScene } from './scenes/ResultsScene';
 import { SettingsScene } from './scenes/SettingsScene';
@@ -29,7 +30,7 @@ const game = new Phaser.Game({
   audio: { noAudio: true },
   disableContextMenu: true,
   render: { antialias: true, roundPixels: false },
-  scene: [BootScene, TitleScene, StoryScene, ChapterMapScene, GameScene, PauseScene, ResultsScene, UpgradeScene, SettingsScene],
+  scene: [BootScene, TitleScene, StoryScene, HowToScene, ChapterMapScene, GameScene, PauseScene, ResultsScene, UpgradeScene, SettingsScene],
 });
 
 // Match the game's width to the screen's shape so wide phones are filled edge to edge.

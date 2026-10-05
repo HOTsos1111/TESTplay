@@ -237,7 +237,7 @@ export class StoryScene extends Phaser.Scene {
     this.tweens.add({ targets: tag, alpha: 1, duration: 400 });
     this.time.delayedCall(1700, () => {
       if (this.next === 'settings') this.scene.start('Settings', { from: 'Title' });
-      else this.scene.start('Game', { chapter: 1 });
+      else this.scene.start('HowTo', { next: 'game' });
     });
   }
 

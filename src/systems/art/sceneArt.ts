@@ -590,6 +590,43 @@ function drawSausageLink(c: Ctx, state: 'full' | 'empty' | 'lost'): void {
   }
 }
 
+/** Virtual joystick glyph with the direction being taught. */
+function drawUiStick(c: Ctx, dir: 'up' | 'down' | 'lr'): void {
+  ell(c, 48, 52, 40, 40);
+  fillStroke(c, 'rgba(48,35,49,0.18)', 4);
+  ell(c, 48, 52, 30, 30);
+  c.setLineDash([4, 5]);
+  stroke(c, 2, 'rgba(48,35,49,0.4)');
+  c.setLineDash([]);
+  const [kx, ky] = dir === 'up' ? [48, 34] : dir === 'down' ? [48, 70] : [48, 52];
+  ell(c, kx, ky + 3, 17, 17);
+  c.fillStyle = 'rgba(48,35,49,0.35)';
+  c.fill();
+  ell(c, kx, ky, 17, 17);
+  fillStroke(c, PAL.teal, 4);
+  ell(c, kx - 5, ky - 6, 6, 4);
+  c.fillStyle = 'rgba(255,255,255,0.6)';
+  c.fill();
+  const arrow = (x: number, y: number, a: number) => {
+    c.save();
+    c.translate(x, y);
+    c.rotate(a);
+    c.beginPath();
+    c.moveTo(0, -9);
+    c.lineTo(9, 5);
+    c.lineTo(-9, 5);
+    c.closePath();
+    fillStroke(c, PAL.coral, 3);
+    c.restore();
+  };
+  if (dir === 'up') arrow(48, 4, 0);
+  else if (dir === 'down') arrow(48, 100, Math.PI);
+  else {
+    arrow(2, 52, -Math.PI / 2);
+    arrow(94, 52, Math.PI / 2);
+  }
+}
+
 function drawUiPlay(c: Ctx): void {
   c.beginPath();
   c.moveTo(10, 6);
@@ -842,6 +879,7 @@ export function generateSceneArt(scene: Phaser.Scene): void {
   for (const s of ['full', 'empty', 'lost'] as const) makeTexture(scene, `heart_${s}`, 40, 38, (c) => drawHeart(c, s));
   for (const s of ['full', 'empty', 'lost'] as const) makeTexture(scene, `hp_link_${s}`, 48, 32, (c) => drawSausageLink(c, s));
   makeTexture(scene, 'ui_play', 40, 40, drawUiPlay);
+  for (const d of ['up', 'down', 'lr'] as const) makeTexture(scene, `ui_stick_${d}`, 96, 106, (c) => drawUiStick(c, d));
   makeTexture(scene, 'ui_gear', 40, 40, drawUiGear);
   makeTexture(scene, 'ui_expand', 40, 40, drawUiExpand);
   makeTexture(scene, 'ui_paw', 40, 36, (c) => drawUiPaw(c, PAL.white));
