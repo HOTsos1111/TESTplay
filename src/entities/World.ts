@@ -497,24 +497,21 @@ export class Squirrel extends Entity {
   }
   private nextSkitter(): void {
     this.go('skitter', rand(0.35, 0.9));
-    this.moveTo(rand(300, 640), this.stateTime * rand(0.5, 0.9), rand(8, 55));
+    // Hang around close enough to be barked at (bark reaches ~250 px ahead).
+    this.moveTo(rand(190, 460), this.stateTime * rand(0.5, 0.9), rand(8, 55));
   }
   private throwNut(ctx: GameContext): void {
     this.nuts = this.nuts.filter((n) => n.alive);
     if (this.nuts.length >= Squirrel.MAX_NUTS) return;
-    let nut: Acorn;
-    if (Math.random() < 0.6) {
-      // Lob a cluster to land on the path in front of the hero; it stays there.
-      let target = -1;
-      for (let i = 0; i < 6 && target < 0; i++) {
-        const tx = Math.max(ctx.heroX + 230, this.x - rand(120, 340));
-        if (ctx.isClearSpot(tx)) target = tx;
-      }
-      if (target < 0) return;
-      nut = new Acorn(ctx.scene, this.x - 20, this.y - 40, 'lob', target);
-    } else {
-      nut = new Acorn(ctx.scene, this.x - 24, this.y - 26, 'roll');
+    // Lob a cluster to land on the path in front of the hero; it stays there as
+    // an obstacle to jump (or bark away). Only at spots that leave a fair landing.
+    let target = -1;
+    for (let i = 0; i < 8 && target < 0; i++) {
+      const tx = Math.max(ctx.heroX + 230, this.x - rand(60, 340));
+      if (ctx.isClearSpot(tx)) target = tx;
     }
+    if (target < 0) return;
+    const nut = new Acorn(ctx.scene, this.x - 20, this.y - 40, 'lob', target);
     this.nuts.push(nut);
     ctx.spawn(nut);
     Audio.play('throw');
@@ -561,10 +558,10 @@ export class Squirrel extends Entity {
             break;
           }
           const r = Math.random();
-          if (this.sinceTaunt > 3.5 && r < 0.35) {
+          if (this.sinceTaunt > 1.6 && r < 0.5) {
             // Dart in close to taunt: the bark window.
             this.go('dart', 0.3);
-            this.moveTo(rand(185, 225), 0.3, 35);
+            this.moveTo(rand(175, 220), 0.3, 35);
           } else if (this.throwCooldown <= 0 && r < 0.85) {
             this.go('aim', rand(0.35, 0.7));
             this.moveTo(this.rel, 0.01, 0);
@@ -592,7 +589,7 @@ export class Squirrel extends Entity {
         break;
       case 'dart':
         if (this.t >= this.stateTime) {
-          this.go('taunt', rand(0.8, 1.3));
+          this.go('taunt', rand(1.1, 1.7));
           this.moveTo(this.rel, 0.01, 0);
           Audio.play('squirrel');
         }
@@ -620,9 +617,9 @@ export class Squirrel extends Entity {
 }
 
 /**
- * Thrown acorns. 'lob' clusters arc onto the path and stay there as an
- * obstacle; 'roll' acorns skid along the floor and come to rest. Jump them or
- * bark them away.
+ * Thrown acorns. Squirrels lob clusters that arc onto the path and stay there
+ * as an obstacle ('roll' acorns skid along the floor and come to rest). Jump
+ * them or bark them away.
  */
 export class Acorn extends Entity {
   private img: Phaser.GameObjects.Image;

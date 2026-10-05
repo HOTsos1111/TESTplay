@@ -28,6 +28,18 @@ const out = await page.evaluate(async ({ sheets, crops }) => {
     cv.height = h;
     const c = cv.getContext('2d', { willReadFrequently: true });
     c.drawImage(imgs[cr.sheet], -x0, -y0);
+    if (cr.raw) {
+      // Scenery crops keep their painted background.
+      const [ow, oh] = cr.size ?? [w, h];
+      const t = document.createElement('canvas');
+      t.width = ow;
+      t.height = oh;
+      const tc = t.getContext('2d');
+      tc.imageSmoothingQuality = 'high';
+      tc.drawImage(cv, 0, 0, w, h, 0, 0, ow, oh);
+      results.push({ key: cr.key, w: ow, h: oh, png: t.toDataURL('image/png') });
+      continue;
+    }
     const id = c.getImageData(0, 0, w, h);
     const d = id.data;
     // Background colour: median of the crop's border.

@@ -512,6 +512,18 @@ export function generateSquirrelArt(scene: Phaser.Scene): void {
   }
   makeTexture(scene, 'acorn', 22, 24, (c) => drawAcorn(c, 11, 13, 1.1));
   makeTexture(scene, 'nut_pile', 40, 28, (c) => {
+    // Prefer the hand-drawn acorn when it is loaded.
+    const art = scene.textures.exists('acorn') ? (scene.textures.get('acorn').getSourceImage() as CanvasImageSource) : null;
+    if (art) {
+      c.drawImage(art, 1, 7, 18, 21);
+      c.drawImage(art, 21, 7, 18, 21);
+      c.save();
+      c.translate(20, 13);
+      c.rotate(0.3);
+      c.drawImage(art, -10, -12, 19, 23);
+      c.restore();
+      return;
+    }
     drawAcorn(c, 10, 17, 1);
     drawAcorn(c, 29, 17, 1);
     drawAcorn(c, 20, 11, 1.1);

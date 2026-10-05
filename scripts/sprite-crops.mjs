@@ -2,6 +2,7 @@
 // scale: output size relative to the sheet; size: exact output [w, h] (2× logical px).
 // flip: mirror horizontally (squirrels face left, toward the hero).
 // keepFrac: also keep separate shapes at least this fraction of the biggest one.
+// raw: copy the rectangle as-is (scenery).
 const H = 'hero';
 const S = 'squirrel';
 const C = 'collectibles';
@@ -29,4 +30,9 @@ export const SPRITE_CROPS = [
   { key: 'pu_bacon', sheet: C, rect: [882, 470, 196, 168], size: [100, 96] },
   { key: 'cardboard', sheet: E, rect: [168, 856, 132, 100], size: [120, 112], keepFrac: 0.02 },
   { key: 'barrel', sheet: E, rect: [942, 858, 106, 96], size: [96, 104] },
+  { key: 'crate', sheet: E, rect: [314, 846, 124, 108], size: [128, 128] },
+  { key: 'crate_parcel', sheet: E, rect: [28, 860, 130, 96], size: [128, 128] },
+  { key: 'tyre', sheet: E, rect: [448, 862, 128, 90], size: [96, 64] },
+  // Scenery: the distant skyline of the "Delivery Depot" panel (raw: background kept).
+  { key: 'bg_depot_skyline', sheet: E, rect: [300, 140, 322, 128], raw: true },
 ];

@@ -31,6 +31,24 @@ const POSE_ORIGIN_X: Record<Pose, number> = {
   sleep: 0.44,
 };
 
+/** Cut lines on the side-view sprite (sprite px, 414×262) for the animated running rig. */
+const RIG = {
+  belly: 212,
+  legs: [
+    // [x0, x1, pivotX] — rear-far, front-far, rear-near, front-near (draw order).
+    { x0: 50, x1: 104, px: 78, far: true, front: false },
+    { x0: 232, x1: 286, px: 258, far: true, front: true },
+    { x0: 0, x1: 54, px: 30, far: false, front: false },
+    { x0: 180, x1: 236, px: 208, far: false, front: true },
+  ],
+  legTop: 196,
+  pivotY: 206,
+  ear: { poly: [[197, 72], [222, 44], [252, 44], [264, 90], [261, 140], [254, 164], [238, 176], [214, 176], [184, 162], [180, 128], [188, 96]], px: 236, py: 58 },
+  tail: { poly: [[0, 92], [20, 92], [28, 118], [50, 138], [48, 162], [18, 162], [0, 132]], px: 40, py: 152 },
+} as const;
+
+type RigPart = 'body' | 'ear' | 'tail' | 'leg0' | 'leg1' | 'leg2' | 'leg3';
+
 /**
  * Hero visuals built from the hand-drawn pose sprites. Purely cosmetic: squash,
  * stretch and pose never influence the collision box held by PlayerController.
@@ -40,6 +58,10 @@ export class HeroView {
   private rig: Phaser.GameObjects.Container;
   private spr: Phaser.GameObjects.Image;
   private propeller: Phaser.GameObjects.Image;
+  /** Animated cut-out of the side pose: legs, ear and tail move on their own. */
+  private cut: Phaser.GameObjects.Container;
+  private parts: Record<RigPart, Phaser.GameObjects.Image>;
+  private earSpring = { a: 0, v: 0 };
 
   mode: HeroMode = 'play';
   private pose: Pose = 'run';
@@ -75,9 +97,27 @@ export class HeroView {
 
   constructor(private scene: Phaser.Scene, x: number, y: number) {
     HeroView.ensureSleepTexture(scene);
+    HeroView.ensureRigTextures(scene);
     this.root = scene.add.container(x, y);
     this.rig = scene.add.container(0, 0);
     this.root.add(this.rig);
+    // Cut-out rig, aligned so its unrotated parts reproduce the side pose exactly.
+    const W = 414;
+    const H = 262;
+    const s0 = HeroView.SPRITE_SCALE;
+    const place = (key: string, px: number, py: number) =>
+      scene.add.image((px - POSE_ORIGIN_X.side * W) * s0, (py - H) * s0 + 2, key).setOrigin(px / W, py / H).setScale(s0);
+    this.parts = {
+      tail: place('hero_r_tail', RIG.tail.px, RIG.tail.py),
+      leg0: place('hero_r_leg0', RIG.legs[0].px, RIG.pivotY),
+      leg1: place('hero_r_leg1', RIG.legs[1].px, RIG.pivotY),
+      leg2: place('hero_r_leg2', RIG.legs[2].px, RIG.pivotY),
+      leg3: place('hero_r_leg3', RIG.legs[3].px, RIG.pivotY),
+      body: place('hero_r_body', W / 2, H / 2),
+      ear: place('hero_r_ear', RIG.ear.px, RIG.ear.py),
+    };
+    this.cut = scene.add.container(0, 0, [this.parts.tail, this.parts.leg0, this.parts.leg1, this.parts.leg2, this.parts.leg3, this.parts.body, this.parts.ear]);
+    this.rig.add(this.cut);
     // Spinning blur over the tail swirl drawn in the propeller pose.
     this.propeller = scene.add.image(-34, -100, 'hero_propeller').setScale(ART_SCALE * 1.5, ART_SCALE * 0.5).setAlpha(0.7).setVisible(false);
     this.spr = scene.add.image(0, 2, 'hero_s_run').setOrigin(POSE_ORIGIN_X.run, 1).setScale(HeroView.SPRITE_SCALE);
@@ -110,6 +150,79 @@ export class HeroView {
     c.strokeStyle = '#302331';
     c.stroke();
     tex.refresh();
+  }
+
+  /** Splits the side pose into body, ear, tail and four legs (once per game). */
+  private static ensureRigTextures(scene: Phaser.Scene): void {
+    if (scene.textures.exists('hero_r_body') || !scene.textures.exists('hero_s_side')) return;
+    const src = scene.textures.get('hero_s_side').getSourceImage() as HTMLImageElement | HTMLCanvasElement;
+    const W = src.width;
+    const H = src.height;
+    const make = (key: string, draw: (c: CanvasRenderingContext2D) => void) => {
+      const tex = scene.textures.createCanvas(key, W, H);
+      if (!tex) return;
+      draw(tex.getContext());
+      tex.refresh();
+    };
+    const poly = (c: CanvasRenderingContext2D, pts: readonly (readonly [number, number])[]) => {
+      c.beginPath();
+      pts.forEach(([x, y], i) => (i ? c.lineTo(x, y) : c.moveTo(x, y)));
+      c.closePath();
+    };
+    make('hero_r_body', (c) => {
+      c.drawImage(src, 0, 0);
+      // Remove the legs below the belly line (they are drawn as separate parts).
+      for (const l of RIG.legs) c.clearRect(l.x0, RIG.belly, l.x1 - l.x0, H - RIG.belly);
+      // Remove the tail, and paint fur where the ear used to hang.
+      c.save();
+      poly(c, RIG.tail.poly);
+      c.clip();
+      c.clearRect(0, 0, 44, H);
+      c.restore();
+      c.save();
+      poly(c, RIG.ear.poly);
+      c.clip();
+      c.globalCompositeOperation = 'source-atop';
+      c.fillStyle = '#A9622F';
+      c.fillRect(0, 0, W, H);
+      // The collar carries on round the neck under the ear.
+      c.beginPath();
+      c.moveTo(188, 124);
+      c.lineTo(262, 146);
+      c.lineTo(262, 168);
+      c.lineTo(192, 146);
+      c.closePath();
+      c.fillStyle = '#42B7B0';
+      c.fill();
+      c.lineWidth = 4;
+      c.strokeStyle = '#302331';
+      c.stroke();
+      c.restore();
+    });
+    make('hero_r_ear', (c) => {
+      poly(c, RIG.ear.poly);
+      c.clip();
+      c.drawImage(src, 0, 0);
+    });
+    make('hero_r_tail', (c) => {
+      poly(c, RIG.tail.poly);
+      c.clip();
+      c.drawImage(src, 0, 0);
+    });
+    RIG.legs.forEach((l, i) =>
+      make(`hero_r_leg${i}`, (c) => {
+        c.beginPath();
+        c.rect(l.x0, RIG.legTop, l.x1 - l.x0, H - RIG.legTop);
+        c.clip();
+        c.drawImage(src, 0, 0);
+        if (l.far) {
+          // Far legs sit in shadow.
+          c.globalCompositeOperation = 'source-atop';
+          c.fillStyle = 'rgba(48,35,49,0.18)';
+          c.fillRect(0, 0, W, H);
+        }
+      }),
+    );
   }
 
   setPosition(x: number, y: number): void {
@@ -233,6 +346,21 @@ export class HeroView {
     return { scaleX: this.rig.scaleX, scaleY: this.rig.scaleY, alpha: this.root.alpha, visible: this.root.visible };
   }
 
+  private springEar(target: number, dt: number): void {
+    // Soft, under-damped spring: floppy velvet ears.
+    const e = this.earSpring;
+    const [n, h] = HeroView.substeps(dt);
+    for (let i = 0; i < n; i++) {
+      e.v += ((target - e.a) * 140 - e.v * 6) * h;
+      e.a += e.v * h;
+    }
+    if (!Number.isFinite(e.a) || !Number.isFinite(e.v)) {
+      e.a = target;
+      e.v = 0;
+    }
+    e.a = Phaser.Math.Clamp(e.a, -0.5, 1.4);
+  }
+
   update(dt: number, s: HeroVisualState): void {
     this.t += dt;
     this.modeT += dt;
@@ -240,28 +368,38 @@ export class HeroView {
     this.hitT = Math.max(0, this.hitT - dt);
     this.springSquash(dt);
 
-    let pose: Pose = 'run';
+    // 'rig' = the animated cut-out of the side pose; anything else is a whole drawn pose.
+    let pose: Pose | 'rig' = 'rig';
     let rigY = 0;
     let rigRot = 0;
     let showProp = false;
     let alpha = 1;
+    const legs = [0, 0, 0, 0];
+    let earTarget = 0.1;
+    let tailRot = Math.sin(this.t * 9) * 0.3;
+    let cutY = 0;
 
     if (this.mode === 'play') {
       if (s.grounded) {
         if (!this.wasGrounded) this.phase = 0;
-        const stride = 3.4 * (Math.max(s.speed, 1) / 320);
+        const stride = 3.2 * (Math.max(s.speed, 1) / 320);
         this.phase += dt * stride * Math.PI * 2;
         this.stepAcc += dt * stride;
         if (this.stepAcc >= 1) {
           this.stepAcc -= 1;
           this.onStep?.();
         }
-        // Bounding gallop: hop, slight rock, and a squash at each footfall.
-        const b = Math.abs(Math.sin(this.phase));
-        rigY = -b * 7;
-        rigRot = Math.sin(this.phase * 2) * 0.035;
-        this.sqY += (1 - b * 0.06 - this.sqY) * Math.min(1, dt * 10);
-        pose = 'run';
+        // Gallop: front pair and rear pair swing in opposition, far legs a beat behind.
+        const p = this.phase;
+        legs[0] = Math.sin(p + Math.PI + 0.5) * 0.62;
+        legs[1] = Math.sin(p + 0.5) * 0.62;
+        legs[2] = Math.sin(p + Math.PI) * 0.62;
+        legs[3] = Math.sin(p) * 0.62;
+        const b = Math.abs(Math.sin(p));
+        rigY = -b * 6;
+        rigRot = Math.sin(p) * 0.04;
+        earTarget = 0.35 + Math.sin(p * 2 - 1) * 0.3;
+        tailRot = Math.sin(this.t * 20) * 0.45 - 0.1;
       } else if (s.hovering) {
         pose = 'prop';
         showProp = true;
@@ -277,39 +415,50 @@ export class HeroView {
         const k = this.barkT / 0.3;
         if (k > 0.7) this.sqY = Math.max(this.sqY, 1 + (1 - k) * 0.4);
       }
-      if (this.hitT > 0) rigRot += Math.sin(this.hitT * 40) * 0.14;
+      if (this.hitT > 0) {
+        rigRot += Math.sin(this.hitT * 40) * 0.14;
+        earTarget = 1.2;
+      }
       alpha = s.invulnerable > 0 && Math.floor(s.invulnerable * 14) % 2 === 0 ? 0.35 : 1;
     } else if (this.mode === 'idle') {
-      pose = 'idle';
-      this.sqY = 1 + Math.sin(this.t * 2.2) * 0.02;
+      this.sqY = 1 + Math.sin(this.t * 2.2) * 0.015;
+      earTarget = 0.05 + Math.sin(this.t * 1.3) * 0.05;
+      tailRot = Math.sin(this.t * 11) * 0.4;
     } else if (this.mode === 'hover-demo') {
       pose = 'prop';
       showProp = true;
       rigY = Math.sin(this.t * 4) * 6;
     } else if (this.mode === 'sniff') {
-      pose = 'side';
       rigRot = 0.1 + Math.sin(this.t * 18) * 0.012;
       rigY = 2;
+      earTarget = -0.2;
+      tailRot = Math.sin(this.t * 14) * 0.35;
     } else if (this.mode === 'sleep') {
       pose = 'sleep';
       const breath = Math.sin(this.t * 1.6);
       this.sqY = 0.88 + breath * 0.03;
       this.sqX = 1.04;
     } else if (this.mode === 'startled') {
-      pose = 'idle';
       const k = Math.min(1, this.modeT / 0.3);
       rigY = -Math.sin(k * Math.PI) * 26;
       rigRot = -Math.sin(k * Math.PI) * 0.12;
+      for (let i = 0; i < 4; i++) legs[i] = RIG.legs[i].front ? -0.5 * k : 0.5 * k;
+      earTarget = 1.1;
+      tailRot = 0.4 + Math.sin(this.t * 30) * 0.3;
     } else if (this.mode === 'victory') {
-      pose = 'idle';
       const b = Math.abs(Math.sin(this.t * 6.5));
       rigY = -b * 16;
       if (b < 0.1) this.sqY = 0.92;
+      for (let i = 0; i < 4; i++) legs[i] = (RIG.legs[i].front ? -0.45 : 0.45) * b;
+      earTarget = 0.9 * b;
+      tailRot = Math.sin(this.t * 26) * 0.5;
     } else if (this.mode === 'defeat') {
-      pose = 'side';
       const k = Math.min(1, this.modeT / 0.35);
       rigY = -Math.sin(Math.min(1, this.modeT / 0.5) * Math.PI) * 30 * (1 - k * 0.6);
       rigRot = 0.3 * k;
+      for (let i = 0; i < 4; i++) legs[i] = (RIG.legs[i].front ? -1.2 : 1.2) * k;
+      earTarget = 1.0;
+      tailRot = -0.5;
       this.sqY = 1 - 0.18 * k;
     }
 
@@ -321,12 +470,27 @@ export class HeroView {
         // Front pulls ahead while the rear stays put, then the rear snaps after it.
         stretchX = Math.max(0.6, 1 + (this.elF - this.elR) / 150);
         stretchShift = (this.elF + this.elR) / 2;
-        if (this.burstAnimT < HeroView.STRETCH_TIME) pose = 'leap';
+        if (this.burstAnimT < HeroView.STRETCH_TIME) {
+          earTarget = 1.3;
+          legs[0] = legs[2] = 0.9;
+          legs[1] = legs[3] = -0.9;
+        }
       }
-      if (s.bursting) rigRot += 0.06;
+      if (s.bursting) {
+        rigRot += 0.06;
+        earTarget = Math.max(earTarget, 0.9);
+      }
       if (s.ducking && s.grounded) {
-        this.sqX += (1.22 - this.sqX) * Math.min(1, dt * 22);
-        this.sqY += (0.6 - this.sqY) * Math.min(1, dt * 22);
+        // Belly to the floor: legs splayed fore and aft, ears and tail streaming back.
+        pose = 'rig';
+        const wiggle = Math.sin(this.phase * 1.5) * 0.12;
+        legs[0] = legs[2] = 1.35 + wiggle;
+        legs[1] = legs[3] = -1.35 - wiggle;
+        cutY = 21;
+        earTarget = 0.7;
+        tailRot = -0.75 + Math.sin(this.t * 16) * 0.12;
+        this.sqX += (1.12 - this.sqX) * Math.min(1, dt * 22);
+        this.sqY += (0.9 - this.sqY) * Math.min(1, dt * 22);
         rigY = 0;
         rigRot = 0;
       }
@@ -338,14 +502,26 @@ export class HeroView {
       if (k >= 1) this.flipT = -1;
     }
     this.wasGrounded = s.grounded;
+    this.springEar(earTarget, dt);
 
-    this.setPose(pose);
+    const useRig = pose === 'rig';
+    this.cut.setVisible(useRig);
+    this.spr.setVisible(!useRig);
+    if (!useRig) this.setPose(pose as Pose);
     const B = HeroView.BASE_SCALE;
     this.rig.setScale(B * this.sqX, B * this.sqY);
     this.rig.y = rigY;
     this.rig.rotation = rigRot;
     this.spr.setScale(HeroView.SPRITE_SCALE * stretchX, HeroView.SPRITE_SCALE);
     this.spr.x = stretchShift;
+    this.cut.setScale(stretchX, 1);
+    this.cut.setPosition(stretchShift, cutY);
+    this.parts.leg0.rotation = legs[0];
+    this.parts.leg1.rotation = legs[1];
+    this.parts.leg2.rotation = legs[2];
+    this.parts.leg3.rotation = legs[3];
+    this.parts.ear.rotation = this.earSpring.a;
+    this.parts.tail.rotation = tailRot;
     this.propeller.setVisible(showProp);
     if (showProp) {
       this.propeller.setScale(ART_SCALE * 1.5 * (1 + Math.sin(this.t * 50) * 0.08), ART_SCALE * 0.5);

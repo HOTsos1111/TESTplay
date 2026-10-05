@@ -1,10 +1,45 @@
 import type Phaser from 'phaser';
-import { BAND, ell, fillStroke, makeBand, makeTexture, PAL, rng, rr, shade, stroke, wrapDraw, type Ctx } from './canvas';
+import { BAND, ell, fillStroke, makeBand, makeTexture, PAL, rng, rr, stroke, wrapDraw, type Ctx } from './canvas';
 
 const W = 1280;
 const H = 720;
 
 // ------------------------------------------------------------ depot layers
+
+/** Logical size of the far layer built from the reference skyline (mirrored so it tiles). */
+const SKY_K = 3.05;
+const SKY_W = 322 * SKY_K;
+const SKY_H = 128 * SKY_K;
+const SKY_BOTTOM = 476;
+
+function drawDepotFarArt(c: Ctx, art: CanvasImageSource): void {
+  // Sky to match the painted panel, then the panel skyline twice (once mirrored) so it wraps.
+  const sky = c.createLinearGradient(0, 0, 0, SKY_BOTTOM - SKY_H + 40);
+  sky.addColorStop(0, '#6FC0E8');
+  sky.addColorStop(1, '#A9DBF1');
+  c.fillStyle = sky;
+  c.fillRect(0, 0, SKY_W * 2, H);
+  const top = SKY_BOTTOM - SKY_H;
+  // The source pixels are 2× too small for the 2× contract, so smooth them as they scale up.
+  c.imageSmoothingQuality = 'high';
+  c.drawImage(art, 0, top, SKY_W, SKY_H);
+  c.save();
+  c.translate(SKY_W * 2, 0);
+  c.scale(-1, 1);
+  c.drawImage(art, 0, top, SKY_W, SKY_H);
+  c.restore();
+  // Blend the panel's top edge into the sky.
+  const blend = c.createLinearGradient(0, top - 2, 0, top + 70);
+  blend.addColorStop(0, '#A9DBF1');
+  blend.addColorStop(1, 'rgba(169,219,241,0)');
+  c.fillStyle = blend;
+  c.fillRect(0, top - 2, SKY_W * 2, 72);
+  // Atmospheric haze keeps it behind the action.
+  c.fillStyle = 'rgba(214,236,246,0.22)';
+  c.fillRect(0, top, SKY_W * 2, SKY_H);
+  c.fillStyle = '#CFC6B8';
+  c.fillRect(0, SKY_BOTTOM, SKY_W * 2, H - SKY_BOTTOM);
+}
 
 function drawDepotFar(c: Ctx): void {
   const sky = c.createLinearGradient(0, 0, 0, H);
@@ -66,116 +101,192 @@ function drawDepotFar(c: Ctx): void {
   c.fillRect(0, 470, W, 250);
 }
 
+const OUT = '#302331';
+const TEAL_TRIM = '#2E8B86';
+
+/** Paw-print plaque (shape only: menus and signs never bake in text). */
+function pawPlaque(c: Ctx, x: number, y: number, w: number, h: number): void {
+  rr(c, x, y, w, h, 6);
+  fillStroke(c, '#FFF6E2', 3.5, OUT);
+  const cx = x + h * 0.55;
+  const cy = y + h / 2 + 2;
+  c.fillStyle = OUT;
+  ell(c, cx, cy + 4, 8, 6.5);
+  c.fill();
+  for (const [dx, dy] of [[-8, -4], [-3, -9], [3, -9], [8, -4]]) {
+    ell(c, cx + dx, cy + dy, 2.8, 3.3);
+    c.fill();
+  }
+  // Two "lines of lettering" as simple bars.
+  c.fillStyle = 'rgba(48,35,49,0.75)';
+  rr(c, x + h * 1.05, y + h * 0.3, w - h * 1.3, 5, 2);
+  c.fill();
+  rr(c, x + h * 1.05, y + h * 0.58, (w - h * 1.3) * 0.75, 5, 2);
+  c.fill();
+}
+
+function gooseneckLamp(c: Ctx, x: number, y: number): void {
+  c.beginPath();
+  c.moveTo(x, y + 26);
+  c.lineTo(x, y + 8);
+  c.quadraticCurveTo(x, y, x + 12, y);
+  stroke(c, 7, OUT);
+  stroke(c, 3.5, TEAL_TRIM);
+  c.beginPath();
+  c.moveTo(x + 4, y - 2);
+  c.lineTo(x + 26, y - 2);
+  c.lineTo(x + 30, y + 10);
+  c.lineTo(x, y + 10);
+  c.closePath();
+  fillStroke(c, TEAL_TRIM, 3, OUT);
+  ell(c, x + 15, y + 12, 7, 3.5);
+  c.fillStyle = '#FFE38A';
+  c.fill();
+}
+
 function drawDepotMid(c: Ctx): void {
-  // Warehouses with corrugated walls and cranes; transparent above roofline.
+  // Warehouse tops behind the loading-bay wall (style guide: beige stone, slate
+  // roofs, brick chimneys, teal trim, thick outlines). Transparent above roofs.
   const r = rng(23);
-  const colors = ['#E8A87C', '#9CCBC4', '#F2C47E', '#D79A9A'];
+  const kinds = ['warehouse', 'office', 'shed', 'warehouse', 'office'] as const;
   let x = 0;
   let i = 0;
-  while (x < W) {
-    const w = 260 + r() * 140;
-    const top = 250 + r() * 90;
-    const col = colors[i++ % colors.length];
+  while (x < W - 120) {
+    const kind = kinds[i++ % kinds.length];
+    const w = kind === 'shed' ? 190 + r() * 60 : 240 + r() * 90;
+    const top = kind === 'office' ? 175 + r() * 40 : 225 + r() * 50;
     const draw = (ox: number) => {
-      // Roof.
-      c.beginPath();
-      c.moveTo(ox, top + 20);
-      c.lineTo(ox + w / 2, top - 10);
-      c.lineTo(ox + w, top + 20);
-      c.lineTo(ox + w, H);
-      c.lineTo(ox, H);
-      c.closePath();
-      fillStroke(c, shade(col, 0.15), 2.5, 'rgba(48,35,49,0.55)');
-      // Corrugation.
-      c.save();
-      c.clip();
-      c.strokeStyle = shade(col, -0.12);
-      c.lineWidth = 2;
-      for (let cx = ox + 8; cx < ox + w; cx += 14) {
+      if (kind === 'warehouse') {
+        // Brick chimney first so the roof overlaps its base.
+        rr(c, ox + w * 0.72, top - 70, 30, 90, 3);
+        fillStroke(c, '#C2614A', 3.5, OUT);
+        c.fillStyle = 'rgba(48,35,49,0.18)';
+        for (let yy = top - 60; yy < top + 10; yy += 12) c.fillRect(ox + w * 0.72 + 3, yy, 24, 2);
+        rr(c, ox + w * 0.72 - 4, top - 78, 38, 12, 3);
+        fillStroke(c, '#7A7F8C', 3, OUT);
+        // Beige stone walls with quoins and a parapet.
+        rr(c, ox, top, w, H - top, 4);
+        fillStroke(c, '#F1DDB2', 3.5, OUT);
+        c.fillStyle = '#E2C38D';
+        for (let yy = top + 10; yy < 600; yy += 26) {
+          rr(c, ox + 4, yy, 18, 20, 3);
+          c.fill();
+          rr(c, ox + w - 22, yy, 18, 20, 3);
+          c.fill();
+        }
+        rr(c, ox - 6, top - 10, w + 12, 16, 4);
+        fillStroke(c, '#D9BE8C', 3, OUT);
+        pawPlaque(c, ox + w * 0.18, top + 26, Math.min(170, w * 0.55), 44);
+        gooseneckLamp(c, ox + w * 0.18 + Math.min(170, w * 0.55) + 10, top + 30);
+      } else if (kind === 'office') {
+        // Blue-grey office block with a gable and rows of windows.
         c.beginPath();
-        c.moveTo(cx, top);
-        c.lineTo(cx, H);
-        c.stroke();
+        c.moveTo(ox, top + 34);
+        c.lineTo(ox + w / 2, top - 6);
+        c.lineTo(ox + w, top + 34);
+        c.lineTo(ox + w, H);
+        c.lineTo(ox, H);
+        c.closePath();
+        fillStroke(c, '#B9C6D6', 3.5, OUT);
+        c.beginPath();
+        c.moveTo(ox - 8, top + 38);
+        c.lineTo(ox + w / 2, top - 14);
+        c.lineTo(ox + w + 8, top + 38);
+        stroke(c, 9, OUT);
+        stroke(c, 5, '#6B7A8F');
+        for (let wy = top + 52; wy < 420; wy += 56) {
+          for (let wx = ox + 24; wx < ox + w - 40; wx += 52) {
+            rr(c, wx, wy, 30, 38, 4);
+            fillStroke(c, '#E3F2F8', 3, OUT);
+            c.beginPath();
+            c.moveTo(wx + 15, wy);
+            c.lineTo(wx + 15, wy + 38);
+            stroke(c, 2, OUT);
+          }
+        }
+      } else {
+        // Corrugated shed with a teal roller door strip.
+        rr(c, ox, top + 20, w, H - top, 3);
+        fillStroke(c, '#9FC3BD', 3.5, OUT);
+        c.save();
+        rr(c, ox, top + 20, w, H - top, 3);
+        c.clip();
+        c.fillStyle = 'rgba(48,35,49,0.15)';
+        for (let cx = ox + 8; cx < ox + w; cx += 14) c.fillRect(cx, top + 20, 3, H);
+        c.restore();
+        rr(c, ox - 8, top + 8, w + 16, 16, 4);
+        fillStroke(c, '#6B7A8F', 3, OUT);
       }
-      c.restore();
-      // Big window band.
-      rr(c, ox + 30, top + 50, w - 60, 40, 6);
-      fillStroke(c, '#FFF1CF', 2.5, 'rgba(48,35,49,0.55)');
-      c.beginPath();
-      for (let wx = ox + 70; wx < ox + w - 40; wx += 40) {
-        c.moveTo(wx, top + 50);
-        c.lineTo(wx, top + 90);
-      }
-      stroke(c, 2, 'rgba(48,35,49,0.4)');
     };
     wrapDraw(W, x, w, draw);
-    x += w + 30 + r() * 40;
+    x += w + 20 + r() * 50;
   }
-  // Gantry crane.
-  wrapDraw(W, 520, 260, (ox) => {
-    c.beginPath();
-    c.moveTo(ox, 470);
-    c.lineTo(ox + 20, 180);
-    c.moveTo(ox + 240, 470);
-    c.lineTo(ox + 220, 180);
-    c.moveTo(ox - 20, 180);
-    c.lineTo(ox + 260, 180);
-    stroke(c, 10, 'rgba(48,35,49,0.55)');
-    stroke(c, 6, '#F2B84A');
-    c.beginPath();
-    c.moveTo(ox + 140, 180);
-    c.lineTo(ox + 140, 260);
-    stroke(c, 2.5, 'rgba(48,35,49,0.6)');
-    rr(c, ox + 118, 260, 44, 30, 4);
-    fillStroke(c, '#E07A63', 2.5, 'rgba(48,35,49,0.6)');
-  });
   // Soft haze so the layer sits behind the action.
-  const haze = c.createLinearGradient(0, 200, 0, 600);
-  haze.addColorStop(0, 'rgba(252,230,200,0)');
-  haze.addColorStop(1, 'rgba(252,230,200,0.35)');
+  const haze = c.createLinearGradient(0, 160, 0, 600);
+  haze.addColorStop(0, 'rgba(214,236,246,0.05)');
+  haze.addColorStop(1, 'rgba(214,236,246,0.3)');
+  c.save();
+  c.globalCompositeOperation = 'source-atop';
   c.fillStyle = haze;
-  c.fillRect(0, 200, W, 520);
+  c.fillRect(0, 110, W, 610);
+  c.restore();
 }
 
 function drawDepotNear(c: Ctx): void {
-  // Loading-bay wall strip directly behind the play line, plus the dark pit band.
+  // Loading-bay wall directly behind the play line (style guide "Delivery Depot"):
+  // beige stone, dark roller doors in teal frames, paw-print plaques, lamps, kerb stripe.
   const wallTop = 360;
-  c.fillStyle = '#C98F7A';
+  c.fillStyle = '#EBD3A6';
   c.fillRect(0, wallTop, W, 600 - wallTop);
-  c.fillStyle = '#B57D6A';
-  for (let y = wallTop + 14; y < 600; y += 28) c.fillRect(0, y, W, 3);
-  c.fillStyle = 'rgba(48,35,49,0.85)';
-  c.fillRect(0, wallTop - 4, W, 6);
-  // Bay doors with roller shutters.
-  for (let i = 0; i < 3; i++) {
-    const bx = 60 + i * 430;
-    rr(c, bx, wallTop + 40, 260, 200, 6);
-    fillStroke(c, '#7E95B5', 3, 'rgba(48,35,49,0.7)');
-    c.fillStyle = '#6B819F';
-    for (let y = wallTop + 52; y < wallTop + 236; y += 14) c.fillRect(bx + 6, y, 248, 4);
-    // Bay number plate as a shape (no text): colored chevrons.
-    rr(c, bx + 110, wallTop + 12, 40, 22, 5);
-    fillStroke(c, [PAL.teal, PAL.butter, PAL.coral][i], 2.5, 'rgba(48,35,49,0.7)');
-    // Hanging hose reel beside the door: decor that cannot be mistaken for a ground obstacle.
-    c.beginPath();
-    c.arc(bx + 330, wallTop + 90, 26, 0, Math.PI * 2);
-    stroke(c, 7, 'rgba(48,35,49,0.35)');
-    c.beginPath();
-    c.arc(bx + 330, wallTop + 90, 16, 0, Math.PI * 2);
-    stroke(c, 5, 'rgba(66,183,176,0.55)');
-    c.beginPath();
-    c.moveTo(bx + 330, wallTop + 116);
-    c.quadraticCurveTo(bx + 345, wallTop + 170, bx + 320, wallTop + 200);
-    stroke(c, 4, 'rgba(66,183,176,0.55)');
+  c.fillStyle = 'rgba(160,120,70,0.18)';
+  for (let y = wallTop + 18; y < 590; y += 30) {
+    c.fillRect(0, y, W, 3);
+    for (let x = ((y / 30) % 2) * 40; x < W; x += 80) c.fillRect(x, y, 3, 30);
   }
-  // Wall lamps.
+  c.fillStyle = OUT;
+  c.fillRect(0, wallTop - 4, W, 7);
   for (let i = 0; i < 3; i++) {
-    const lx = 400 + i * 430;
-    ell(c, lx, wallTop + 30, 14, 9);
-    fillStroke(c, PAL.butter, 2.5, 'rgba(48,35,49,0.7)');
+    const bx = 70 + i * 430;
+    // Teal frame and dark roller door.
+    rr(c, bx - 12, wallTop + 56, 284, 190, 6);
+    fillStroke(c, TEAL_TRIM, 4, OUT);
+    rr(c, bx, wallTop + 66, 260, 180, 3);
+    fillStroke(c, '#4C5468', 3.5, OUT);
+    c.fillStyle = '#5E677D';
+    for (let y = wallTop + 74; y < wallTop + 240; y += 14) c.fillRect(bx + 6, y, 248, 5);
+    rr(c, bx + 112, wallTop + 226, 36, 10, 3);
+    fillStroke(c, '#C7CDD8', 2.5, OUT);
+    pawPlaque(c, bx + 50, wallTop + 12, 160, 36);
+    // Stone pier between bays with a lamp.
+    const px = bx + 300;
+    rr(c, px, wallTop, 70, 240, 3);
+    fillStroke(c, '#DCC08E', 3, OUT);
+    c.fillStyle = 'rgba(48,35,49,0.12)';
+    for (let y = wallTop + 26; y < 600; y += 30) c.fillRect(px + 3, y, 64, 3);
+    gooseneckLamp(c, px + 22, wallTop + 34);
   }
+  // Yellow/black kerb stripe along the foot of the wall.
+  c.save();
+  c.beginPath();
+  c.rect(0, 586, W, 14);
+  c.clip();
+  c.fillStyle = '#FFC93C';
+  c.fillRect(0, 586, W, 14);
+  c.fillStyle = OUT;
+  for (let x = -20; x < W + 20; x += 32) {
+    c.beginPath();
+    c.moveTo(x, 600);
+    c.lineTo(x + 14, 586);
+    c.lineTo(x + 30, 586);
+    c.lineTo(x + 16, 600);
+    c.closePath();
+    c.fill();
+  }
+  c.restore();
+  c.fillStyle = OUT;
+  c.fillRect(0, 584, W, 3);
   // Muted overlay so the strip stays behind gameplay.
-  c.fillStyle = 'rgba(252,230,200,0.18)';
+  c.fillStyle = 'rgba(252,240,220,0.14)';
   c.fillRect(0, wallTop, W, 600 - wallTop);
   // Pit band (visible only through gaps).
   const pit = c.createLinearGradient(0, 600, 0, H);
@@ -635,7 +746,10 @@ function drawBadge(c: Ctx, n: number): void {
 }
 
 export function generateSceneArt(scene: Phaser.Scene): void {
-  makeTexture(scene, 'depot_far', W, H, drawDepotFar);
+  if (scene.textures.exists('bg_depot_skyline')) {
+    const art = scene.textures.get('bg_depot_skyline').getSourceImage() as CanvasImageSource;
+    makeTexture(scene, 'depot_far', SKY_W * 2, H, (c) => drawDepotFarArt(c, art));
+  } else makeTexture(scene, 'depot_far', W, H, drawDepotFar);
   makeBand(scene, 'depot_mid', W, BAND.mid, drawDepotMid);
   makeBand(scene, 'depot_near', W, BAND.near, drawDepotNear);
   makeTexture(scene, 'story_garden', W, H, drawGarden);

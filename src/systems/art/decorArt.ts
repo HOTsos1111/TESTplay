@@ -4,7 +4,7 @@ import { BAND, ell, fillStroke, makeBand, makeTexture, PAL, rng, rr, shade, stro
 const W = 1280;
 const H = 720;
 const WALL_TOP = 360;
-const SOFT = 'rgba(48,35,49,0.7)';
+const SOFT = 'rgba(48,35,49,0.9)';
 
 /** Common base: wall band, its top rule, the haze and the dark pit band below the floor. */
 function wallBase(c: Ctx, color: string, stripe: string | null, draw: () => void): void {
@@ -29,7 +29,7 @@ function wallBase(c: Ctx, color: string, stripe: string | null, draw: () => void
 // --------------------------------------------------------- near wall zones
 
 function drawSortingHall(c: Ctx): void {
-  wallBase(c, '#B9A4C9', '#A893B8', () => {
+  wallBase(c, '#E6CFA4', '#D6BB8A', () => {
     // Two conveyor belts running along the wall, loaded with parcels.
     for (const y of [430, 520]) {
       rr(c, -10, y, W + 20, 16, 6);
@@ -452,9 +452,9 @@ function drawBird(c: Ctx, up: boolean): void {
 
 // ------------------------------------------------------- obstacle skins
 
-export const LOW_HAZARD_SKINS = ['tyre', 'hazard_cone', 'hazard_toolbox', 'hazard_paint'];
-export const CRATE_SKINS = ['crate', 'crate_metal', 'crate_slat'];
-export const CARDBOARD_SKINS = ['cardboard', 'cardboard_white', 'cardboard_arrows'];
+export const LOW_HAZARD_SKINS = ['tyre', 'tyre', 'hazard_cone'];
+export const CRATE_SKINS = ['crate', 'crate_parcel'];
+export const CARDBOARD_SKINS = ['cardboard'];
 export const PLATFORM_SKINS = ['steel', 'conveyor', 'plank'];
 
 function drawCone(c: Ctx): void {

@@ -197,7 +197,7 @@ export class GameScene extends Phaser.Scene {
     this.hud = new Hud(this, () => this.input2.requestPause());
     {
       const span = Math.max(1, this.layout.encounterX - this.layout.startX);
-      const tint: Record<string, number> = { depot_near: 0xc98f7a, depot_near_sorting: 0xb9a4c9, depot_near_cold: 0xa9cfe0, depot_near_yard: 0x5e9c6a, depot_near_street: 0xc9765f };
+      const tint: Record<string, number> = { depot_near: 0xebd3a6, depot_near_sorting: 0xe6cfa4, depot_near_cold: 0xa9cfe0, depot_near_yard: 0x5e9c6a, depot_near_street: 0xc9765f };
       const zoneMarks = zones.map((z) => ({ from: Math.max(0, (z.x - this.layout.startX) / span), color: tint[z.near] ?? 0xffe1aa }));
       const burstMarks = this.layout.items.filter((i) => i.type === 'burstMarker').map((i) => (i.x - this.layout.startX) / span);
       this.hud.setMinimap(zoneMarks, burstMarks);

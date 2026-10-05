@@ -139,6 +139,7 @@ const SPRITE_NOTES: Record<string, string> = {
   hero_s_bark: 'hero bark',
   hero_s_toy: 'hero proud with toy',
   squirrel_flee: 'squirrel fleeing with the toy',
+  crate_parcel: 'sealed parcel crate skin',
 };
 
 export const ASSET_MANIFEST: AssetEntry[] = (() => {
@@ -147,7 +148,7 @@ export const ASSET_MANIFEST: AssetEntry[] = (() => {
     const file = `sprites/${key}.png`;
     const found = list.find((a) => a.key === key);
     if (found) Object.assign(found, { file, placeholder: false, size: [w / 2, h / 2] });
-    else list.push({ key, category: key.startsWith('hero') ? 'player' : 'enemies', size: [w / 2, h / 2], file, placeholder: false, note: SPRITE_NOTES[key] });
+    else list.push({ key, category: key.startsWith('hero') ? 'player' : key.startsWith('squirrel') ? 'enemies' : 'props', size: [w / 2, h / 2], file, placeholder: false, note: SPRITE_NOTES[key] });
   }
   return list;
 })();
