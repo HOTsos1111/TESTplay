@@ -6,7 +6,7 @@ import { Audio } from '../systems/AudioManager';
 import type { Fx } from '../systems/Fx';
 import type { Rect, Solid } from '../systems/PlayerController';
 import { drawGround3D } from '../systems/Ground3D';
-import { CARDBOARD_SKINS, CRATE_SKINS, LOW_HAZARD_SKINS, PLATFORM_SKINS } from '../systems/art/decorArt';
+import { theme } from '../systems/LevelTheme';
 
 /** Deterministic pick so a given spot in the level always looks the same. */
 export function pickSkin<T>(list: readonly T[], seed: number | string): T {
@@ -105,8 +105,8 @@ export class Platform extends Entity {
       }
       this.c.add(scene.add.image(w - 30, 10, 'platform_leg').setOrigin(0.5, 0).setDisplaySize(16, legH));
     }
-    const skin = pickSkin(PLATFORM_SKINS, x);
-    const mid = skin === 'conveyor' ? 'platform_mid_conveyor' : skin === 'plank' ? 'platform_mid_plank' : 'platform_mid';
+    const skin = pickSkin(theme().platform, x);
+    const mid = skin === 'steel' ? 'platform_mid' : `platform_mid_${skin}`;
     this.belt = scene.add.tileSprite(14, 0, w - 28, 18, mid).setOrigin(0, 0).setTileScale(ART_SCALE);
     this.conveyor = skin === 'conveyor';
     this.c.add(this.belt);
@@ -214,7 +214,7 @@ export class Crate extends Entity {
   constructor(scene: Phaser.Scene, private x: number, top: number) {
     super();
     const { w, h } = OBJECT_SIZE.crate;
-    this.img = scene.add.image(x, top, pickSkin(CRATE_SKINS, `${x}:${top}`)).setOrigin(0, 0).setScale(ART_SCALE).setDepth(DEPTH.prop);
+    this.img = scene.add.image(x, top, pickSkin(theme().crate, `${x}:${top}`)).setOrigin(0, 0).setScale(ART_SCALE).setDepth(DEPTH.prop);
     this.solid = { x, y: top, w, h, oneWay: false, kind: 'crate', ref: this };
   }
   get right(): number {
@@ -234,7 +234,7 @@ export class Cardboard extends Entity {
   constructor(scene: Phaser.Scene, private x: number, private top: number, readonly stack: string, private onStackBreak: (stack: string) => void) {
     super();
     const { w, h } = OBJECT_SIZE.cardboard;
-    this.skin = pickSkin(CARDBOARD_SKINS, `${stack}:${top}`);
+    this.skin = pickSkin(theme().cardboard, `${stack}:${top}`);
     this.img = scene.add.image(x + w / 2, top + h, this.skin).setOrigin(0.5, 1).setScale(ART_SCALE).setDepth(DEPTH.prop);
     this.solid = { x, y: top, w, h, oneWay: false, kind: 'cardboard', ref: this };
   }
@@ -289,7 +289,7 @@ export class Tyre extends Entity {
   private img: Phaser.GameObjects.Image;
   constructor(scene: Phaser.Scene, private x: number, private bottom: number) {
     super();
-    this.img = scene.add.image(x + OBJECT_SIZE.tyre.w / 2, bottom, pickSkin(LOW_HAZARD_SKINS, x)).setOrigin(0.5, 1).setScale(ART_SCALE).setDepth(DEPTH.prop);
+    this.img = scene.add.image(x + OBJECT_SIZE.tyre.w / 2, bottom, pickSkin(theme().low, x)).setOrigin(0.5, 1).setScale(ART_SCALE).setDepth(DEPTH.prop);
   }
   get right(): number {
     return this.x + OBJECT_SIZE.tyre.w;
@@ -372,10 +372,11 @@ export class Gate extends Entity {
   constructor(scene: Phaser.Scene, private x: number) {
     super();
     const y = WORLD.groundY;
-    this.frame = scene.add.image(x, y, 'exit_gate').setOrigin(0.5, 1).setScale(ART_SCALE).setDepth(DEPTH.platform - 1);
+    const t = theme();
+    this.frame = scene.add.image(x, y, t.gate).setOrigin(0.5, 1).setScale(ART_SCALE).setDepth(DEPTH.platform - 1);
     this.doors = [
-      scene.add.image(x - 86, y, 'gate_door').setOrigin(0, 1).setScale(ART_SCALE).setDepth(DEPTH.platform),
-      scene.add.image(x + 86, y, 'gate_door').setOrigin(1, 1).setScale(ART_SCALE).setDepth(DEPTH.platform),
+      scene.add.image(x - 86, y, t.gateDoor).setOrigin(0, 1).setScale(ART_SCALE).setDepth(DEPTH.platform),
+      scene.add.image(x + 86, y, t.gateDoor).setOrigin(1, 1).setScale(ART_SCALE).setDepth(DEPTH.platform),
     ];
   }
   get right(): number {
@@ -742,7 +743,7 @@ export class LowBar extends Entity {
     this.t = (x * 0.0137) % (Math.PI * 2);
     this.speed = 2.2 + ((x * 0.0071) % 1.4);
     this.chains = scene.add.graphics().setDepth(DEPTH.enemy);
-    this.img = scene.add.image(x - 3, WORLD.groundY, 'lowbar').setOrigin(0, 1).setScale(ART_SCALE).setDepth(DEPTH.enemy);
+    this.img = scene.add.image(x - 3, WORLD.groundY, theme().lowbar).setOrigin(0, 1).setScale(ART_SCALE).setDepth(DEPTH.enemy);
     this.place();
   }
   get right(): number {
@@ -757,9 +758,10 @@ export class LowBar extends Entity {
     const g = this.chains;
     g.clear();
     const len = bottom - LowBar.H + 30;
+    const pole = theme().lowbarPole;
     for (const cx of [this.x + 11, this.x + 82]) {
-      g.fillStyle(0x302331, 1).fillRect(cx - 2, -20, 18, len);
-      g.fillStyle(0x6f7e96, 1).fillRect(cx + 1, -20, 12, len);
+      g.fillStyle(pole.dark, 1).fillRect(cx - 2, -20, 18, len);
+      g.fillStyle(pole.mid, 1).fillRect(cx + 1, -20, 12, len);
       g.fillStyle(0xffffff, 0.25).fillRect(cx + 3, -20, 3, len);
       // Piston collar where the inner tube slides.
       g.fillStyle(0x302331, 1).fillRect(cx - 4, len - 46, 22, 12);

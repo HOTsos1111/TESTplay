@@ -6,6 +6,8 @@ import { generateWorldArt } from './art/worldArt';
 import { generateDecorArt } from './art/decorArt';
 import { generatePowerUpArt } from './art/powerupArt';
 import { generateSquirrelArt } from './art/squirrelArt';
+import { generateStreetArt } from './art/streetArt';
+import { generatePigeonArt } from './art/pigeonArt';
 
 /** Queue real asset files for every manifest entry that is no longer a placeholder. */
 export function queueAssetFiles(scene: Phaser.Scene): void {
@@ -22,6 +24,8 @@ export function generateMissingArt(scene: Phaser.Scene): string[] {
   generateDecorArt(scene);
   generatePowerUpArt(scene);
   generateSquirrelArt(scene);
+  generateStreetArt(scene);
+  generatePigeonArt(scene);
   return ASSET_MANIFEST.filter((a) => !scene.textures.exists(a.key)).map((a) => a.key);
 }
 

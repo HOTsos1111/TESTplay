@@ -1,3 +1,5 @@
+import type { ThemeId } from '../systems/LevelTheme';
+
 export interface ChapterDef {
   id: number;
   key: string;
@@ -10,7 +12,9 @@ export interface ChapterDef {
   speedStart: number;
   speedEnd: number;
   chunks: string[];
-  encounterId: 'trolley' | null;
+  encounterId: 'trolley' | 'swarm' | 'pigeon' | null;
+  /** Background, obstacle skins and gate. */
+  theme: ThemeId;
   /** Scenery zones, starting at the given chunk index. */
   zones: { chunk: number; near: string; mid: string; indoor: boolean }[];
   music: 'depot' | 'title';
@@ -23,7 +27,7 @@ export const CHAPTERS: ChapterDef[] = [
     title: 'Special Delivery',
     objective: 'Escape the depot and reach the street exit.',
     opening: "That definitely wasn't our street.",
-    encounter: 'The dogcatcher and his capture trolley',
+    encounter: 'Squirrel swarm! Ten of Nutso’s minions',
     implemented: true,
     speedStart: 360,
     speedEnd: 400,
@@ -51,7 +55,8 @@ export const CHAPTERS: ChapterDef[] = [
       'final_gauntlet',
       'exit_gate',
     ],
-    encounterId: 'trolley',
+    encounterId: 'swarm',
+    theme: 'depot',
     music: 'depot',
     zones: [
       { chunk: 0, near: 'depot_near', mid: 'depot_mid', indoor: true },
@@ -62,29 +67,62 @@ export const CHAPTERS: ChapterDef[] = [
     ],
   },
   {
-    id: 2, key: 'shopping_street', title: 'Small Dog, Big City', objective: 'Cross the shopping street to the park gate.',
-    opening: 'Home is somewhere past all these shoes.', encounter: 'The pigeon captain',
-    implemented: false, speedStart: 340, speedEnd: 390, chunks: [], encounterId: null, music: 'depot', zones: [],
+    id: 2,
+    key: 'shopping_street',
+    title: 'Small Dog, Big City',
+    objective: 'Dash down the shopping street to the park gate.',
+    opening: 'Home is somewhere past all these shoes.',
+    encounter: 'The Pigeon Captain and his crumb-bombing crew',
+    implemented: true,
+    speedStart: 365,
+    speedEnd: 400,
+    chunks: [
+      'street_start',
+      'street_hydrants',
+      'street_gaps',
+      'street_awnings',
+      'street_bakery_boxes',
+      'street_squirrels',
+      'street_hover',
+      'street_market',
+      'street_double',
+      'street_burst',
+      'street_mix',
+      'street_hover_squirrel',
+      'street_double_duck',
+      'street_burst_gauntlet',
+      'street_final',
+      'street_exit',
+    ],
+    encounterId: 'pigeon',
+    theme: 'street',
+    music: 'depot',
+    zones: [
+      { chunk: 0, near: 'street_near_bakery', mid: 'street_mid', indoor: false },
+      { chunk: 4, near: 'street_near_cafe', mid: 'street_mid', indoor: false },
+      { chunk: 8, near: 'street_near_market', mid: 'street_mid', indoor: false },
+      { chunk: 12, near: 'street_near_park', mid: 'street_mid', indoor: false },
+    ],
   },
   {
     id: 3, key: 'city_park', title: 'Fowl Play', objective: 'Cross the park to the residential shortcut.',
     opening: 'Nice pond. Unfriendly goose.', encounter: 'The bridge goose',
-    implemented: false, speedStart: 350, speedEnd: 400, chunks: [], encounterId: null, music: 'depot', zones: [],
+    theme: 'street', implemented: false, speedStart: 350, speedEnd: 400, chunks: [], encounterId: null, music: 'depot', zones: [],
   },
   {
     id: 4, key: 'back_alleys', title: 'Alley Oops', objective: 'Find a route through the back alleys.',
     opening: 'My nose says shortcut. My eyes say bins.', encounter: 'The raccoon and the junk cart',
-    implemented: false, speedStart: 360, speedEnd: 420, chunks: [], encounterId: null, music: 'depot', zones: [],
+    theme: 'street', implemented: false, speedStart: 360, speedEnd: 420, chunks: [], encounterId: null, music: 'depot', zones: [],
   },
   {
     id: 5, key: 'neighbourhood', title: 'Familiar Territory', objective: 'Reach your own neighbourhood.',
     opening: 'I know that fence!', encounter: 'A race with the yard dog',
-    implemented: false, speedStart: 370, speedEnd: 440, chunks: [], encounterId: null, music: 'depot', zones: [],
+    theme: 'street', implemented: false, speedStart: 370, speedEnd: 440, chunks: [], encounterId: null, music: 'depot', zones: [],
   },
   {
     id: 6, key: 'home', title: 'Almost Home', objective: 'Take your toy back from Boss Nutso.',
     opening: 'That smell. Squirrel. BIG squirrel.', encounter: 'Boss battle: Boss Nutso, king of the squirrels',
-    implemented: false, speedStart: 380, speedEnd: 460, chunks: [], encounterId: null, music: 'depot', zones: [],
+    theme: 'street', implemented: false, speedStart: 380, speedEnd: 460, chunks: [], encounterId: null, music: 'depot', zones: [],
   },
 ];
 

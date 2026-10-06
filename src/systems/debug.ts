@@ -11,6 +11,8 @@ export const debugFlags = {
   god: params.get('god') === '1',
   /** ?intro=0 skips the launch story and instructions (automated checks). */
   skipIntro: params.get('intro') === '0',
+  /** ?unlock=all opens every built chapter on the level select (playtesting). */
+  unlockAll: params.get('unlock') === 'all',
 };
 
 type Hook = () => unknown;

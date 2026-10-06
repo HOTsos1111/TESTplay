@@ -5,6 +5,7 @@ import { ART_SCALE } from '../systems/AssetRegistry';
 import { Audio } from '../systems/AudioManager';
 import type { Rect } from '../systems/PlayerController';
 import { Entity, Parcel, type GameContext } from './World';
+import type { Boss } from './SquirrelSwarm';
 
 type Phase = 'enter' | 'warn' | 'throw' | 'clear' | 'lungeWarn' | 'lunge' | 'window' | 'hitReact' | 'retreat' | 'defeat' | 'done';
 
@@ -14,7 +15,11 @@ type Phase = 'enter' | 'warn' | 'throw' | 'clear' | 'lungeWarn' | 'lunge' | 'win
  * on the latch during those windows wreck the trolley. Pure slapstick: his
  * own machine defeats him.
  */
-export class TrolleyBoss extends Entity {
+export class TrolleyBoss extends Entity implements Boss {
+  readonly maxHits = TROLLEY.hitsToWin;
+  readonly title = 'THE DOGCATCHER';
+  readonly icon = 'dogcatcher_walk';
+  readonly speed = TROLLEY.speed;
   private c: Phaser.GameObjects.Container;
   private body: Phaser.GameObjects.Image;
   private wheels: Phaser.GameObjects.Image[];

@@ -2,10 +2,12 @@ import Phaser from 'phaser';
 import { chapterById, type ChapterDef } from '../data/chapters';
 import { DEPTH, SCORING, TUNING, UPGRADE_EFFECTS, VIEW, WORLD } from '../data/config';
 import { HINTS } from '../data/copy';
-import { TROLLEY } from '../data/encounters';
 import { POWERUP_TUNING, POWERUPS, type PowerUpKind } from '../data/powerups';
 import { HeroView } from '../entities/HeroView';
 import { TrolleyBoss } from '../entities/TrolleyBoss';
+import { LevelTheme, theme } from '../systems/LevelTheme';
+import { SquirrelSwarm, type Boss } from '../entities/SquirrelSwarm';
+import { PigeonBoss } from '../entities/PigeonBoss';
 import {
   Acorn, Barrel, Bone, LowBar, BurstMarker, Cardboard, LiftPlatform, PowerUp, Crate, Entity, Gate, GroundPiece, Platform, Scent, Squirrel, Tyre, type GameContext,
 } from '../entities/World';
@@ -67,7 +69,7 @@ export class GameScene extends Phaser.Scene {
   private bones = 0;
   private pulseId = 0;
   private pulseT = 0;
-  private boss: TrolleyBoss | null = null;
+  private boss: Boss | null = null;
   private startAt: 'start' | 'encounter' = 'start';
   private debugG: Phaser.GameObjects.Graphics | null = null;
   private ctx!: GameContext;
@@ -145,6 +147,7 @@ export class GameScene extends Phaser.Scene {
 
   create(data: GameSceneData): void {
     this.chapter = chapterById(data.chapter ?? 1);
+    LevelTheme.id = this.chapter.theme;
     this.layout = buildLevel(this.chapter);
     this.startAt = data.startAt === 'encounter' ? 'encounter' : 'start';
     this.entities = [];
@@ -176,7 +179,7 @@ export class GameScene extends Phaser.Scene {
 
     const camStart = startX - VIEW.width * VIEW.heroScreenX;
     const zones = this.chapter.zones.map((z) => ({ ...z, x: this.layout.chunkStarts[z.chunk]?.x ?? 0 }));
-    if (!zones.length) zones.push({ chunk: 0, near: 'depot_near', mid: 'depot_mid', indoor: true, x: 0 });
+    if (!zones.length) zones.push({ chunk: 0, ...theme().defaultZone, x: 0 });
     this.scenery = new Scenery(this, zones, camStart);
 
     this.fx = new Fx(this);
@@ -459,10 +462,12 @@ export class GameScene extends Phaser.Scene {
     this.phaseT = 0;
     progress.setCheckpoint({ chapter: this.chapter.id, at: 'encounter' });
     Audio.playMusic('chase');
-    this.hud.banner('The dogcatcher!', 'Checkpoint reached', 2.0);
-    this.boss = new TrolleyBoss(this);
+    const id = this.chapter.encounterId;
+    const boss: Boss = id === 'trolley' ? new TrolleyBoss(this) : id === 'pigeon' ? new PigeonBoss(this) : new SquirrelSwarm(this);
+    this.hud.banner(id === 'trolley' ? 'The dogcatcher!' : id === 'pigeon' ? 'The Pigeon Captain!' : 'Squirrel swarm!', 'Checkpoint reached', 2.0);
+    this.boss = boss;
     this.boss.onEvent = (e) => {
-      if (e === 'start') this.showHint('encounter', true);
+      if (e === 'start') this.showHint(id === 'pigeon' ? 'encounter_pigeon' : 'encounter', true);
       if (e === 'defeated') {
         Audio.play('boss_clear');
         Audio.stopMusic();
@@ -610,7 +615,7 @@ export class GameScene extends Phaser.Scene {
     } else if (this.boss && (this.boss.phase === 'defeat' || this.boss.phase === 'done')) {
       this.scrollSpeed = Math.max(0, this.scrollSpeed - 260 * dt);
     } else {
-      this.scrollSpeed = Math.min(TUNING.scrollSpeedCap, TROLLEY.speed);
+      this.scrollSpeed = Math.min(TUNING.scrollSpeedCap, this.boss?.speed ?? 360);
     }
     // Pacing: forward/back nudges the hero's speed relative to the scroll, inside a band of the screen.
     const screenX = this.pc.x - this.camX;
@@ -818,7 +823,9 @@ export class GameScene extends Phaser.Scene {
       powerups: (Object.keys(this.power) as PowerUpKind[]).map((k) => ({ icon: POWERUPS[k].icon, frac: this.power[k]! / POWERUPS[k].duration })),
       barkCooldown: this.pc.barkCooldown,
       bossHits: this.boss ? this.boss.hits : null,
-      bossMax: TROLLEY.hitsToWin,
+      bossMax: this.boss?.maxHits ?? 1,
+      bossTitle: this.boss?.title ?? '',
+      bossIcon: this.boss?.icon ?? '',
     });
 
     this.drawDebug();

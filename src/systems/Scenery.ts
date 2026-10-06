@@ -3,6 +3,7 @@ import { DEPTH, VIEW } from '../data/config';
 import { ART_SCALE } from './AssetRegistry';
 import { BAND, rng } from './art/canvas';
 import { DECALS, ROOF_BAND, ZONE_ACTORS, ZONE_DECALS } from './art/decorArt';
+import { theme } from './LevelTheme';
 
 export interface SceneryZone {
   /** World x where this zone takes over. */
@@ -75,9 +76,10 @@ export class Scenery {
     const ts = (key: string, depth: number, band: { y0: number; h: number } = { y0: 0, h: VIEW.height }) =>
       scene.add.tileSprite(0, band.y0, w, band.h, key).setOrigin(0).setScrollFactor(0).setDepth(depth).setTileScale(ART_SCALE);
     const z0 = this.zoneAt(startCamX + VIEW.width * VIEW.heroScreenX);
-    this.far = ts('depot_far', DEPTH.farBg);
+    const th = theme();
+    this.far = ts(th.far, DEPTH.farBg);
     this.clouds = ts('sky_clouds', DEPTH.farBg + 0.4, { y0: 10, h: 240 });
-    this.roof = ts('depot_roofline', DEPTH.midBg + 5, ROOF_BAND);
+    this.roof = ts(th.roof, DEPTH.midBg + 5, ROOF_BAND);
     this.mids = [ts(z0.mid, DEPTH.midBg, BAND.mid), ts(z0.mid, DEPTH.midBg + 0.5, BAND.mid).setAlpha(0)];
     this.nears = [ts(z0.near, DEPTH.nearBg, BAND.near), ts(z0.near, DEPTH.nearBg + 0.5, BAND.near).setAlpha(0)];
     this.zoneIndex = this.zones.indexOf(z0);

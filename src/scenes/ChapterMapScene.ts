@@ -5,6 +5,7 @@ import { COPY } from '../data/copy';
 import { ART_SCALE } from '../systems/AssetRegistry';
 import { Audio } from '../systems/AudioManager';
 import { progress } from '../systems/ProgressStore';
+import { debugFlags } from '../systems/debug';
 import { Backdrop } from '../ui/Backdrop';
 import { Button, MenuNav } from '../ui/Button';
 import { COLOR, CSS, FONT, textStyle } from '../ui/theme';
@@ -49,7 +50,7 @@ export class ChapterMapScene extends Phaser.Scene {
     const p = progress.state;
     if (p.completedChapters.includes(ch.id)) return 'completed';
     if (!ch.implemented) return 'soon';
-    if (ch.id <= p.unlockedChapter) return 'current';
+    if (ch.id <= p.unlockedChapter || debugFlags.unlockAll) return 'current';
     return 'locked';
   }
 

@@ -43,7 +43,8 @@ export const HINTS: Record<string, HintCopy> = {
   burst: { keys: 'Arrows on the floor? Press SHIFT to BURST, then jump and hold!', touch: 'Arrows on the floor? Tap SPEED, then jump and hold!' },
   duck: { keys: 'Pumping pipe! Hold ↓ (or S) to duck — but not when it slams down.', touch: 'Pumping pipe! Pull the stick DOWN to duck — but not when it slams down.' },
   double: { keys: 'Too tall! Jump EARLY, then press jump again at the top to double-jump.', touch: 'Too tall! Push UP early, let go, then push UP again at the top to double-jump.' },
-  encounter: { keys: 'Jump the parcels. Bark the latch when it glows!', touch: 'Jump the parcels. Bark the latch when it glows!' },
+  encounter: { keys: 'Jump the chargers, DUCK the gliders, BARK (X) them away!', touch: 'Jump the chargers, DUCK the gliders, tap BARK to blast them!' },
+  encounter_pigeon: { keys: 'Jump the rolls, DUCK the swoops, BARK (X) when he lands!', touch: 'Jump the rolls, DUCK the swoops, BARK when he lands!' },
 };
 
 export const STORY_PANELS = [

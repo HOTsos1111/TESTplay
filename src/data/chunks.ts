@@ -299,6 +299,163 @@ export const CHUNKS: Record<string, ChunkDef> = {
   },
 };
 
+/**
+ * Chapter 2, the shopping street. No tutorials: every move from chapter 1 is
+ * mixed in from the start, and the spacing is tighter.
+ */
+Object.assign(CHUNKS, {
+  street_start: {
+    id: 'street_start', length: 1500, entryHeight: 0, exitHeight: 0, requires: [], recovery: 400,
+    bones: [{ kind: 'line', x: 500, h: 30, n: 8, spacing: 60 }],
+  },
+  street_hydrants: {
+    id: 'street_hydrants', length: 2200, entryHeight: 0, exitHeight: 0, requires: ['jump'], recovery: 350,
+    powerupSlots: [{ x: 1100, h: 150 }],
+    tyres: [{ x: 500 }, { x: 900 }, { x: 1300 }, { x: 1700 }],
+    bones: [
+      { kind: 'arc', x: 524, h: 40, n: 4, width: 180, rise: 80 },
+      { kind: 'arc', x: 924, h: 40, n: 4, width: 180, rise: 80 },
+      { kind: 'arc', x: 1324, h: 40, n: 4, width: 180, rise: 80 },
+    ],
+  },
+  street_gaps: {
+    id: 'street_gaps', length: 2200, entryHeight: 0, exitHeight: 0, requires: ['jump'], recovery: 350,
+    gaps: [[500, 190], [1050, 220]],
+    tyres: [{ x: 1650 }],
+    bones: [
+      { kind: 'arc', x: 595, h: 50, n: 5, width: 240, rise: 85 },
+      { kind: 'arc', x: 1160, h: 50, n: 5, width: 270, rise: 85 },
+    ],
+  },
+  street_awnings: {
+    id: 'street_awnings', length: 2500, entryHeight: 0, exitHeight: 0, requires: ['jump', 'duck'], recovery: 350,
+    powerupSlots: [{ x: 1000, h: 160 }],
+    lowbars: [{ x: 600 }, { x: 1300 }],
+    tyres: [{ x: 1950 }],
+    bones: [
+      { kind: 'line', x: 615, h: 14, n: 3, spacing: 35 },
+      { kind: 'line', x: 1315, h: 14, n: 3, spacing: 35 },
+    ],
+  },
+  street_bakery_boxes: {
+    id: 'street_bakery_boxes', length: 2500, entryHeight: 0, exitHeight: 0, requires: ['jump', 'bark'], recovery: 350,
+    cardboard: [{ x: 550, stack: 3 }],
+    crates: [{ x: 1100 }, { x: 1164 }],
+    gaps: [[1650, 200]],
+    bones: [
+      { kind: 'line', x: 670, h: 30, n: 4, spacing: 60 },
+      { kind: 'line', x: 1110, h: 100, n: 3, spacing: 50 },
+      { kind: 'arc', x: 1750, h: 50, n: 5, width: 250, rise: 85 },
+    ],
+  },
+  street_squirrels: {
+    id: 'street_squirrels', length: 2700, entryHeight: 0, exitHeight: 0, requires: ['jump'], recovery: 300,
+    powerupSlots: [{ x: 1200, h: 150 }],
+    squirrels: [{ x: 600 }, { x: 1600 }],
+    tyres: [{ x: 1100 }],
+    barrels: [{ x: 2450 }],
+    bones: [{ kind: 'line', x: 800, h: 30, n: 5, spacing: 60 }],
+  },
+  street_hover: {
+    id: 'street_hover', length: 2400, entryHeight: 0, exitHeight: 0, requires: ['jump', 'hover'], recovery: 350,
+    gaps: [[800, 480]],
+    tyres: [{ x: 1750 }],
+    bones: [{ kind: 'arc', x: 1040, h: 80, n: 9, width: 480, rise: 70 }],
+    scent: [{ x: 730, h: 120, n: 8, spacing: 80 }],
+  },
+  street_market: {
+    id: 'street_market', length: 2500, entryHeight: 0, exitHeight: 0, requires: ['jump'], recovery: 350,
+    rewardBranch: true,
+    platforms: [{ x: 500, w: 420, h: 90 }],
+    lifts: [{ x: 1150, w: 360, low: 80, high: 170, period: 2.6 }],
+    powerupSlots: [{ x: 1330, h: 240 }],
+    tyres: [{ x: 650 }, { x: 1300 }],
+    gaps: [[1850, 210]],
+    bones: [
+      { kind: 'line', x: 550, h: 125, n: 7, spacing: 55 },
+      { kind: 'line', x: 1190, h: 210, n: 6, spacing: 55 },
+    ],
+  },
+  street_double: {
+    id: 'street_double', length: 2600, entryHeight: 0, exitHeight: 0, requires: ['jump', 'double', 'duck'], recovery: 400,
+    crates: [{ x: 700, stack: 2 }, { x: 764, stack: 2 }],
+    lowbars: [{ x: 1600 }],
+    bones: [
+      { kind: 'arc', x: 735, h: 140, n: 5, width: 160, rise: 90 },
+      { kind: 'line', x: 1615, h: 14, n: 3, spacing: 35 },
+    ],
+  },
+  street_burst: {
+    id: 'street_burst', length: 2700, entryHeight: 0, exitHeight: 0, requires: ['jump', 'hover', 'burst'], recovery: 500,
+    burstMarkers: [{ x: 520 }],
+    gaps: [[950, 760]],
+    bones: [{ kind: 'arc', x: 1330, h: 90, n: 11, width: 760, rise: 95 }],
+    scent: [{ x: 880, h: 130, n: 10, spacing: 85 }],
+  },
+  street_mix: {
+    id: 'street_mix', length: 2700, entryHeight: 0, exitHeight: 0, requires: ['jump', 'bark', 'duck'], recovery: 350,
+    powerupSlots: [{ x: 1400, h: 160 }],
+    lowbars: [{ x: 500 }],
+    cardboard: [{ x: 1100, stack: 3 }],
+    squirrels: [{ x: 1700 }],
+    tyres: [{ x: 2250 }],
+    bones: [
+      { kind: 'line', x: 515, h: 14, n: 3, spacing: 35 },
+      { kind: 'line', x: 1220, h: 30, n: 4, spacing: 60 },
+    ],
+  },
+  street_hover_squirrel: {
+    id: 'street_hover_squirrel', length: 2500, entryHeight: 0, exitHeight: 0, requires: ['jump', 'hover'], recovery: 350,
+    gaps: [[700, 470]],
+    squirrels: [{ x: 1550 }],
+    tyres: [{ x: 2050 }],
+    bones: [{ kind: 'arc', x: 935, h: 80, n: 9, width: 470, rise: 70 }],
+    scent: [{ x: 630, h: 120, n: 8, spacing: 80 }],
+  },
+  street_double_duck: {
+    id: 'street_double_duck', length: 3000, entryHeight: 0, exitHeight: 0, requires: ['jump', 'double', 'duck', 'bark'], recovery: 350,
+    lowbars: [{ x: 600 }],
+    crates: [{ x: 1250, stack: 2 }, { x: 1314, stack: 2 }],
+    cardboard: [{ x: 1950, stack: 3 }],
+    tyres: [{ x: 2500 }],
+    bones: [
+      { kind: 'line', x: 615, h: 14, n: 3, spacing: 35 },
+      { kind: 'line', x: 1256, h: 190, n: 3, spacing: 50 },
+    ],
+  },
+  street_burst_gauntlet: {
+    id: 'street_burst_gauntlet', length: 3000, entryHeight: 0, exitHeight: 0, requires: ['jump', 'hover', 'burst', 'duck'], recovery: 350,
+    burstMarkers: [{ x: 520 }],
+    gaps: [[1000, 780]],
+    lowbars: [{ x: 2200 }],
+    bones: [
+      { kind: 'arc', x: 1390, h: 90, n: 12, width: 780, rise: 100 },
+      { kind: 'line', x: 2215, h: 14, n: 3, spacing: 35 },
+    ],
+    scent: [{ x: 930, h: 130, n: 10, spacing: 90 }],
+  },
+  street_final: {
+    id: 'street_final', length: 3100, entryHeight: 0, exitHeight: 0, requires: ['jump', 'bark', 'hover'], recovery: 350,
+    platforms: [{ x: 400, w: 480, h: 90 }],
+    powerupSlots: [{ x: 250, h: 70 }],
+    squirrels: [{ x: 780, h: 90 }],
+    gaps: [[1150, 490]],
+    cardboard: [{ x: 1950, stack: 3 }],
+    tyres: [{ x: 2350 }, { x: 2700 }],
+    bones: [
+      { kind: 'arc', x: 1395, h: 80, n: 9, width: 490, rise: 70 },
+      { kind: 'arc', x: 2374, h: 40, n: 4, width: 180, rise: 75 },
+    ],
+    scent: [{ x: 1080, h: 120, n: 8, spacing: 80 }],
+  },
+  street_exit: {
+    id: 'street_exit', length: 1600, entryHeight: 0, exitHeight: 0, requires: ['jump'], recovery: 1000,
+    bones: [{ kind: 'line', x: 300, h: 30, n: 8, spacing: 60 }],
+    barrels: [{ x: 800 }],
+    exitGate: { x: 1150 },
+  },
+} satisfies Record<string, ChunkDef>);
+
 export function chunkById(id: string): ChunkDef {
   const c = CHUNKS[id];
   if (!c) throw new Error(`Unknown chunk ${id}`);

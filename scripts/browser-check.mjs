@@ -291,6 +291,14 @@ try {
           shots.bark = true;
         }
       }
+      // Boss fights: pace forward so enemies come into bark reach, and bark often.
+      if (s.phase === 'encounter') {
+        await page.keyboard.down('d');
+        if (now - lastBark > 300) {
+          await page.keyboard.press('k');
+          lastBark = now;
+        }
+      }
       if (s.phase === 'run' && now - lastJump > 1500 && s.grounded) {
         await page.keyboard.down('Space');
         await sleep(700);
@@ -302,7 +310,7 @@ try {
         await page.keyboard.up('Space');
         lastJump = Date.now();
       }
-      if (!shots.boss && s.bossPhase === 'window') {
+      if (!shots.boss && s.bossPhase === 'fight' && (s.bossHits ?? 0) >= 2) {
         await page.screenshot({ path: 'screenshots/08-boss.png' });
         shots.boss = true;
       }
@@ -374,7 +382,8 @@ try {
         // Duck under low signs (overhead hazards).
         const overhead = s.hazardsAhead.find((h) => h.bottom > 18 && h.dx + h.w > -50 && h.dx < 170);
         if (overhead && s.grounded && !w.__hold) {
-          if (!w.__duck) input.setStick(0, 0.95, true);
+          // A pumping pipe that is slamming down: ease back while ducking.
+          input.setStick(overhead.bottom < 26 && overhead.dx > 20 ? -0.9 : 0, 0.95, true);
           w.__duck = true;
         } else if (w.__duck) {
           input.setStick(0, 0, false);
@@ -382,7 +391,7 @@ try {
         }
         // Double-jump tall crate towers: second press near the top of the first jump.
         const tower = s.solidsAhead.find((c) => c.kind === 'crate' && c.dx > -30 && c.dx < 300 && c.top > 110 && c.top > s.height + 10);
-        if (tower && !s.grounded && !s.doubleUsed && s.vy > -60) {
+        if (tower && !s.grounded && !s.doubleUsed && s.vy > -300) {
           input.touchDown('jump', 77);
           w.__bot.doubles = (w.__bot.doubles ?? 0) + 1;
           w.__hold = { mode: 'gap', air: true };
@@ -433,19 +442,20 @@ try {
     await page.close();
   }
 
-  // ---------------------------------------------------------------- boss at base stats, no god mode
+  // ---------------------------------------------------------------- finales at base stats, no god mode
+  for (const fin of [{ chapter: 1, name: 'squirrel swarm' }, { chapter: 2, name: 'Pigeon Captain' }]) {
   page = await newPage();
-  await page.evaluate(() => {
+  await page.evaluate((fin) => {
     const p = JSON.parse(localStorage.getItem('homeward-hound.progress') ?? '{}');
     p.storySeen = true;
     p.upgrades = { tail: 0, recharge: 0, bark: 0 };
-    p.checkpoint = { chapter: 1, at: 'encounter' };
+    p.checkpoint = { chapter: fin.chapter, at: 'encounter' };
     localStorage.setItem('homeward-hound.progress', JSON.stringify(p));
-  });
+  }, fin);
   await page.reload();
   await waitScene(page, 'Title');
   await sleep(400);
-  await page.evaluate(() => { window.__HH__.manager().getScene('Title').scene.start('Game', { chapter: 1, startAt: 'encounter' }); });
+  await page.evaluate((ch) => { window.__HH__.manager().getScene('Title').scene.start('Game', { chapter: ch, startAt: 'encounter' }); }, fin.chapter);
   await waitScene(page, 'Game');
   {
     // In-page autopilot: reacts every animation frame using only what a player sees
@@ -464,8 +474,25 @@ try {
         }
         const now = performance.now();
         w.__bot.minHearts = Math.min(w.__bot.minHearts, s.hearts);
-        const threat = s.hazardsAhead.find((h) => h.dx > 30 && h.dx < 170);
-        if (threat && s.grounded && holdUntil === 0) {
+        // Bark anything in reach (swarm squirrels, nut piles).
+        const reach = s.barkTargetsAhead.find((t) => t.dx > 40 && t.dx < 60 + s.barkRange - 25 && t.bottom < s.height + 105 && t.top > s.height - 15);
+        if (reach && s.barkCooldown <= 0) {
+          input.touchDown('bark', 78);
+          input.touchUp(78);
+          w.__bot.barks++;
+        }
+        // Duck gliders at head height; jump anything along the floor.
+        // (The Pigeon Captain screeches before every swoop: duck on the warning.)
+        const glider = s.bossPhase === 'swoopWarn' || s.bossPhase === 'swoop' || s.hazardsAhead.find((h) => h.bottom > 18 && h.bottom < 70 && h.dx > -40 && h.dx < 200);
+        if (glider && s.grounded && holdUntil === 0) {
+          if (!w.__duck) input.setStick(0, 0.95, true);
+          w.__duck = true;
+        } else if (w.__duck && !glider) {
+          input.setStick(0, 0, false);
+          w.__duck = false;
+        }
+        const threat = s.hazardsAhead.find((h) => h.bottom < 18 && h.dx > 30 && h.dx < 170);
+        if (threat && s.grounded && holdUntil === 0 && !w.__duck) {
           input.touchDown('jump', 77);
           holdUntil = now + 380;
           w.__bot.jumps++;
@@ -473,11 +500,6 @@ try {
         if (holdUntil && now > holdUntil) {
           input.touchUp(77);
           holdUntil = 0;
-        }
-        if (s.bossPhase === 'window' && s.barkCooldown <= 0) {
-          input.touchDown('bark', 78);
-          input.touchUp(78);
-          w.__bot.barks++;
         }
         if (s.phase !== 'victory' && s.phase !== 'defeat') requestAnimationFrame(tick);
       };
@@ -491,9 +513,10 @@ try {
     const sc = await scenes(page);
     const bot = await page.evaluate(() => window.__bot);
     const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('homeward-hound.progress')));
-    check('trolley encounter is beatable at base stats without god mode', sc.includes('Results') && saved.checkpoint === null && saved.completedChapters.includes(1), `scenes=${sc} bot=${JSON.stringify(bot)}`);
+    check(`${fin.name} finale is beatable at base stats without god mode`, sc.includes('Results') && saved.checkpoint === null && saved.completedChapters.includes(fin.chapter), `scenes=${sc} bot=${JSON.stringify(bot)}`);
   }
   await page.close();
+  }
 
   // ---------------------------------------------------------------- retries do not leak
   page = await newPage();

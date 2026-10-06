@@ -17,6 +17,8 @@ export interface HudState {
   barkCooldown: number;
   bossHits: number | null;
   bossMax: number;
+  bossTitle: string;
+  bossIcon: string;
 }
 
 /** In-game HUD. All text is live; icons come from the asset registry. */
@@ -30,6 +32,13 @@ export class Hud {
   private barkIcon: Phaser.GameObjects.Image;
   private bossLabel: Phaser.GameObjects.Text;
   private bossPips: Phaser.GameObjects.Graphics;
+  private bossIcon: Phaser.GameObjects.Image;
+  private bossCount: Phaser.GameObjects.Text;
+  /** Displayed remaining fraction (eases down) and the white "damage" ghost behind it. */
+  private bossShown = 1;
+  private bossGhost = 1;
+  private bossShake = 0;
+  private lastBossHits = -1;
   private hint: Phaser.GameObjects.Container;
   private hintText: Phaser.GameObjects.Text;
   private hintBg: Phaser.GameObjects.Graphics;
@@ -71,8 +80,11 @@ export class Hud {
       onPause();
     });
 
-    this.bossLabel = fixed(scene.add.text(640, 66, 'LATCH', textStyle(20, CSS.butter)).setOrigin(0.5).setVisible(false));
+    // Boss bar: name, portrait, a big segmented health bar and a count.
     this.bossPips = fixed(scene.add.graphics());
+    this.bossLabel = fixed(scene.add.text(640, 76, '', textStyle(26, CSS.butter, 6)).setOrigin(0.5).setVisible(false));
+    this.bossIcon = fixed(scene.add.image(352, 112, 'squirrel_taunt').setScale(0.42).setVisible(false));
+    this.bossCount = fixed(scene.add.text(930, 112, '', textStyle(24, CSS.white, 5)).setOrigin(0, 0.5).setVisible(false));
 
     this.hintBg = scene.add.graphics();
     this.hintText = scene.add.text(0, 0, '', textStyle(28)).setOrigin(0.5);
@@ -83,7 +95,7 @@ export class Hud {
     this.puRings = scene.add.graphics().setScrollFactor(0).setDepth(DEPTH.hud);
     for (let i = 0; i < 4; i++) this.puIcons.push(scene.add.image(48 + i * 58, 182, 'pu_magnet').setScrollFactor(0).setDepth(DEPTH.hud + 1).setScale(ART_SCALE * 0.85).setVisible(false));
     this.rightItems = [this.wagIcon, this.burstIcon, this.barkIcon, this.pauseButton].map((o) => ({ o, x: o.x }));
-    this.centerItems = [this.bossLabel, this.hint].map((o) => ({ o, x: o.x }));
+    this.centerItems = [this.bossLabel, this.bossIcon, this.bossCount, this.hint].map((o) => ({ o, x: o.x }));
     this.layout(scene.scale.width);
   }
 
@@ -216,18 +228,8 @@ export class Hud {
       this.puRings.strokePath();
     });
 
-    // Boss pips.
-    this.bossPips.clear();
-    this.bossLabel.setVisible(s.bossHits !== null);
-    if (s.bossHits !== null) {
-      for (let i = 0; i < s.bossMax; i++) {
-        const x = 640 + this.dx / 2 + (i - (s.bossMax - 1) / 2) * 40;
-        this.bossPips.fillStyle(COLOR.outline, 1);
-        this.bossPips.fillCircle(x, 98, 14);
-        this.bossPips.fillStyle(i < s.bossHits ? COLOR.butter : 0x5c4560, 1);
-        this.bossPips.fillCircle(x, 98, 10);
-      }
-    }
+    // Boss bar.
+    this.drawBossBar(dt, s);
 
     if (this.hintT > 0) {
       this.hintT -= dt;
@@ -235,5 +237,57 @@ export class Hud {
       if (this.hintT < 0.4) this.hint.setAlpha(Math.max(0, this.hintT / 0.4));
       if (this.hintT <= 0) this.hint.setVisible(false);
     }
+  }
+
+  private drawBossBar(dt: number, s: HudState): void {
+    const g = this.bossPips;
+    g.clear();
+    const on = s.bossHits !== null;
+    this.bossLabel.setVisible(on);
+    this.bossIcon.setVisible(on);
+    this.bossCount.setVisible(on);
+    if (!on) {
+      this.lastBossHits = -1;
+      return;
+    }
+    const hits = s.bossHits ?? 0;
+    const left = Math.max(0, s.bossMax - hits);
+    const frac = left / Math.max(1, s.bossMax);
+    if (this.lastBossHits >= 0 && hits > this.lastBossHits) this.bossShake = 0.35;
+    if (this.lastBossHits < 0) this.bossShown = this.bossGhost = frac;
+    this.lastBossHits = hits;
+    this.bossShown += (frac - this.bossShown) * Math.min(1, dt * 14);
+    // The white ghost lingers, then drains after the real bar.
+    if (this.bossGhost > this.bossShown) this.bossGhost = Math.max(this.bossShown, this.bossGhost - dt * (this.bossShake > 0 ? 0 : 0.6));
+    this.bossShake = Math.max(0, this.bossShake - dt);
+    const shake = this.bossShake > 0 ? Math.sin(this.bossShake * 90) * 5 * (this.bossShake / 0.35) : 0;
+
+    const cx = 640 + this.dx / 2 + shake;
+    const w = 520;
+    const h = 30;
+    const x = cx - w / 2;
+    const y = 98;
+    this.bossLabel.setText(s.bossTitle).setX(cx);
+    if (this.bossIcon.texture.key !== s.bossIcon && s.bossIcon) this.bossIcon.setTexture(s.bossIcon);
+    this.bossIcon.setPosition(x - 34, y + h / 2 - 2).setScale(s.bossIcon.startsWith('squirrel') ? 0.42 : ART_SCALE * 0.5);
+    this.bossCount.setText(`${left} / ${s.bossMax}`).setPosition(x + w + 16, y + h / 2);
+    // Frame.
+    g.fillStyle(COLOR.outline, 0.45).fillRoundedRect(x - 70, y - 44, w + 160, h + 60, 22);
+    g.fillStyle(COLOR.outline, 1).fillRoundedRect(x - 5, y - 5, w + 10, h + 10, 12);
+    g.fillStyle(0x4a3550, 1).fillRoundedRect(x, y, w, h, 9);
+    // Ghost (recent damage) then the live bar with a gloss strip.
+    if (this.bossGhost > 0.001) g.fillStyle(0xfff6e2, 0.9).fillRoundedRect(x, y, w * this.bossGhost, h, 9);
+    if (this.bossShown > 0.001) {
+      const low = frac <= 0.3;
+      g.fillStyle(low ? 0xe0503f : 0xf07562, 1).fillRoundedRect(x, y, w * this.bossShown, h, 9);
+      g.fillStyle(0xffffff, 0.3).fillRoundedRect(x + 6, y + 4, Math.max(0, w * this.bossShown - 12), h * 0.32, 5);
+    }
+    // One notch per enemy.
+    g.lineStyle(3, COLOR.outline, 0.8);
+    for (let i = 1; i < s.bossMax; i++) {
+      const nx = x + (w * i) / s.bossMax;
+      g.lineBetween(nx, y + 2, nx, y + h - 2);
+    }
+    g.lineStyle(3, COLOR.outline, 1).strokeRoundedRect(x, y, w, h, 9);
   }
 }

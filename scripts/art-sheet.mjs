@@ -11,7 +11,7 @@ process.on('exit', () => server.kill());
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=swiftshader', '--enable-webgl'] });
 const page = await browser.newPage({ viewport: { width: 1400, height: 900 }, deviceScaleFactor: Number(process.env.DPR ?? 1) });
 page.on('pageerror', (e) => console.log('pageerror', e.message));
-await page.goto(`http://localhost:${PORT}/`);
+await page.goto(`http://localhost:${PORT}/?intro=0`);
 await page.waitForFunction(() => window.__HH__?.scenes?.().includes('Title'), null, { timeout: 30000 });
 await new Promise((r) => setTimeout(r, 1200));
 await page.screenshot({ path: out.replace('.png', '-title.png') });

@@ -99,6 +99,14 @@
     96,
     64
   ],
+  "hydrant": [
+    72,
+    88
+  ],
+  "flowerpot": [
+    88,
+    84
+  ],
   "logo": [
     876,
     119
@@ -126,6 +134,10 @@
   "card_ch6": [
     556,
     200
+  ],
+  "bg_street_skyline": [
+    734,
+    150
   ],
   "bg_depot_skyline": [
     322,

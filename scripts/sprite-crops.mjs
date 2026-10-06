@@ -33,6 +33,9 @@ export const SPRITE_CROPS = [
   { key: 'crate', sheet: E, rect: [314, 846, 124, 108], size: [128, 128] },
   { key: 'crate_parcel', sheet: E, rect: [28, 860, 130, 96], size: [128, 128] },
   { key: 'tyre', sheet: E, rect: [448, 862, 128, 90], size: [96, 64] },
+  // Street (chapter 2) low hazards from the prop row.
+  { key: 'hydrant', sheet: E, rect: [592, 852, 86, 112], size: [72, 88] },
+  { key: 'flowerpot', sheet: E, rect: [1072, 852, 96, 104], size: [88, 84] },
   // Title logo from the sheet header (keeps the swoosh and the little accent dashes).
   { key: 'logo', sheet: H, rect: [335, 6, 870, 114], keepFrac: 0.004 },
   // Chapter postcards for the level select (raw crops of the environment panels).
@@ -43,5 +46,6 @@ export const SPRITE_CROPS = [
   { key: 'card_ch5', sheet: E, rect: [24, 626, 556, 176], raw: true, size: [556, 200] },
   { key: 'card_ch6', sheet: E, rect: [786, 626, 556, 176], raw: true, size: [556, 200] },
   // Scenery: the distant skyline of the "Delivery Depot" panel (raw: background kept).
+  { key: 'bg_street_skyline', sheet: E, rect: [780, 140, 734, 150], raw: true },
   { key: 'bg_depot_skyline', sheet: E, rect: [300, 140, 322, 128], raw: true },
 ];
