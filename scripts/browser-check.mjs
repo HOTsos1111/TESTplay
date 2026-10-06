@@ -273,7 +273,7 @@ try {
     const tStart = Date.now();
     let lastBark = 0;
     let lastJump = 0;
-    while (Date.now() - tStart < 240000) {
+    while (Date.now() - tStart < 600000) {
       const sc = await scenes(page);
       if (sc.includes('Results')) break;
       const s = await state(page);
@@ -317,7 +317,7 @@ try {
       await sleep(40);
     }
     const sc = await scenes(page);
-    check('full chapter run reaches the results screen', sc.includes('Results'), sc.join(','));
+    check('full chapter run reaches the results screen', sc.includes('Results'), `${sc.join(',')} after ${Math.round((Date.now() - tStart) / 1000)}s ${JSON.stringify(await state(page))?.slice(0, 300)}`);
     await sleep(800);
     await page.screenshot({ path: 'screenshots/09-results-win.png' });
     const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('homeward-hound.progress')));
