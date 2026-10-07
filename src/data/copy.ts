@@ -47,13 +47,3 @@ export const HINTS: Record<string, HintCopy> = {
   encounter_pigeon: { keys: 'Jump the rolls, DUCK the swoops, BARK (X) when he lands!', touch: 'Jump the rolls, DUCK the swoops, BARK when he lands!' },
 };
 
-export const STORY_PANELS = [
-  'Nap time. Favourite squeaky toy. Life is perfect.',
-  'Something is sneaking over the fence…',
-  'BOSS NUTSO, king of the squirrels. He wants THE toy.',
-  'SNATCH! Hey — that’s MINE!',
-  'He leaps onto a delivery van… so do we!',
-  'SLAM! The doors shut. The van rumbles away. “Yip.”',
-  'Miles from home. And Nutso’s minions are everywhere.',
-  'Sniff… the toy, that squirrel, and home: all THIS way!',
-] as const;
