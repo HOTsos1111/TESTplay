@@ -110,6 +110,9 @@ try {
   await waitScene(page, 'ChapterMap', 8000);
   await sleep(600);
   await page.screenshot({ path: 'screenshots/02e-level-select.png' });
+  // Enter opens the level card, Enter again presses Let's Go.
+  await page.keyboard.press('Enter');
+  await sleep(500);
   await page.keyboard.press('Enter');
   await waitScene(page, 'Game', 8000);
   check('launch plays story and how-to-play, then the level select starts chapter 1', true);
@@ -267,6 +270,8 @@ try {
     await page.keyboard.press('Enter');
     await waitScene(page, 'ChapterMap');
     await sleep(400);
+    await page.keyboard.press('Enter');
+    await sleep(500);
     await page.keyboard.press('Enter');
     await waitScene(page, 'Game');
     const shots = { hover: false, bark: false, boss: false };
