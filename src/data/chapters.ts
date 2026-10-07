@@ -1,3 +1,4 @@
+import type { MusicKey } from '../systems/AudioManager';
 import type { ThemeId } from '../systems/LevelTheme';
 
 export interface ChapterDef {
@@ -17,7 +18,7 @@ export interface ChapterDef {
   theme: ThemeId;
   /** Scenery zones, starting at the given chunk index. */
   zones: { chunk: number; near: string; mid: string; indoor: boolean }[];
-  music: 'depot' | 'title';
+  music: MusicKey;
 }
 
 export const CHAPTERS: ChapterDef[] = [
@@ -57,7 +58,7 @@ export const CHAPTERS: ChapterDef[] = [
     ],
     encounterId: 'swarm',
     theme: 'depot',
-    music: 'depot',
+    music: 'level01',
     zones: [
       { chunk: 0, near: 'depot_near', mid: 'depot_mid', indoor: true },
       { chunk: 4, near: 'depot_near_sorting', mid: 'depot_mid', indoor: true },
@@ -96,7 +97,7 @@ export const CHAPTERS: ChapterDef[] = [
     ],
     encounterId: 'pigeon',
     theme: 'street',
-    music: 'depot',
+    music: 'level01',
     zones: [
       { chunk: 0, near: 'street_near_bakery', mid: 'street_mid', indoor: false },
       { chunk: 4, near: 'street_near_cafe', mid: 'street_mid', indoor: false },
@@ -107,22 +108,22 @@ export const CHAPTERS: ChapterDef[] = [
   {
     id: 3, key: 'city_park', title: 'Fowl Play', objective: 'Cross the park to the residential shortcut.',
     opening: 'Nice pond. Unfriendly goose.', encounter: 'The bridge goose',
-    theme: 'street', implemented: false, speedStart: 350, speedEnd: 400, chunks: [], encounterId: null, music: 'depot', zones: [],
+    theme: 'street', implemented: false, speedStart: 350, speedEnd: 400, chunks: [], encounterId: null, music: 'level01', zones: [],
   },
   {
     id: 4, key: 'back_alleys', title: 'Alley Oops', objective: 'Find a route through the back alleys.',
     opening: 'My nose says shortcut. My eyes say bins.', encounter: 'The raccoon and the junk cart',
-    theme: 'street', implemented: false, speedStart: 360, speedEnd: 420, chunks: [], encounterId: null, music: 'depot', zones: [],
+    theme: 'street', implemented: false, speedStart: 360, speedEnd: 420, chunks: [], encounterId: null, music: 'level01', zones: [],
   },
   {
     id: 5, key: 'neighbourhood', title: 'Familiar Territory', objective: 'Reach your own neighbourhood.',
     opening: 'I know that fence!', encounter: 'A race with the yard dog',
-    theme: 'street', implemented: false, speedStart: 370, speedEnd: 440, chunks: [], encounterId: null, music: 'depot', zones: [],
+    theme: 'street', implemented: false, speedStart: 370, speedEnd: 440, chunks: [], encounterId: null, music: 'level01', zones: [],
   },
   {
     id: 6, key: 'home', title: 'Almost Home', objective: 'Take your toy back from Boss Nutso.',
     opening: 'That smell. Squirrel. BIG squirrel.', encounter: 'Boss battle: Boss Nutso, king of the squirrels',
-    theme: 'street', implemented: false, speedStart: 380, speedEnd: 460, chunks: [], encounterId: null, music: 'depot', zones: [],
+    theme: 'street', implemented: false, speedStart: 380, speedEnd: 460, chunks: [], encounterId: null, music: 'level01', zones: [],
   },
 ];
 

@@ -248,7 +248,7 @@ export class GameScene extends Phaser.Scene {
     if (this.startAt === 'encounter') {
       this.startEncounter();
     } else {
-      Audio.playMusic('depot');
+      Audio.playMusic(this.chapter.music);
       this.hud.banner(`Chapter ${this.chapter.id}: ${this.chapter.title}`, this.chapter.opening, 2.6);
     }
 

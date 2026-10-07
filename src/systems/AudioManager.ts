@@ -10,8 +10,12 @@ const VOICE_CAP: Partial<Record<SfxKey, number>> = { bone: 4, step: 2, bark: 2, 
 
 const midiHz = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 
-/** Recorded songs that stand in for a procedural track. */
-const SONGS: Partial<Record<keyof typeof MUSIC, string>> = { title: 'audio/theme.mp3' };
+/** Music cues: the procedural tracks plus recorded songs that have a synth fallback. */
+export type MusicKey = keyof typeof MUSIC | 'level01';
+/** Recorded songs, played instead of the procedural track for that cue. */
+const SONGS: Partial<Record<MusicKey, string>> = { title: 'audio/theme.mp3', level01: 'audio/level_01.mp3' };
+/** Synth track used for a song-only cue while its recording loads (or if it fails). */
+const FALLBACK: Partial<Record<MusicKey, keyof typeof MUSIC>> = { level01: 'depot' };
 /** Seconds of overlap when a song loops back to its start. */
 const SONG_XFADE = 1.2;
 /** Mastered songs are much louder than the synth band. */
@@ -177,11 +181,11 @@ class AudioManagerImpl {
 
   // ------------------------------------------------------------- music
 
-  playMusic(key: keyof typeof MUSIC): void {
+  playMusic(key: MusicKey): void {
     if (this.trackKey === key) return;
     this.stopScheduler();
     this.trackKey = key;
-    this.track = MUSIC[key];
+    this.track = MUSIC[FALLBACK[key] ?? (key as keyof typeof MUSIC)];
     this.step = 0;
     this.songPos = 0;
     this.musicPaused = false;
@@ -289,7 +293,7 @@ class AudioManagerImpl {
   // ------------------------------------------------------------- songs
 
   private get songUrl(): string | undefined {
-    return this.trackKey ? SONGS[this.trackKey as keyof typeof MUSIC] : undefined;
+    return this.trackKey ? SONGS[this.trackKey as MusicKey] : undefined;
   }
 
   /** Keeps a recorded song looping, cross-fading its end into its start. */
