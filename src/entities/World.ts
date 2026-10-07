@@ -780,6 +780,15 @@ export class LowBar extends Entity {
     const g = this.chains;
     g.clear();
     const len = bottom - LowBar.H + 30;
+    if (theme().level) {
+      // Outdoors there is no ceiling: the obstacle hangs from a crane line on two ropes.
+      for (const cx of [this.x + 20, this.x + 88]) {
+        g.fillStyle(0x302331, 1).fillRect(cx - 3, -20, 6, len + 6);
+        g.fillStyle(0xb98a52, 1).fillRect(cx - 1.5, -20, 3, len + 6);
+        for (let ty = (this.t * 40) % 16; ty < len; ty += 16) g.fillStyle(0x8a6236, 1).fillRect(cx - 1.5, ty - 20, 3, 4);
+      }
+      return;
+    }
     const pole = theme().lowbarPole;
     for (const cx of [this.x + 11, this.x + 82]) {
       g.fillStyle(pole.dark, 1).fillRect(cx - 2, -20, 18, len);

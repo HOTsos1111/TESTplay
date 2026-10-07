@@ -127,20 +127,27 @@ try {
   let sawHover = false;
   let minWag = 1;
   const t0 = Date.now();
-  while (Date.now() - t0 < 2600) {
+  // Run until he has hovered and landed again (slow headless frames make wall time unreliable).
+  let landedAfterHover = false;
+  while (Date.now() - t0 < 15000 && !landedAfterHover) {
     const s = await state(page);
     if (wasGrounded && !s.grounded && s.vy < -200) jumps++;
     wasGrounded = s.grounded;
     sawHover ||= s.hovering;
     minWag = Math.min(minWag, s.wag);
+    landedAfterHover = sawHover && s.grounded;
     await sleep(16);
   }
+  await sleep(400);
   const sHeld = await state(page);
   await page.keyboard.up('Space');
   check('holding jump across landing triggers only one jump', jumps === 1, `jumps=${jumps}`);
   check('holding jump while falling hovers and drains the wag meter', sawHover && minWag < 0.9, `minWag=${minWag.toFixed(2)}`);
   check('hero is back on the ground while jump is still held', sHeld.grounded);
-  await sleep(1800);
+  {
+    const t1 = Date.now();
+    while (Date.now() - t1 < 12000 && (await state(page)).wag < minWag + 0.55) await sleep(100);
+  }
   const sRecharged = await state(page);
   check('wag meter recharges on the ground', sRecharged.wag > minWag + 0.5, `wag=${sRecharged.wag.toFixed(2)}`);
 
@@ -229,10 +236,10 @@ try {
   for (let i = 0; i < 20; i++) {
     const s = await state(page);
     if (!s) break;
-    const hz = s.hazardsAhead.find((h) => h.bottom < 18 && h.dx > 0 && !s.gapsAhead.some((g) => g[0] < h.dx));
+    const hz = s.hazardsAhead.find((h) => h.bottom < 18 && h.dx > 400 && !s.gapsAhead.some((g) => g[0] < h.dx));
     if (hz) {
       lineup = { from: Math.round(s.x), hz };
-      await page.evaluate((x) => window.__HH__.teleport?.()?.(x), s.x + hz.dx - 1000);
+      await page.evaluate((x) => window.__HH__.teleport?.()?.(x), s.x + hz.dx - 300);
       break;
     }
     await page.evaluate((x) => window.__HH__.teleport?.()?.(x), s.x + 1200);
@@ -367,6 +374,20 @@ try {
           return;
         }
         const now = performance.now();
+        // Time a jump from how fast the nearest low threat is closing in.
+        const closing = (s, now) => {
+          const low = s.hazardsAhead.filter((h) => h.bottom < 18 && h.dx > -20).sort((a, b) => a.dx - b.dx)[0];
+          if (!low) {
+            w.__lp = null;
+            return false;
+          }
+          let v = w.__lv ?? 400;
+          if (w.__lp && now > w.__lp.t) v = Math.max(60, Math.min(1400, (w.__lp.dx - low.dx) / ((now - w.__lp.t) / 1000)));
+          w.__lp = { dx: low.dx, t: now };
+          w.__lv = v;
+          const tc = (low.dx - 30) / v;
+          return tc > 0 && tc < 0.3;
+        };
         if (lastHearts !== null && s.hearts < lastHearts) w.__bot.hits.push(Math.round(s.x));
         lastHearts = s.hearts;
         w.__bot.minHearts = Math.min(w.__bot.minHearts, s.hearts);
@@ -376,6 +397,40 @@ try {
           input.touchDown('bark', 78);
           input.touchUp(78);
           w.__bot.barks++;
+        }
+        // Boss arena: read the warning, keep clear of marked spots, jump the low
+        // lane, duck the high one, and run in to bark while the guard is down.
+        if (s.phase === 'encounter' && 'bossAttack' in s) {
+          const a = s.bossAttack;
+          let mx = 0;
+          let duck = false;
+          if (s.bossPhase === 'open') {
+            mx = s.screenX < 620 ? 1 : 0;
+            if (s.barkCooldown <= 0) {
+              input.touchDown('bark', 78);
+              input.touchUp(78);
+              w.__bot.barks++;
+            }
+          } else if (a) {
+            const tx = a.targetX - (s.x - s.screenX);
+            if (a.kind === 'volley' || a.kind === 'drop' || a.kind === 'geyser') mx = Math.abs(s.screenX - tx) > 260 ? 0 : tx > 400 ? -1 : 1;
+            else mx = s.screenX > 300 ? -1 : 0;
+            duck = a.height === 'high';
+          } else mx = s.screenX > 300 ? -1 : s.screenX < 240 ? 1 : 0;
+          input.setStick(duck ? 0 : mx, duck ? 0.95 : 0, duck || mx !== 0);
+          if (closing(s, now) && s.grounded && !w.__hold && !duck) {
+            input.touchDown('jump', 77);
+            w.__hold = { mode: 'hop', air: false };
+            w.__bot.jumps++;
+          } else if (w.__hold && !s.grounded) w.__hold.air = true;
+          if (w.__hold && w.__hold.air && s.vy > 0) {
+            input.touchUp(77);
+            w.__hold = null;
+          }
+          w.__bot.frames++;
+          w.__bot.last = { x: Math.round(s.x), phase: s.phase, boss: s.bossPhase, hits: s.bossHits };
+          if (s.phase !== 'victory' && s.phase !== 'defeat') requestAnimationFrame(tick);
+          return;
         }
         // Long gaps (painted arrows) need a burst first.
         const longGap = s.gapsAhead.find((g) => g[1] - g[0] > 560 && g[0] > 60 && g[0] < 380);
@@ -480,6 +535,20 @@ try {
           return;
         }
         const now = performance.now();
+        // Time a jump from how fast the nearest low threat is closing in.
+        const closing = (s, now) => {
+          const low = s.hazardsAhead.filter((h) => h.bottom < 18 && h.dx > -20).sort((a, b) => a.dx - b.dx)[0];
+          if (!low) {
+            w.__lp = null;
+            return false;
+          }
+          let v = w.__lv ?? 400;
+          if (w.__lp && now > w.__lp.t) v = Math.max(60, Math.min(1400, (w.__lp.dx - low.dx) / ((now - w.__lp.t) / 1000)));
+          w.__lp = { dx: low.dx, t: now };
+          w.__lv = v;
+          const tc = (low.dx - 30) / v;
+          return tc > 0 && tc < 0.3;
+        };
         w.__bot.minHearts = Math.min(w.__bot.minHearts, s.hearts);
         const bark = () => {
           if (s.barkCooldown > 0) return;
@@ -512,8 +581,7 @@ try {
           input.setStick(mx, 0, mx !== 0);
           w.__duck = false;
         }
-        const threat = s.hazardsAhead.find((h) => h.bottom < 18 && h.dx > 30 && h.dx < 170);
-        if (threat && s.grounded && holdUntil === 0 && !w.__duck) {
+        if (closing(s, now) && s.grounded && holdUntil === 0 && !w.__duck) {
           input.touchDown('jump', 77);
           holdUntil = now + 380;
           w.__bot.jumps++;
