@@ -3,7 +3,7 @@ import { MUSIC, type TrackDef } from '../data/music';
 export type SfxKey =
   | 'bark' | 'jump' | 'land' | 'step' | 'bone' | 'hit' | 'defeat' | 'box_break' | 'boss_hit' | 'boss_clear'
   | 'ui_select' | 'ui_confirm' | 'ui_back' | 'whistle' | 'squirrel' | 'throw' | 'parcel' | 'squeak' | 'retreat'
-  | 'burst_stretch' | 'burst_snap' | 'burst_ready' | 'powerup' | 'powerdown' | 'shield_pop' | 'sonic' | 'double_jump' | 'duck' | 'nut_land' | 'squirrel_angry';
+  | 'burst_stretch' | 'burst_snap' | 'burst_ready' | 'powerup' | 'powerdown' | 'shield_pop' | 'sonic' | 'double_jump' | 'duck' | 'nut_land' | 'squirrel_angry' | 'page';
 
 /** Maximum simultaneous voices per effect. */
 const VOICE_CAP: Partial<Record<SfxKey, number>> = { bone: 4, step: 2, bark: 2, land: 2, parcel: 3, box_break: 2 };
@@ -703,6 +703,26 @@ class AudioManagerImpl {
       }
       case 'ui_select':
         return this.oneShot('sine', 880, 760, t, 0.05, 0.16);
+      case 'page': {
+        // Paper page flip: a rising swish, then the page settling.
+        const src = ctx.createBufferSource();
+        src.buffer = this.noise;
+        const f = ctx.createBiquadFilter();
+        f.type = 'bandpass';
+        f.Q.value = 0.9;
+        f.frequency.setValueAtTime(900, t);
+        f.frequency.exponentialRampToValueAtTime(4200, t + 0.22);
+        f.frequency.exponentialRampToValueAtTime(1800, t + 0.34);
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.linearRampToValueAtTime(0.34, t + 0.08);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.36);
+        src.connect(f).connect(g).connect(this.sfxBus);
+        src.start(t, Math.random() * 0.5);
+        src.stop(t + 0.4);
+        this.noiseHit(t + 0.3, 0.06, 0.14, 'lowpass', 700);
+        return t + 0.4;
+      }
       case 'ui_confirm':
         this.oneShot('sine', 660, 640, t, 0.05, 0.18);
         return this.oneShot('sine', 990, 980, t + 0.06, 0.09, 0.18);
