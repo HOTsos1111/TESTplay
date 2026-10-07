@@ -158,7 +158,7 @@ export const BOSSES: Record<number, BossDef> = {
     tiers: [
       [{ kind: 'swoop', height: 'low' }, { kind: 'sweep', shot: P('h3'), height: 'low' }],
       [{ kind: 'swoop', height: 'low' }, { kind: 'sweep', shot: P('h3'), height: 'low' }, { kind: 'volley', shot: P('h1', [0, 0, 0.33, 1]), n: 2 }],
-      [{ kind: 'swoop', height: 'low' }, { kind: 'swoop', height: 'low', speed: 640 }, { kind: 'sweep', shot: P('h3'), height: 'low' }],
+      [{ kind: 'swoop', height: 'low' }, { kind: 'sweep', shot: P('h3'), height: 'low' }, { kind: 'swoop', height: 'low', speed: 540 }],
     ],
   },
   9: {

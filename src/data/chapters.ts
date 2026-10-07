@@ -60,7 +60,7 @@ export const CHAPTERS: ChapterDef[] = [
     doubleJump: false,
     theme: 'depot',
     art: 2,
-    music: 'level01',
+    music: 'level02',
     zones: [],
   },
   {
@@ -78,7 +78,7 @@ export const CHAPTERS: ChapterDef[] = [
     doubleJump: false,
     theme: 'depot',
     art: 3,
-    music: 'level01',
+    music: 'level03',
     zones: [],
   },
   {
@@ -96,7 +96,7 @@ export const CHAPTERS: ChapterDef[] = [
     doubleJump: false,
     theme: 'depot',
     art: 4,
-    music: 'level01',
+    music: 'level04',
     zones: [],
   },
   {
@@ -114,7 +114,7 @@ export const CHAPTERS: ChapterDef[] = [
     doubleJump: false,
     theme: 'depot',
     art: 5,
-    music: 'level01',
+    music: 'level05',
     zones: [],
   },
   {
@@ -132,7 +132,7 @@ export const CHAPTERS: ChapterDef[] = [
     doubleJump: true,
     theme: 'depot',
     art: 6,
-    music: 'level01',
+    music: 'level06',
     zones: [],
   },
   {
@@ -150,7 +150,7 @@ export const CHAPTERS: ChapterDef[] = [
     doubleJump: true,
     theme: 'depot',
     art: 7,
-    music: 'level01',
+    music: 'level07',
     zones: [],
   },
   {
@@ -168,7 +168,7 @@ export const CHAPTERS: ChapterDef[] = [
     doubleJump: true,
     theme: 'depot',
     art: 8,
-    music: 'level01',
+    music: 'level08',
     zones: [],
   },
   {
@@ -186,7 +186,7 @@ export const CHAPTERS: ChapterDef[] = [
     doubleJump: true,
     theme: 'depot',
     art: 9,
-    music: 'level01',
+    music: 'level09',
     zones: [],
   },
 ];

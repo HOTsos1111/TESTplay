@@ -11,11 +11,15 @@ const VOICE_CAP: Partial<Record<SfxKey, number>> = { bone: 4, step: 2, bark: 2, 
 const midiHz = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 
 /** Music cues: the procedural tracks plus recorded songs that have a synth fallback. */
-export type MusicKey = keyof typeof MUSIC | 'level01';
+const LEVEL_SONGS = ['level01', 'level02', 'level03', 'level04', 'level05', 'level06', 'level07', 'level08', 'level09'] as const;
+export type MusicKey = keyof typeof MUSIC | (typeof LEVEL_SONGS)[number];
 /** Recorded songs, played instead of the procedural track for that cue. */
-const SONGS: Partial<Record<MusicKey, string>> = { title: 'audio/theme.mp3', level01: 'audio/level_01.mp3' };
+const SONGS: Partial<Record<MusicKey, string>> = {
+  title: 'audio/theme.mp3',
+  ...Object.fromEntries(LEVEL_SONGS.map((k, i) => [k, `audio/level_0${i + 1}.mp3`])),
+};
 /** Synth track used for a song-only cue while its recording loads (or if it fails). */
-const FALLBACK: Partial<Record<MusicKey, keyof typeof MUSIC>> = { level01: 'depot' };
+const FALLBACK: Partial<Record<MusicKey, keyof typeof MUSIC>> = Object.fromEntries(LEVEL_SONGS.map((k) => [k, 'depot']));
 /** Seconds of overlap when a song loops back to its start. */
 const SONG_XFADE = 1.2;
 /** Mastered songs are much louder than the synth band. */
@@ -70,7 +74,7 @@ class AudioManagerImpl {
 
   constructor() {
     // Fetch the recorded songs early so they are ready once audio unlocks.
-    for (const url of Object.values(SONGS)) this.fetchSong(url);
+    if (SONGS.title) this.fetchSong(SONGS.title);
   }
 
   private fetchSong(url: string): Promise<ArrayBuffer | null> {
