@@ -10,6 +10,20 @@ const VOICE_CAP: Partial<Record<SfxKey, number>> = { bone: 4, step: 2, bark: 2, 
 
 const midiHz = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 
+/** Recorded songs that stand in for a procedural track. */
+const SONGS: Partial<Record<keyof typeof MUSIC, string>> = { title: 'audio/theme.mp3' };
+/** Seconds of overlap when a song loops back to its start. */
+const SONG_XFADE = 1.2;
+/** Mastered songs are much louder than the synth band. */
+const SONG_LEVEL = 0.55;
+
+interface SongVoice {
+  src: AudioBufferSourceNode;
+  gain: GainNode;
+  /** Context time at which the song's position 0 played. */
+  anchor: number;
+}
+
 /**
  * Procedural temporary audio (no recorded assets yet), built as a small cartoon
  * band and a box of slapstick sound effects. Graph:
@@ -41,6 +55,30 @@ class AudioManagerImpl {
   private overlayOn = false;
   private overlayNote = 4;
   private lastBone = 0;
+  private songBytes = new Map<string, Promise<ArrayBuffer | null>>();
+  private songBufs = new Map<string, AudioBuffer>();
+  private songDecoding = new Set<string>();
+  private songBus: GainNode | null = null;
+  private songVoices: SongVoice[] = [];
+  private songNext = 0;
+  /** Where a paused song picks up again. */
+  private songPos = 0;
+
+  constructor() {
+    // Fetch the recorded songs early so they are ready once audio unlocks.
+    for (const url of Object.values(SONGS)) this.fetchSong(url);
+  }
+
+  private fetchSong(url: string): Promise<ArrayBuffer | null> {
+    let p = this.songBytes.get(url);
+    if (!p) {
+      p = fetch(url)
+        .then((r) => (r.ok ? r.arrayBuffer() : null))
+        .catch(() => null);
+      this.songBytes.set(url, p);
+    }
+    return p;
+  }
 
   get unlocked(): boolean {
     return !!this.ctx && this.ctx.state === 'running';
@@ -91,6 +129,9 @@ class AudioManagerImpl {
         this.musicBus.connect(this.master);
         this.overlayBus.connect(this.musicBus);
         this.sfxBus.connect(this.master);
+        // Songs skip the room reverb: they are already mixed.
+        this.songBus = ctx.createGain();
+        this.songBus.connect(this.master);
         const musicSend = ctx.createGain();
         musicSend.gain.value = 0.28;
         this.musicBus.connect(musicSend).connect(this.reverbIn);
@@ -120,6 +161,8 @@ class AudioManagerImpl {
     this.musicBus.gain.setValueAtTime(this.musicPaused ? 0 : this.musicVol * 0.5, t);
     this.sfxBus.gain.cancelScheduledValues(t);
     this.sfxBus.gain.setValueAtTime(this.sfxVol, t);
+    this.songBus?.gain.cancelScheduledValues(t);
+    this.songBus?.gain.setValueAtTime(this.musicPaused ? 0 : this.musicVol * SONG_LEVEL, t);
   }
 
   /** Suspend everything (tab hidden). */
@@ -140,6 +183,7 @@ class AudioManagerImpl {
     this.trackKey = key;
     this.track = MUSIC[key];
     this.step = 0;
+    this.songPos = 0;
     this.musicPaused = false;
     if (this.ctx) {
       this.applyVolumes();
@@ -201,6 +245,7 @@ class AudioManagerImpl {
     this.stopScheduler();
     this.trackKey = null;
     this.track = null;
+    this.songPos = 0;
   }
 
   /** Fade music out and halt scheduling (pause). */
@@ -222,6 +267,8 @@ class AudioManagerImpl {
     this.musicBus.gain.cancelScheduledValues(t);
     this.musicBus.gain.setValueAtTime(0, t);
     this.musicBus.gain.linearRampToValueAtTime(this.musicVol * 0.5, t + 0.25);
+    this.songBus?.gain.cancelScheduledValues(t);
+    this.songBus?.gain.setValueAtTime(this.musicVol * SONG_LEVEL, t);
     if (this.trackKey) this.startScheduler();
   }
 
@@ -236,12 +283,92 @@ class AudioManagerImpl {
       window.clearInterval(this.timer);
       this.timer = null;
     }
+    this.stopSong();
+  }
+
+  // ------------------------------------------------------------- songs
+
+  private get songUrl(): string | undefined {
+    return this.trackKey ? SONGS[this.trackKey as keyof typeof MUSIC] : undefined;
+  }
+
+  /** Keeps a recorded song looping, cross-fading its end into its start. */
+  private scheduleSong(url: string): void {
+    const ctx = this.ctx!;
+    const buf = this.songBufs.get(url);
+    if (!buf) {
+      if (!this.songDecoding.has(url)) {
+        this.songDecoding.add(url);
+        void this.fetchSong(url)
+          .then((bytes) => (bytes ? ctx.decodeAudioData(bytes.slice(0)) : null))
+          .then((b) => b && this.songBufs.set(url, b))
+          .catch(() => undefined)
+          .finally(() => this.songDecoding.delete(url));
+      }
+      return;
+    }
+    const now = ctx.currentTime;
+    if (!this.songVoices.length) {
+      const pos = this.songPos < buf.duration - SONG_XFADE * 2 ? this.songPos : 0;
+      this.startSongVoice(buf, now + 0.05, pos, pos > 0 ? 0.3 : 0.05);
+    } else if (now >= this.songNext - 0.3) {
+      this.startSongVoice(buf, this.songNext, 0, SONG_XFADE);
+    }
+  }
+
+  private startSongVoice(buf: AudioBuffer, at: number, offset: number, fadeIn: number): void {
+    const ctx = this.ctx!;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const gain = ctx.createGain();
+    const end = at + buf.duration - offset;
+    const fadeOut = end - SONG_XFADE;
+    gain.gain.setValueAtTime(0, at);
+    gain.gain.linearRampToValueAtTime(1, at + fadeIn);
+    gain.gain.setValueAtTime(1, Math.max(at + fadeIn, fadeOut));
+    gain.gain.linearRampToValueAtTime(0, end);
+    src.connect(gain).connect(this.songBus!);
+    src.start(at, offset);
+    src.stop(end + 0.05);
+    const voice: SongVoice = { src, gain, anchor: at - offset };
+    src.onended = () => {
+      this.songVoices = this.songVoices.filter((v) => v !== voice);
+      gain.disconnect();
+    };
+    this.songVoices.push(voice);
+    this.songNext = fadeOut;
+  }
+
+  /** Fades out any playing song, remembering where it was. */
+  private stopSong(): void {
+    const ctx = this.ctx;
+    if (!ctx || !this.songVoices.length) return;
+    const now = ctx.currentTime;
+    const playing = this.songVoices.filter((v) => v.anchor <= now).pop();
+    if (playing) this.songPos = now - playing.anchor;
+    for (const v of this.songVoices) {
+      v.gain.gain.cancelScheduledValues(now);
+      v.gain.gain.setValueAtTime(v.gain.gain.value, now);
+      v.gain.gain.linearRampToValueAtTime(0, now + 0.25);
+      v.src.onended = () => v.gain.disconnect();
+      try {
+        v.src.stop(now + 0.3);
+      } catch {
+        // Already stopped.
+      }
+    }
+    this.songVoices = [];
   }
 
   private schedule(): void {
     const ctx = this.ctx;
     const tr = this.track;
     if (!ctx || !tr || ctx.state !== 'running') return;
+    const song = this.songUrl;
+    if (song && this.songBus) {
+      this.scheduleSong(song);
+      return;
+    }
     const eighth = 60 / tr.bpm / 2;
     while (this.nextTime < ctx.currentTime + 0.12) {
       const i = this.step % tr.length;
