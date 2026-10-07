@@ -448,10 +448,12 @@ try {
   }
 
   // ---------------------------------------------------------------- finales at base stats, no god mode
-  for (const fin of [{ chapter: 1, name: 'squirrel swarm' }, { chapter: 2, name: 'Pigeon Captain' }]) {
+  const BOSS_NAMES = ['Don Crumb', 'Forklift Frankie', 'Captain Gull', 'Switchback Badger', 'Boiler Brutus', 'Hardhat Hank', 'Net-O-Matic', 'Honkzilla', 'Squirrel Boss'];
+  for (const fin of BOSS_NAMES.map((name, i) => ({ chapter: i + 1, name })).filter((f) => !quick || f.chapter <= 2)) {
   page = await newPage();
   await page.evaluate((fin) => {
     const p = JSON.parse(localStorage.getItem('homeward-hound.progress') ?? '{}');
+    p.version = 2;
     p.storySeen = true;
     p.upgrades = { tail: 0, recharge: 0, bark: 0 };
     p.checkpoint = { chapter: fin.chapter, at: 'encounter' };
@@ -479,21 +481,35 @@ try {
         }
         const now = performance.now();
         w.__bot.minHearts = Math.min(w.__bot.minHearts, s.hearts);
-        // Bark anything in reach (swarm squirrels, nut piles).
-        const reach = s.barkTargetsAhead.find((t) => t.dx > 40 && t.dx < 60 + s.barkRange - 25 && t.bottom < s.height + 105 && t.top > s.height - 15);
-        if (reach && s.barkCooldown <= 0) {
+        const bark = () => {
+          if (s.barkCooldown > 0) return;
           input.touchDown('bark', 78);
           input.touchUp(78);
           w.__bot.barks++;
-        }
-        // Duck gliders at head height; jump anything along the floor.
-        // (The Pigeon Captain screeches before every swoop: duck on the warning.)
-        const glider = s.bossPhase === 'swoopWarn' || s.bossPhase === 'swoop' || s.hazardsAhead.find((h) => h.bottom > 18 && h.bottom < 70 && h.dx > -40 && h.dx < 200);
+        };
+        // Bark anything in reach (rollers, crumbs).
+        const reach = s.barkTargetsAhead.find((t) => t.dx > 40 && t.dx < 60 + s.barkRange - 25 && t.bottom < s.height + 105 && t.top > s.height - 15);
+        if (reach) bark();
+        // The arena: read the boss's warning, keep clear of marked spots, and run
+        // in to bark while its guard is down. Duck the high lane; jump the low one.
+        const a = s.bossAttack;
+        let mx = 0;
+        let duck = false;
+        if (s.bossPhase === 'open') {
+          mx = s.screenX < 620 ? 1 : 0;
+          bark();
+        } else if (a) {
+          const tx = a.targetX - (s.x - s.screenX);
+          if (a.kind === 'volley' || a.kind === 'drop' || a.kind === 'geyser') mx = Math.abs(s.screenX - tx) > 260 ? 0 : tx > 400 ? -1 : 1;
+          else mx = s.screenX > 300 ? -1 : 0;
+          if (a.height === 'high') duck = true;
+        } else mx = s.screenX > 300 ? -1 : s.screenX < 240 ? 1 : 0;
+        const glider = duck || s.hazardsAhead.find((h) => h.bottom > 18 && h.bottom < 70 && h.dx > -40 && h.dx < 200);
         if (glider && s.grounded && holdUntil === 0) {
-          if (!w.__duck) input.setStick(0, 0.95, true);
+          input.setStick(0, 0.95, true);
           w.__duck = true;
-        } else if (w.__duck && !glider) {
-          input.setStick(0, 0, false);
+        } else {
+          input.setStick(mx, 0, mx !== 0);
           w.__duck = false;
         }
         const threat = s.hazardsAhead.find((h) => h.bottom < 18 && h.dx > 30 && h.dx < 170);
@@ -511,14 +527,15 @@ try {
       requestAnimationFrame(tick);
     });
     try {
-      await waitScene(page, 'Results', 120000);
+      await waitScene(page, 'Results', 420000);
     } catch {
       /* reported below */
     }
     const sc = await scenes(page);
     const bot = await page.evaluate(() => window.__bot);
+    await page.screenshot({ path: `screenshots/11-boss-${fin.chapter}.png` });
     const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('homeward-hound.progress')));
-    check(`${fin.name} finale is beatable at base stats without god mode`, sc.includes('Results') && saved.checkpoint === null && saved.completedChapters.includes(fin.chapter), `scenes=${sc} bot=${JSON.stringify(bot)}`);
+    check(`Level ${fin.chapter} boss ${fin.name} is beatable at base stats without god mode`, sc.includes('Results') && saved.checkpoint === null && saved.completedChapters.includes(fin.chapter), `scenes=${sc} bot=${JSON.stringify(bot)}`);
   }
   await page.close();
   }

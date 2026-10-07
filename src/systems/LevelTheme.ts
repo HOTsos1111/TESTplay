@@ -3,7 +3,8 @@
  * exit gate a level uses. Mechanics are shared; only the dressing changes.
  * GameScene sets `LevelTheme.id` from the chapter before building the level.
  */
-export type ThemeId = 'depot' | 'street';
+/** 'depot' and 'street' are the original chapters; 'lv1'..'lv9' are built from the level guides. */
+export type ThemeId = string;
 
 export interface ThemeDef {
   far: string;
@@ -23,6 +24,16 @@ export interface ThemeDef {
   gateDoor: string;
   /** Zone used when a chapter defines none. */
   defaultZone: { near: string; mid: string; indoor: boolean };
+  /** Campaign level whose guide art this theme is built from. */
+  level?: number;
+  /** Rolling hazard texture (default: the wheelie bin). */
+  roller?: string;
+  /** Roadside pest texture used for every pose, and what it throws. */
+  enemy?: string;
+  shot?: string;
+  pile?: string;
+  /** Platform deck height when the deck is a guide piece. */
+  deckThickness?: number;
 }
 
 export const THEMES: Record<ThemeId, ThemeDef> = {

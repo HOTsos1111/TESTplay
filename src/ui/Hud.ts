@@ -269,7 +269,9 @@ export class Hud {
     const y = 98;
     this.bossLabel.setText(s.bossTitle).setX(cx);
     if (this.bossIcon.texture.key !== s.bossIcon && s.bossIcon) this.bossIcon.setTexture(s.bossIcon);
-    this.bossIcon.setPosition(x - 34, y + h / 2 - 2).setScale(s.bossIcon.startsWith('squirrel') ? 0.42 : ART_SCALE * 0.5);
+    // Fit any boss portrait into a 64 px badge beside the bar.
+    const fit = 64 / Math.max(this.bossIcon.width, this.bossIcon.height);
+    this.bossIcon.setPosition(x - 38, y + h / 2 - 4).setScale(s.bossIcon.startsWith('squirrel') ? 0.42 : fit);
     this.bossCount.setText(`${left} / ${s.bossMax}`).setPosition(x + w + 16, y + h / 2);
     // Frame.
     g.fillStyle(COLOR.outline, 0.45).fillRoundedRect(x - 70, y - 44, w + 160, h + 60, 22);

@@ -26,7 +26,7 @@ export class ResultsScene extends Phaser.Scene {
     panel(this, 640, 315, 760, 450).setDepth(DEPTH.hud);
     const title = d.success ? COPY.cleared : COPY.failed;
     this.add.text(640, 135, title, textStyle(58, d.success ? CSS.butter : CSS.coral, 10)).setOrigin(0.5).setDepth(DEPTH.hud);
-    this.add.text(640, 195, `Chapter ${ch.id}: ${ch.title}`, textStyle(26, CSS.white)).setOrigin(0.5).setDepth(DEPTH.hud);
+    this.add.text(640, 195, `Level ${ch.id}: ${ch.title}`, textStyle(26, CSS.white)).setOrigin(0.5).setDepth(DEPTH.hud);
 
     const best = progress.state.bestRunByChapter[d.chapter] ?? d.metres;
     const rows: [string, string][] = [

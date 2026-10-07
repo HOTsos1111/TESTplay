@@ -17,6 +17,12 @@ describe('chapter content', () => {
       expect(issues).toEqual([]);
     });
 
+    it(`level ${ch.id} never needs the double jump before it is learned`, () => {
+      if (ch.doubleJump) return;
+      const needs = ch.chunks.filter((id) => chunkById(id).requires.includes('double'));
+      expect(needs).toEqual([]);
+    });
+
     it(`chapter ${ch.id} builds a level with an encounter`, () => {
       const level = buildLevel(ch);
       expect(level.encounterX).toBeGreaterThan(0);

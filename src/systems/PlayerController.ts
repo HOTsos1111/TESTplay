@@ -46,6 +46,8 @@ export interface PlayerStats {
   wagCapacity: number;
   rechargeRate: number;
   barkRange: number;
+  /** Learned in Level 6 (default on, for tests and the old chapters). */
+  doubleJump?: boolean;
 }
 
 export function baseStats(): PlayerStats {
@@ -178,7 +180,7 @@ export class PlayerController {
     // --- Jump: fresh presses only (held jump never re-triggers on landing).
     if (!this.grounded) this.coyote = Math.max(0, this.coyote - dt);
     const airborne = !this.grounded && this.coyote <= 0;
-    if (input.jumpPressed && airborne && !this.doubleUsed) {
+    if (input.jumpPressed && airborne && !this.doubleUsed && this.stats.doubleJump !== false) {
       // Double jump: a fresh press in mid-air.
       this.doubleUsed = true;
       this.vy = TUNING.doubleJumpVelocity;

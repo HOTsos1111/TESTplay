@@ -105,13 +105,20 @@ export class Platform extends Entity {
       }
       this.c.add(scene.add.image(w - 30, 10, 'platform_leg').setOrigin(0.5, 0).setDisplaySize(16, legH));
     }
-    const skin = pickSkin(theme().platform, x);
+    const th = theme();
+    const skin = pickSkin(th.platform, x);
     const mid = skin === 'steel' ? 'platform_mid' : `platform_mid_${skin}`;
-    this.belt = scene.add.tileSprite(14, 0, w - 28, 18, mid).setOrigin(0, 0).setTileScale(ART_SCALE);
+    if (th.deckThickness) {
+      // A deck cut from the level guide: one continuous band, no steel end caps.
+      this.belt = scene.add.tileSprite(0, -2, w, th.deckThickness, mid).setOrigin(0, 0).setTileScale(ART_SCALE);
+      this.c.add(this.belt);
+    } else {
+      this.belt = scene.add.tileSprite(14, 0, w - 28, 18, mid).setOrigin(0, 0).setTileScale(ART_SCALE);
+      this.c.add(this.belt);
+      this.c.add(scene.add.image(0, 0, 'platform_left').setOrigin(0, 0).setScale(ART_SCALE));
+      this.c.add(scene.add.image(w, 0, 'platform_right').setOrigin(1, 0).setScale(ART_SCALE));
+    }
     this.conveyor = skin === 'conveyor';
-    this.c.add(this.belt);
-    this.c.add(scene.add.image(0, 0, 'platform_left').setOrigin(0, 0).setScale(ART_SCALE));
-    this.c.add(scene.add.image(w, 0, 'platform_right').setOrigin(1, 0).setScale(ART_SCALE));
     this.solid = { x, y: top, w, h: OBJECT_SIZE.platformThickness, oneWay: true, kind: 'platform' };
   }
   get right(): number {
@@ -264,7 +271,10 @@ export class Cardboard extends Entity {
     }
     if (this.breakT >= 0) {
       this.breakT -= dt;
-      if (this.breakT < 0.08 && this.img.texture.key === this.skin) this.img.setTexture('cardboard_breaking');
+      if (this.breakT < 0.08 && this.img.texture.key === this.skin) {
+        if (this.skin === 'cardboard') this.img.setTexture('cardboard_breaking');
+        else this.img.setTint(0xffd6c8).setScale(ART_SCALE * 1.08, ART_SCALE * 0.85);
+      }
       if (this.breakT <= 0 && this.solid) {
         this.solid = null;
         this.img.setVisible(false);
@@ -273,7 +283,7 @@ export class Cardboard extends Entity {
         ctx.fx.bits(cx, cy, 9);
         ctx.fx.puff(cx, cy, 4, 0.8);
         Audio.play('box_break');
-        if (this.top + OBJECT_SIZE.cardboard.h >= WORLD.groundY - 1) {
+        if (this.skin === 'cardboard' && this.top + OBJECT_SIZE.cardboard.h >= WORLD.groundY - 1) {
           this.flat = ctx.scene.add.image(cx, WORLD.groundY, 'cardboard_flat').setOrigin(0.5, 1).setScale(ART_SCALE).setDepth(DEPTH.prop);
         }
       }
@@ -374,10 +384,12 @@ export class Gate extends Entity {
     const y = WORLD.groundY;
     const t = theme();
     this.frame = scene.add.image(x, y, t.gate).setOrigin(0.5, 1).setScale(ART_SCALE).setDepth(DEPTH.platform - 1);
-    this.doors = [
-      scene.add.image(x - 86, y, t.gateDoor).setOrigin(0, 1).setScale(ART_SCALE).setDepth(DEPTH.platform),
-      scene.add.image(x + 86, y, t.gateDoor).setOrigin(1, 1).setScale(ART_SCALE).setDepth(DEPTH.platform),
-    ];
+    this.doors = t.gateDoor
+      ? [
+          scene.add.image(x - 86, y, t.gateDoor).setOrigin(0, 1).setScale(ART_SCALE).setDepth(DEPTH.platform),
+          scene.add.image(x + 86, y, t.gateDoor).setOrigin(1, 1).setScale(ART_SCALE).setDepth(DEPTH.platform),
+        ]
+      : [];
   }
   get right(): number {
     return this.x + 110;
@@ -449,12 +461,21 @@ export class Squirrel extends Entity {
   static readonly WARN_DISTANCE = 1000;
   static readonly MAX_LIFE = 20;
   static readonly MAX_NUTS = 6;
+  /** Level pest drawing (faces right), or null for the squirrel poses (face left). */
+  private skin: string | null = null;
+
+  /** Turn to face right (away from the hero) or left (toward him). */
+  private face(right: boolean): void {
+    this.img.setFlipX(this.skin ? !right : right);
+  }
 
   constructor(scene: Phaser.Scene, x: number, bottom: number) {
     super();
     this.x = x;
     this.y = bottom;
-    this.img = scene.add.image(x, bottom, 'squirrel_idle').setOrigin(0.5, 1).setScale(ART_SCALE).setDepth(DEPTH.enemy);
+    this.skin = theme().enemy ?? null;
+    this.img = scene.add.image(x, bottom, this.skin ?? 'squirrel_idle').setOrigin(0.5, 1).setScale(ART_SCALE).setDepth(DEPTH.enemy);
+    this.face(false);
     this.bubble = scene.add.image(x, bottom - 58, 'fx_exclaim').setOrigin(0.5, 1).setScale(ART_SCALE).setDepth(DEPTH.enemy + 1).setVisible(false);
   }
   get right(): number {
@@ -470,8 +491,8 @@ export class Squirrel extends Entity {
     this.stateTime = time;
     this.fromRel = this.rel;
     const tex = s === 'throw' ? 'squirrel_throw' : s === 'aim' || s === 'taunt' ? 'squirrel_taunt' : s === 'flee' ? 'squirrel_startled' : s === 'bored' ? 'squirrel_run' : 'squirrel_idle';
-    this.img.setTexture(tex);
-    this.img.setFlipX(false);
+    this.img.setTexture(this.skin ?? tex);
+    this.face(false);
   }
   private moveTo(rel: number, time: number, hop: number): void {
     this.fromRel = this.rel;
@@ -529,7 +550,7 @@ export class Squirrel extends Entity {
     const heroScreen = ctx.heroX - ctx.cameraLeft;
     if (this.state === 'waiting') {
       this.img.y = this.y - Math.abs(Math.sin(this.t * 6)) * 6;
-      this.img.setFlipX(Math.sin(this.t * 3) > 0);
+      this.face(Math.sin(this.t * 3) > 0);
       if (this.x - ctx.heroX < Squirrel.WARN_DISTANCE) {
         this.rel = this.x - ctx.heroX;
         Audio.play('squirrel_angry');
@@ -559,7 +580,7 @@ export class Squirrel extends Entity {
 
     switch (this.state) {
       case 'skitter':
-        this.img.setFlipX(Math.sin(this.t * 20) > 0.6);
+        this.face(Math.sin(this.t * 20) > 0.6);
         if (this.t >= this.stateTime) {
           if (this.life > Squirrel.MAX_LIFE) {
             this.go('bored');
@@ -604,7 +625,7 @@ export class Squirrel extends Entity {
         break;
       case 'taunt':
         hop = Math.abs(Math.sin(this.t * 14)) * 7;
-        this.img.setFlipX(Math.floor(this.t * 6) % 2 === 0);
+        this.face(Math.floor(this.t * 6) % 2 === 0);
         if (this.t >= this.stateTime) {
           this.sinceTaunt = 0;
           this.nextSkitter();
@@ -638,7 +659,8 @@ export class Acorn extends Entity {
   constructor(scene: Phaser.Scene, private x: number, private y: number, private mode: 'lob' | 'roll' = 'roll', target?: number) {
     super();
     const lob = mode === 'lob';
-    this.img = scene.add.image(x, y, lob ? 'nut_pile' : 'acorn').setOrigin(0.5, 0.5).setScale(ART_SCALE).setDepth(DEPTH.enemy);
+    const th = theme();
+    this.img = scene.add.image(x, y, lob ? (th.pile ?? 'nut_pile') : (th.shot ?? 'acorn')).setOrigin(0.5, 0.5).setScale(ART_SCALE).setDepth(DEPTH.enemy);
     if (lob) {
       this.vy = -520;
       const g = 1600;
@@ -790,9 +812,15 @@ export class Barrel extends Entity {
   private vx = 0;
   private t = 0;
   static readonly TRIGGER = 900;
+  /** Round guide rollers spin as they go; the wheelie bin rattles instead. */
+  private tumble = false;
   constructor(scene: Phaser.Scene, private x: number) {
     super();
-    this.img = scene.add.image(x, WORLD.groundY + 1, 'barrel').setOrigin(0.5, 1).setScale(ART_SCALE).setDepth(DEPTH.enemy);
+    this.tumble = !!theme().roller;
+    this.img = scene.add.image(x, WORLD.groundY + 1 - (this.tumble ? 25 : 0), theme().roller ?? 'barrel')
+      .setOrigin(0.5, this.tumble ? 0.5 : 1)
+      .setScale(ART_SCALE)
+      .setDepth(DEPTH.enemy);
   }
   get right(): number {
     return this.x + 24;
@@ -809,8 +837,9 @@ export class Barrel extends Entity {
     if (this.rolling) {
       this.vx = Math.max(-230, this.vx - 700 * dt);
       this.x += this.vx * dt;
-      // Wheelie bin: rattles and tips forward as it trundles along.
-      this.img.rotation = -0.12 + Math.sin(this.t * 22) * 0.06;
+      // Wheelie bin: rattles and tips forward as it trundles along; round things roll.
+      if (this.tumble) this.img.rotation += (this.vx * dt) / 25;
+      else this.img.rotation = -0.12 + Math.sin(this.t * 22) * 0.06;
       if (Math.random() < dt * 6) ctx.fx.dust(this.x + 20, WORLD.groundY, 1);
     } else {
       this.img.rotation = Math.sin(this.t * 6) * 0.05;

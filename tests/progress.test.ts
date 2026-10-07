@@ -10,12 +10,24 @@ function memory(initial?: string): StorageLike & { data: Map<string, string> } {
 describe('ProgressStore', () => {
   it('falls back to defaults for corrupt or hostile data', () => {
     expect(new ProgressStore(memory('{not json')).state.unlockedChapter).toBe(1);
-    const p = sanitizeProgress({ boneBalance: -5, upgrades: { tail: 99, bark: 'x' }, unlockedChapter: 42, completedChapters: [1, 1, 9, 'a'], settings: { musicVolume: 7 } });
+    const p = sanitizeProgress({ version: 2, boneBalance: -5, upgrades: { tail: 99, bark: 'x' }, unlockedChapter: 42, completedChapters: [1, 1, 12, 'a'], settings: { musicVolume: 7 } });
     expect(p.boneBalance).toBe(0);
     expect(p.upgrades).toEqual({ tail: 3, recharge: 0, bark: 0 });
-    expect(p.unlockedChapter).toBe(6);
+    expect(p.unlockedChapter).toBe(9);
     expect(p.completedChapters).toEqual([1]);
     expect(p.settings.musicVolume).toBe(1);
+  });
+
+  it('migrates a six-chapter save: keeps bones, upgrades and settings, restarts the route', () => {
+    const p = sanitizeProgress({ version: 1, boneBalance: 420, upgrades: { tail: 2, recharge: 1, bark: 0 }, unlockedChapter: 3, completedChapters: [1, 2], checkpoint: { chapter: 3, at: 'encounter' }, storySeen: true, settings: { musicVolume: 0.3, sfxVolume: 0.4 } });
+    expect(p.version).toBe(2);
+    expect(p.boneBalance).toBe(420);
+    expect(p.upgrades).toEqual({ tail: 2, recharge: 1, bark: 0 });
+    expect(p.settings.musicVolume).toBe(0.3);
+    expect(p.storySeen).toBe(true);
+    expect(p.completedChapters).toEqual([]);
+    expect(p.unlockedChapter).toBe(1);
+    expect(p.checkpoint).toBeNull();
   });
 
   it('works without storage', () => {

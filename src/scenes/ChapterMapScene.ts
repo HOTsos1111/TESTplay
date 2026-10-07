@@ -294,8 +294,6 @@ export class ChapterMapScene extends Phaser.Scene {
         this.tweens.add({ targets: go, scale: 1.05, yoyo: true, repeat: -1, duration: 650, ease: 'Sine.InOut' });
         this.popupButtons.push(go);
       }
-      // Until a district's own route is built, an existing run stands in for it.
-      ink(-H / 2 + 212, 'Preview: plays the current chapter run for now.', 14, '#8A7F8C', wrapW);
     }
     const close = new Button(this, 640 + W / 2 - 18, 380 - H / 2 + 14, '✕', () => this.closePopup(), { width: 54, height: 50, fontSize: 24, color: 0x6f86a8 });
     this.popupButtons.push(close);

@@ -8,6 +8,7 @@ import { TrolleyBoss } from '../entities/TrolleyBoss';
 import { LevelTheme, theme } from '../systems/LevelTheme';
 import { SquirrelSwarm, type Boss } from '../entities/SquirrelSwarm';
 import { PigeonBoss } from '../entities/PigeonBoss';
+import { PatternBoss } from '../entities/PatternBoss';
 import {
   Acorn, Barrel, Bone, LowBar, BurstMarker, Cardboard, LiftPlatform, PowerUp, Crate, Entity, Gate, GroundPiece, Platform, Scent, Squirrel, Tyre, type GameContext,
 } from '../entities/World';
@@ -15,6 +16,10 @@ import { ART_SCALE } from '../systems/AssetRegistry';
 import { Audio } from '../systems/AudioManager';
 import { Fx } from '../systems/Fx';
 import { Scenery } from '../systems/Scenery';
+import { LevelScenery } from '../systems/LevelScenery';
+import { buildLevelTheme } from '../systems/LevelSkins';
+import { setGroundPalette } from '../systems/Ground3D';
+import { LEVEL_ART, pieceKey } from '../data/levelArt';
 import { InputManager } from '../systems/InputManager';
 import { buildLevel, type LevelLayout, type Spawnable } from '../systems/LevelBuilder';
 import { PlayerController, type FrameInput, type PlayerStats, type Rect, type Solid } from '../systems/PlayerController';
@@ -51,6 +56,9 @@ export function statsFromUpgrades(): PlayerStats {
   };
 }
 
+/** Boss arenas: the camera stops and the dog moves freely inside this band of the screen. */
+const ARENA = { minX: 110, maxX: 760, speed: 300 } as const;
+
 export class GameScene extends Phaser.Scene {
   private chapter!: ChapterDef;
   private layout!: LevelLayout;
@@ -78,7 +86,7 @@ export class GameScene extends Phaser.Scene {
   private paused = false;
   private onHidden = () => this.pauseGame();
   private touch!: TouchControls;
-  private scenery!: Scenery;
+  private scenery!: Scenery | LevelScenery;
   /** Camera scrolls on its own; the hero paces within a band of the screen. */
   private camX = 0;
   private scrollSpeed = 0;
@@ -145,9 +153,22 @@ export class GameScene extends Phaser.Scene {
     super('Game');
   }
 
+  /** Levels built from an asset guide load that guide's pieces on the way in. */
+  preload(): void {
+    const data = (this.sys.settings.data ?? {}) as GameSceneData;
+    const n = chapterById(data.chapter ?? 1).art;
+    if (!n || !LEVEL_ART[n]) return;
+    for (const code of ['e1', 'e2', 'b1', 'h1', 'h2', 'h3', 'p1', 'p2', 'p3', 'fg1', 'fg2', 'mg1', 'mg2', 'bg1', 'bg2']) {
+      const key = pieceKey(n, code);
+      if (!this.textures.exists(key)) this.load.image(key, `levels/l0${n}/${code}.webp`);
+    }
+  }
+
   create(data: GameSceneData): void {
     this.chapter = chapterById(data.chapter ?? 1);
-    LevelTheme.id = this.chapter.theme;
+    const art = this.chapter.art;
+    LevelTheme.id = (art && buildLevelTheme(this, art)) || this.chapter.theme;
+    setGroundPalette(art ? LEVEL_ART[art].ground : null);
     this.layout = buildLevel(this.chapter);
     this.startAt = data.startAt === 'encounter' ? 'encounter' : 'start';
     this.entities = [];
@@ -173,14 +194,14 @@ export class GameScene extends Phaser.Scene {
     this.burstWasReady = true;
 
     const startX = this.startAt === 'encounter' ? this.layout.encounterX + 160 : this.layout.startX;
-    this.pc = new PlayerController(startX, WORLD.groundY, statsFromUpgrades());
+    this.pc = new PlayerController(startX, WORLD.groundY, { ...statsFromUpgrades(), doubleJump: this.chapter.doubleJump });
     this.pc.speed = this.chapter.speedStart;
     this.camX = startX - VIEW.width * VIEW.heroScreenX;
 
     const camStart = startX - VIEW.width * VIEW.heroScreenX;
     const zones = this.chapter.zones.map((z) => ({ ...z, x: this.layout.chunkStarts[z.chunk]?.x ?? 0 }));
     if (!zones.length) zones.push({ chunk: 0, ...theme().defaultZone, x: 0 });
-    this.scenery = new Scenery(this, zones, camStart);
+    this.scenery = art ? new LevelScenery(this, art, camStart) : new Scenery(this, zones, camStart);
 
     this.fx = new Fx(this);
     this.hero = new HeroView(this, startX, WORLD.groundY).setDepth(DEPTH.hero);
@@ -249,7 +270,7 @@ export class GameScene extends Phaser.Scene {
       this.startEncounter();
     } else {
       Audio.playMusic(this.chapter.music);
-      this.hud.banner(`Chapter ${this.chapter.id}: ${this.chapter.title}`, this.chapter.opening, 2.6);
+      this.hud.banner(`Level ${this.chapter.id}: ${this.chapter.title}`, this.chapter.opening, 2.6);
     }
 
     registerTestHook('input', () => this.input2);
@@ -276,6 +297,8 @@ export class GameScene extends Phaser.Scene {
       bones: this.bones,
       bossHits: this.boss?.hits ?? null,
       bossPhase: this.boss?.phase ?? null,
+      bossAttack: this.boss instanceof PatternBoss ? this.boss.telegraph : null,
+      screenX: this.pc.x - this.camX,
       entities: this.entities.length,
       encounterX: this.layout.encounterX,
       barkCooldown: this.pc.barkCooldown,
@@ -323,6 +346,7 @@ export class GameScene extends Phaser.Scene {
 
   private cleanup(): void {
     Audio.setThreat(false);
+    setGroundPalette(null);
     this.game.events.off(Phaser.Core.Events.HIDDEN, this.onHidden);
     this.game.events.off(Phaser.Core.Events.BLUR, this.onHidden);
     this.events.off(Phaser.Scenes.Events.RESUME, this.onResume, this);
@@ -457,17 +481,25 @@ export class GameScene extends Phaser.Scene {
 
   // ------------------------------------------------------------ flow
 
+  /** True while fighting a boss that holds the camera still. */
+  private get arena(): boolean {
+    return this.phase === 'encounter' && this.boss?.speed === 0;
+  }
+
   private startEncounter(): void {
     this.phase = 'encounter';
     this.phaseT = 0;
     progress.setCheckpoint({ chapter: this.chapter.id, at: 'encounter' });
     Audio.playMusic('chase');
     const id = this.chapter.encounterId;
-    const boss: Boss = id === 'trolley' ? new TrolleyBoss(this) : id === 'pigeon' ? new PigeonBoss(this) : new SquirrelSwarm(this);
-    this.hud.banner(id === 'trolley' ? 'The dogcatcher!' : id === 'pigeon' ? 'The Pigeon Captain!' : 'Squirrel swarm!', 'Checkpoint reached', 2.0);
+    const pattern = id === 'boss' && this.chapter.art ? new PatternBoss(this, this.chapter.art) : null;
+    const boss: Boss = pattern ?? (id === 'trolley' ? new TrolleyBoss(this) : id === 'pigeon' ? new PigeonBoss(this) : new SquirrelSwarm(this));
+    const name = pattern ? `${pattern.def.name.charAt(0)}${pattern.def.name.slice(1).toLowerCase().replace(/(^|[\s-])\w/g, (m) => m.toUpperCase())}!` : id === 'trolley' ? 'The dogcatcher!' : id === 'pigeon' ? 'The Pigeon Captain!' : 'Squirrel swarm!';
+    this.hud.banner(name, 'Boss fight! Move, dodge, bark!', 2.2);
     this.boss = boss;
     this.boss.onEvent = (e) => {
-      if (e === 'start') this.showHint(id === 'pigeon' ? 'encounter_pigeon' : 'encounter', true);
+      if (e === 'start' && pattern) this.hud.showHint(pattern.def.hint, 4.2);
+      else if (e === 'start') this.showHint(id === 'pigeon' ? 'encounter_pigeon' : 'encounter', true);
       if (e === 'defeated') {
         Audio.play('boss_clear');
         Audio.stopMusic();
@@ -614,15 +646,20 @@ export class GameScene extends Phaser.Scene {
       this.scrollSpeed = Math.min(TUNING.scrollSpeedCap, this.chapter.speedStart + (this.chapter.speedEnd - this.chapter.speedStart) * k);
     } else if (this.boss && (this.boss.phase === 'defeat' || this.boss.phase === 'done')) {
       this.scrollSpeed = Math.max(0, this.scrollSpeed - 260 * dt);
+    } else if (this.arena) {
+      this.scrollSpeed = Math.max(0, this.scrollSpeed - 520 * dt);
     } else {
       this.scrollSpeed = Math.min(TUNING.scrollSpeedCap, this.boss?.speed ?? 360);
     }
     // Pacing: forward/back nudges the hero's speed relative to the scroll, inside a band of the screen.
+    // In a boss arena the camera stops and he runs freely left and right.
     const screenX = this.pc.x - this.camX;
-    const maxX = this.phase === 'encounter' ? 430 : TUNING.paceMaxX;
+    const arena = this.arena;
+    const minX = arena ? ARENA.minX : TUNING.paceMinX;
+    const maxX = arena ? ARENA.maxX : this.phase === 'encounter' ? 430 : TUNING.paceMaxX;
     let pace = this.paceInput;
-    if ((screenX <= TUNING.paceMinX && pace < 0) || (screenX >= maxX && pace > 0)) pace = 0;
-    this.pc.speed = Math.max(0, this.scrollSpeed + pace * TUNING.paceSpeed);
+    if ((screenX <= minX && pace < 0) || (screenX >= maxX && pace > 0)) pace = 0;
+    this.pc.speed = arena ? this.scrollSpeed + pace * ARENA.speed : Math.max(0, this.scrollSpeed + pace * TUNING.paceSpeed);
     // Drift back inside the band if a burst carried him past it.
     if (screenX > maxX + 4 && !this.pc.bursting) this.pc.speed = this.scrollSpeed - 60;
 
@@ -686,7 +723,7 @@ export class GameScene extends Phaser.Scene {
 
     // The camera scrolls steadily; a burst surges the hero ahead and pushes it along at the edge.
     this.camX += this.scrollSpeed * dt;
-    const push = this.phase === 'encounter' ? 520 : TUNING.paceMaxX + 140;
+    const push = this.arena ? ARENA.maxX + 40 : this.phase === 'encounter' ? 520 : TUNING.paceMaxX + 140;
     if (this.pc.x - this.camX > push) this.camX = this.pc.x - push;
     if (this.pc.x - this.camX < 60) this.camX = this.pc.x - 60;
     if (this.pc.burstMeter >= 1 && !this.burstWasReady) Audio.play('burst_ready');
@@ -784,7 +821,7 @@ export class GameScene extends Phaser.Scene {
       grounded: this.pc.grounded,
       vy: this.pc.vy,
       hovering: this.pc.hovering,
-      speed: this.pc.effectiveSpeed,
+      speed: Math.abs(this.pc.effectiveSpeed),
       invulnerable: this.pc.invulnerable,
       bursting: this.pc.bursting,
       ducking: this.pc.ducking,

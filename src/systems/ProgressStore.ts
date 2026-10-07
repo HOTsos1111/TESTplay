@@ -14,7 +14,8 @@ export interface Settings {
 }
 
 export interface Progress {
-  version: 1;
+  /** 2 = the nine-level campaign. Version 1 saves keep bones, upgrades and settings only. */
+  version: 2;
   unlockedChapter: number;
   completedChapters: number[];
   checkpoint: Checkpoint | null;
@@ -31,11 +32,11 @@ export interface Progress {
 }
 
 export const STORAGE_KEY = 'homeward-hound.progress';
-export const CHAPTER_COUNT = 6;
+export const CHAPTER_COUNT = 9;
 
 export function defaultProgress(): Progress {
   return {
-    version: 1,
+    version: 2,
     unlockedChapter: 1,
     completedChapters: [],
     checkpoint: null,
@@ -69,9 +70,15 @@ function stringList(v: unknown): string[] {
 }
 
 /** Validate untrusted saved data, falling back to safe defaults field by field. */
-export function sanitizeProgress(raw: unknown): Progress {
+export function sanitizeProgress(input: unknown): Progress {
   const d = defaultProgress();
-  if (!isObj(raw)) return d;
+  if (!isObj(input)) return d;
+  let raw: Record<string, unknown> = input;
+  // The old six-chapter route is gone: its completions do not map onto the new
+  // nine districts, so a version 1 save starts the campaign over at Level 1
+  // while keeping its bones, upgrades, settings and story/hint flags.
+  const legacy = raw.version !== 2;
+  if (legacy) raw = { ...raw, completedChapters: [], unlockedChapter: 1, checkpoint: null, bestRunByChapter: {}, endlessBestByChapter: {} };
   const completed = Array.isArray(raw.completedChapters)
     ? [...new Set(raw.completedChapters.filter((c): c is number => Number.isInteger(c) && c >= 1 && c <= CHAPTER_COUNT))].sort()
     : [];
@@ -84,7 +91,7 @@ export function sanitizeProgress(raw: unknown): Progress {
   }
   const unlocked = Math.max(int(raw.unlockedChapter, 1, CHAPTER_COUNT, 1), ...completed.map((c) => Math.min(CHAPTER_COUNT, c + 1)), 1);
   return {
-    version: 1,
+    version: 2,
     unlockedChapter: unlocked,
     completedChapters: completed,
     checkpoint,
