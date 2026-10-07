@@ -275,7 +275,7 @@ export class GameScene extends Phaser.Scene {
 
     registerTestHook('input', () => this.input2);
     // Test-only: jump the hero to a world x (used by visual checks).
-    registerTestHook('teleport', () => (x: number, y?: number) => {
+    registerTestHook('teleport', () => (x: number, y?: number, grace = 2) => {
       this.pc.x = x;
       this.camX = x - VIEW.width * VIEW.heroScreenX;
       if (y !== undefined) {
@@ -283,7 +283,7 @@ export class GameScene extends Phaser.Scene {
         this.pc.vy = 0;
         this.pc.grounded = false;
       }
-      this.pc.invulnerable = 2;
+      this.pc.invulnerable = grace;
     });
     registerTestHook('game', () => ({
       phase: this.phase,

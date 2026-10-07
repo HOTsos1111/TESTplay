@@ -239,7 +239,7 @@ try {
     const hz = s.hazardsAhead.find((h) => h.bottom < 18 && h.dx > 400 && !s.gapsAhead.some((g) => g[0] < h.dx));
     if (hz) {
       lineup = { from: Math.round(s.x), hz };
-      await page.evaluate((x) => window.__HH__.teleport?.()?.(x), s.x + hz.dx - 300);
+      await page.evaluate((x) => window.__HH__.teleport?.()?.(x, undefined, 0), s.x + hz.dx - 300);
       break;
     }
     await page.evaluate((x) => window.__HH__.teleport?.()?.(x), s.x + 1200);
