@@ -57,7 +57,7 @@ export function statsFromUpgrades(): PlayerStats {
 }
 
 /** Boss arenas: the camera stops and the dog moves freely inside this band of the screen. */
-const ARENA = { minX: 110, maxX: 760, speed: 300 } as const;
+const ARENA = { minX: 70, maxX: 1210, speed: 300 } as const;
 
 export class GameScene extends Phaser.Scene {
   private chapter!: ChapterDef;
@@ -298,6 +298,8 @@ export class GameScene extends Phaser.Scene {
       bossHits: this.boss?.hits ?? null,
       bossPhase: this.boss?.phase ?? null,
       bossAttack: this.boss instanceof PatternBoss ? this.boss.telegraph : null,
+      bossScreenX: this.boss instanceof PatternBoss ? this.boss.screenX : null,
+      facing: this.pc.facing,
       screenX: this.pc.x - this.camX,
       entities: this.entities.length,
       encounterX: this.layout.encounterX,
@@ -492,7 +494,7 @@ export class GameScene extends Phaser.Scene {
     progress.setCheckpoint({ chapter: this.chapter.id, at: 'encounter' });
     Audio.playMusic('chase');
     const id = this.chapter.encounterId;
-    const pattern = id === 'boss' && this.chapter.art ? new PatternBoss(this, this.chapter.art) : null;
+    const pattern = id === 'boss' && this.chapter.art ? new PatternBoss(this, this.chapter.art, (x, w, top) => new Platform(this, x, w, top, false)) : null;
     const boss: Boss = pattern ?? (id === 'trolley' ? new TrolleyBoss(this) : id === 'pigeon' ? new PigeonBoss(this) : new SquirrelSwarm(this));
     const name = pattern ? `${pattern.def.name.charAt(0)}${pattern.def.name.slice(1).toLowerCase().replace(/(^|[\s-])\w/g, (m) => m.toUpperCase())}!` : id === 'trolley' ? 'The dogcatcher!' : id === 'pigeon' ? 'The Pigeon Captain!' : 'Squirrel swarm!';
     this.hud.banner(name, 'Boss fight! Move, dodge, bark!', 2.2);
@@ -816,6 +818,11 @@ export class GameScene extends Phaser.Scene {
     const cam = this.cameras.main;
     this.scenery.update(dt, cam.scrollX, this.pc.x);
 
+    // In a boss arena the dog turns to face the boss, so his bark always points at it.
+    if (this.arena && this.boss instanceof PatternBoss) {
+      this.pc.facing = this.pc.x > this.camX + this.boss.screenX ? -1 : 1;
+    } else this.pc.facing = 1;
+    this.hero.root.scaleX = this.pc.facing;
     this.hero.setPosition(this.pc.x, this.pc.y);
     this.hero.update(dt, {
       grounded: this.pc.grounded,

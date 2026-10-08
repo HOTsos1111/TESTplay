@@ -2,8 +2,9 @@ import type { Piece } from './levelArt';
 
 /**
  * The nine end-of-level bosses. Each loops through the attacks of its current
- * tier (tiers escalate as it loses HP), then opens up for a bark: one hit per
- * opening. Heights: 'low' threats are jumped, 'high' ones ducked under.
+ * tier (tiers escalate as it loses HP) and pauses for breath between rounds.
+ * Every bark that reaches it lands a hit. Heights: 'low' threats are jumped,
+ * 'high' ones ducked under — or dodged from the platforms above.
  */
 export type Attack =
   /** Lobbed shots that land around where the dog was standing; move away or bark them. */
@@ -29,7 +30,7 @@ export interface BossDef {
   flying?: boolean;
   /** The guide drawing faces right (it is mirrored to face the dog). */
   facesRight: boolean;
-  /** Seconds the weak point stays open after each attack round. */
+  /** Seconds it pauses for breath after each round of attacks. */
   openTime: number;
   /** Where the weak point sits on the sprite, as fractions of its width/height. */
   weak: { x: number; y: number };
@@ -43,7 +44,7 @@ export const BOSSES: Record<number, BossDef> = {
   1: {
     level: 1,
     name: 'DON CRUMB',
-    hp: 3,
+    hp: 12,
     height: 210,
     facesRight: true,
     openTime: 1.6,
@@ -58,7 +59,7 @@ export const BOSSES: Record<number, BossDef> = {
   2: {
     level: 2,
     name: 'FORKLIFT FRANKIE',
-    hp: 4,
+    hp: 14,
     height: 220,
     facesRight: true,
     openTime: 1.6,
@@ -73,8 +74,8 @@ export const BOSSES: Record<number, BossDef> = {
   3: {
     level: 3,
     name: 'CAPTAIN GULL',
-    hp: 4,
-    height: 200,
+    hp: 14,
+    height: 165,
     flying: true,
     facesRight: false,
     openTime: 1.7,
@@ -89,7 +90,7 @@ export const BOSSES: Record<number, BossDef> = {
   4: {
     level: 4,
     name: 'SWITCHBACK BADGER',
-    hp: 4,
+    hp: 16,
     height: 210,
     facesRight: true,
     openTime: 1.5,
@@ -104,7 +105,7 @@ export const BOSSES: Record<number, BossDef> = {
   5: {
     level: 5,
     name: 'BOILER BRUTUS',
-    hp: 5,
+    hp: 16,
     height: 230,
     facesRight: false,
     openTime: 1.6,
@@ -119,7 +120,7 @@ export const BOSSES: Record<number, BossDef> = {
   6: {
     level: 6,
     name: 'HARDHAT HANK',
-    hp: 5,
+    hp: 18,
     height: 230,
     facesRight: true,
     openTime: 1.5,
@@ -134,7 +135,7 @@ export const BOSSES: Record<number, BossDef> = {
   7: {
     level: 7,
     name: 'DOGCATCHER NET-O-MATIC',
-    hp: 6,
+    hp: 20,
     height: 230,
     facesRight: true,
     openTime: 1.7,
@@ -149,7 +150,7 @@ export const BOSSES: Record<number, BossDef> = {
   8: {
     level: 8,
     name: 'HONKZILLA',
-    hp: 6,
+    hp: 20,
     height: 240,
     facesRight: true,
     openTime: 1.5,
@@ -164,7 +165,7 @@ export const BOSSES: Record<number, BossDef> = {
   9: {
     level: 9,
     name: 'SQUIRREL BOSS',
-    hp: 6,
+    hp: 24,
     height: 240,
     facesRight: true,
     openTime: 1.6,

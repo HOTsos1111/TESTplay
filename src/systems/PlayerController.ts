@@ -74,6 +74,8 @@ export class PlayerController {
   hovering = false;
   wag: number;
   stats: PlayerStats;
+  /** 1 = facing right (the run direction), -1 = facing left (boss arenas only). */
+  facing: 1 | -1 = 1;
   barkCooldown = 0;
   invulnerable = 0;
   /** Burst meter 0..1; a burst needs it full. */
@@ -119,7 +121,8 @@ export class PlayerController {
   barkRect(): Rect {
     const o = HERO_BOX.barkOrigin;
     const h = TUNING.barkHeight;
-    return { x: this.x + o.x, y: this.y + o.y - h / 2, w: this.stats.barkRange, h };
+    const x = this.facing > 0 ? this.x + o.x : this.x - o.x - this.stats.barkRange;
+    return { x, y: this.y + o.y - h / 2, w: this.stats.barkRange, h };
   }
 
   get bursting(): boolean {

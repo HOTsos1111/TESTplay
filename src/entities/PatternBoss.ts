@@ -9,9 +9,6 @@ import type { Boss, BossEvent } from './SquirrelSwarm';
 import { Entity, type GameContext } from './World';
 
 const G = WORLD.groundY;
-/** Screen x where the boss waits, and where it settles when its guard is down. */
-const HOME_X = 1070;
-const OPEN_X = 900;
 /** Lanes for things that cross the arena: low ones are jumped, high ones ducked. */
 const LANE = {
   low: { top: G - 56, bottom: G - 2 },
@@ -113,8 +110,8 @@ class Roller extends Entity {
   update(dt: number, ctx: GameContext): void {
     this.x -= this.speed * dt;
     this.img.setPosition(this.x, G - this.r).setRotation(this.img.rotation - (this.speed * dt) / this.r);
-    if (Math.random() < dt * 5) ctx.fx.dust(this.x + this.r, G, 1);
-    if (this.x < ctx.cameraLeft - 80) this.alive = false;
+    if (Math.random() < dt * 5) ctx.fx.dust(this.x + Math.sign(this.speed) * this.r, G, 1);
+    if (this.x < ctx.cameraLeft - 80 || this.x > ctx.cameraRight + 80) this.alive = false;
   }
   destroy(): void {
     this.img.destroy();
@@ -128,7 +125,7 @@ class Sweeper extends Entity {
     super();
     const L = LANE[lane];
     this.img = scene.add.image(x, (L.top + L.bottom) / 2, tex).setDepth(DEPTH.boss + 1);
-    this.img.setDisplaySize(130, L.bottom - L.top + 14);
+    this.img.setDisplaySize(130, L.bottom - L.top + 14).setFlipX(speed < 0);
   }
   get right(): number {
     return Number.POSITIVE_INFINITY;
@@ -141,7 +138,7 @@ class Sweeper extends Entity {
     this.x -= this.speed * dt;
     this.img.x = this.x;
     this.img.rotation = Math.sin(this.x * 0.05) * 0.05;
-    if (this.x < ctx.cameraLeft - 120) this.alive = false;
+    if (this.x < ctx.cameraLeft - 140 || this.x > ctx.cameraRight + 140) this.alive = false;
   }
   destroy(): void {
     this.img.destroy();
@@ -233,12 +230,29 @@ class Geyser extends Entity {
 
 // ---------------------------------------------------------------- the boss
 
-type Phase = 'enter' | 'idle' | 'warn' | 'act' | 'toOpen' | 'open' | 'hitReact' | 'back' | 'defeat' | 'done';
+type Phase = 'enter' | 'idle' | 'warn' | 'act' | 'back' | 'rest' | 'defeat' | 'done';
+
+/** Screen x where the boss holds the middle of the arena. */
+const MID_X = 660;
+/**
+ * The arena frame, in screen space: low ledges and higher ledges on both sides
+ * and a bridge over the boss, so the dog can climb up and over to its back.
+ * Each step is one normal jump above the last (the bridge is two from a low ledge).
+ */
+export const ARENA_DECKS = [
+  { x: 250, w: 200, h: 100 },
+  { x: 380, w: 170, h: 190 },
+  { x: 500, w: 320, h: 285 },
+  { x: 770, w: 170, h: 190 },
+  { x: 870, w: 200, h: 100 },
+] as const;
 
 /**
- * A level's end boss, driven by its entry in data/bosses: warn, attack, repeat
- * through the current tier, then drop its guard so the dog can bark at its weak
- * point (one hit per opening). Lives in screen space over a stationary arena.
+ * A level's end boss, driven by its entry in data/bosses. It stands in the
+ * middle of a climbable arena, always turns to face the dog, and warns before
+ * each attack: lobbed volleys, rollers, lane sweeps and charges aimed at the
+ * dog's side, drops and steam jets. Every bark that reaches it lands a hit;
+ * walking into it hurts, so the way past is over the top.
  */
 export class PatternBoss extends Entity implements Boss {
   phase: Phase = 'enter';
@@ -253,7 +267,6 @@ export class PatternBoss extends Entity implements Boss {
   private bubble: Phaser.GameObjects.Image;
   private band: Phaser.GameObjects.Graphics;
   private label: Phaser.GameObjects.Text;
-  private glow: Phaser.GameObjects.Arc;
   private t = 0;
   private sx = 1500;
   private sy = 0;
@@ -264,10 +277,15 @@ export class PatternBoss extends Entity implements Boss {
   private attack: Attack | null = null;
   private kids: Entity[] = [];
   private targetX = 0;
-  private openedHit = false;
+  /** Which way it faces: 1 = right, -1 = left (toward the dog). */
+  private facing: 1 | -1 = -1;
+  /** Direction the current attack travels. */
+  private dir: 1 | -1 = -1;
+  private flash = 0;
+  private decksBuilt = false;
   private fall = { vy: 0, rot: 0 };
 
-  constructor(private scene: Phaser.Scene, level: number) {
+  constructor(private scene: Phaser.Scene, level: number, private makeDeck: (x: number, w: number, top: number) => Entity) {
     super();
     this.def = BOSSES[level];
     this.maxHits = this.def.hp;
@@ -276,12 +294,11 @@ export class PatternBoss extends Entity implements Boss {
     this.icon = scene.textures.exists(key) ? key : 'boss_flex';
     this.img = scene.add.image(0, G, this.icon).setOrigin(0.5, 1).setDepth(DEPTH.boss);
     this.baseScale = this.def.height / this.img.height;
-    this.img.setScale(this.baseScale).setFlipX(this.def.facesRight);
+    this.img.setScale(this.baseScale);
     this.bubble = scene.add.image(0, 0, 'fx_exclaim').setOrigin(0.5, 1).setScale(0.6).setDepth(DEPTH.boss + 3).setVisible(false);
     this.band = scene.add.graphics().setDepth(DEPTH.groundShadow + 1);
     this.label = scene.add.text(0, 0, '', { fontFamily: 'Trebuchet MS, sans-serif', fontSize: '26px', fontStyle: 'bold', color: '#FFFFFF', stroke: '#302331', strokeThickness: 6 }).setOrigin(0.5).setDepth(DEPTH.fx + 2).setVisible(false);
-    this.glow = scene.add.circle(0, 0, 26, 0xffd95a, 0.5).setStrokeStyle(5, 0xffffff, 0.9).setDepth(DEPTH.boss + 2).setVisible(false);
-    this.sy = this.def.flying ? 170 : 0;
+    this.sy = this.hover;
     Audio.play('whistle');
   }
 
@@ -289,11 +306,21 @@ export class PatternBoss extends Entity implements Boss {
     return Number.POSITIVE_INFINITY;
   }
 
+  /** Flyers circle above the bridge; walkers stand on the street. */
+  private get hover(): number {
+    return this.def.flying ? 305 : 0;
+  }
+
+  /** Screen x of the boss (for tests and the touch arrows). */
+  get screenX(): number {
+    return this.sx;
+  }
+
   /** What the current or upcoming attack is (for tests and the touch arrows). */
-  get telegraph(): { kind: Attack['kind']; height?: 'low' | 'high'; targetX: number } | null {
+  get telegraph(): { kind: Attack['kind']; height?: 'low' | 'high'; targetX: number; dir: number } | null {
     if (!this.attack || (this.phase !== 'warn' && this.phase !== 'act')) return null;
     const a = this.attack;
-    return { kind: a.kind, height: a.kind === 'sweep' || a.kind === 'swoop' ? a.height : undefined, targetX: this.targetX };
+    return { kind: a.kind, height: a.kind === 'sweep' || a.kind === 'swoop' ? a.height : undefined, targetX: this.targetX, dir: this.dir };
   }
 
   private get tier(): Attack[] {
@@ -313,40 +340,47 @@ export class PatternBoss extends Entity implements Boss {
     return ctx.cameraLeft + this.sx;
   }
 
-  /** The body, for contact while it charges and for barks while its guard is down. */
+  /** The body: hurts on contact, and takes a hit from every bark that reaches it. */
   private body(): Rect {
     const w = this.img.displayWidth;
     const h = this.img.displayHeight;
-    return { x: this.img.x - w * 0.42, y: this.img.y - h * 0.9, w: w * 0.84, h: h * 0.9 };
+    return { x: this.img.x - w * 0.36, y: this.img.y - h * 0.85, w: w * 0.72, h: h * 0.85 };
+  }
+
+  private get fighting(): boolean {
+    return this.phase !== 'enter' && this.phase !== 'defeat' && this.phase !== 'done';
   }
 
   hazard(): Rect | null {
-    if (this.phase !== 'act' || this.attack?.kind !== 'swoop') return null;
-    const L = LANE[this.attack.height];
-    return { x: this.img.x - 60, y: L.top, w: 120, h: L.bottom - L.top };
+    if (!this.fighting) return null;
+    if (this.phase === 'act' && this.attack?.kind === 'swoop') {
+      const L = LANE[this.attack.height];
+      return { x: this.img.x - 60, y: L.top, w: 120, h: L.bottom - L.top };
+    }
+    return this.body();
   }
 
   barkTarget(): Rect | null {
-    return this.phase === 'open' && !this.openedHit ? this.body() : null;
+    return this.fighting ? this.body() : null;
   }
 
   onBark(ctx: GameContext): void {
-    if (this.phase !== 'open' || this.openedHit) return;
-    this.openedHit = true;
+    if (!this.fighting) return;
     this.hits++;
+    this.flash = 0.25;
     Audio.play('boss_hit');
-    ctx.fx.stars(this.img.x, this.img.y - this.img.displayHeight * 0.6, 8);
-    for (let i = 0; i < 5; i++) ctx.fx.puff(this.img.x + (Math.random() - 0.5) * 100, this.img.y - Math.random() * this.img.displayHeight * 0.7, 1, 0.9);
-    this.scene.cameras.main.shake(140, 0.006);
+    ctx.fx.stars(this.img.x, this.img.y - this.img.displayHeight * 0.6, 5);
+    ctx.fx.puff(this.img.x + (Math.random() - 0.5) * 80, this.img.y - Math.random() * this.img.displayHeight * 0.7, 2, 0.8);
+    this.scene.cameras.main.shake(90, 0.004);
     this.onEvent?.('hit');
-    this.glow.setVisible(false);
     if (this.hits >= this.maxHits) {
       for (const k of this.kids) k.alive = false;
+      this.clearTelegraph();
       this.go('defeat');
       this.fall = { vy: -420, rot: 0 };
       Audio.play('boss_clear');
       this.onEvent?.('defeated');
-    } else this.go('hitReact');
+    }
   }
 
   private clearTelegraph(): void {
@@ -359,6 +393,7 @@ export class PatternBoss extends Entity implements Boss {
     const list = this.tier;
     this.attack = list[this.step % list.length];
     this.targetX = ctx.heroX;
+    this.dir = ctx.heroX >= this.worldX(ctx) ? 1 : -1;
     this.go('warn');
     this.bubble.setVisible(true);
     Audio.play('squirrel_angry');
@@ -370,43 +405,45 @@ export class PatternBoss extends Entity implements Boss {
     const lv = this.def.level;
     const bx = this.worldX(ctx);
     const by = this.img.y - this.img.displayHeight * 0.55;
+    const d = this.dir;
     this.kids = [];
     const add = (e: Entity) => {
       this.kids.push(e);
       ctx.spawn(e);
     };
+    const L = ctx.cameraLeft + 90;
+    const R = ctx.cameraRight - 90;
     switch (a.kind) {
       case 'volley': {
         const n = a.n ?? 3;
         const tex = shotTexture(s, lv, a.shot, 34, 30);
         // Around where the dog was standing, with clear space beyond the spread.
         const offs = n === 1 ? [0] : n === 2 ? [-60, 60] : [-110, 0, 110];
-        offs.forEach((o, i) => add(new LobShot(s, bx - 40, by, Phaser.Math.Clamp(this.targetX + o, ctx.cameraLeft + 120, ctx.cameraLeft + 820), tex, 1.0 + i * 0.12)));
+        offs.forEach((o, i) => add(new LobShot(s, bx + d * 40, by, Phaser.Math.Clamp(this.targetX + o, L, R), tex, 1.0 + i * 0.12)));
         Audio.play('throw');
         break;
       }
       case 'roll':
-        add(new Roller(s, bx - 60, shotTexture(s, lv, a.shot, 48, 48), a.speed ?? 250, !!a.heavy));
+        add(new Roller(s, bx + d * 70, shotTexture(s, lv, a.shot, 48, 48), -d * (a.speed ?? 250), !!a.heavy));
         Audio.play('parcel');
         break;
       case 'sweep':
-        add(new Sweeper(s, ctx.cameraRight + 80, shotTexture(s, lv, a.shot, 130, 70), a.height, a.speed ?? 480));
+        add(new Sweeper(s, bx + d * 80, shotTexture(s, lv, a.shot, 130, 70), a.height, -d * (a.speed ?? 480)));
         Audio.play('throw');
         break;
       case 'drop': {
         const n = a.n ?? 1;
         const tex = shotTexture(s, lv, a.shot, 60, 56);
-        const xs = n === 1 ? [this.targetX] : [this.targetX - 70, this.targetX + 150];
-        xs.forEach((x, i) => add(new Dropper(s, Phaser.Math.Clamp(x, ctx.cameraLeft + 120, ctx.cameraLeft + 800), tex, 0.7 + i * 0.35)));
+        const xs = n === 1 ? [this.targetX] : [this.targetX - 70, this.targetX + 150 * d];
+        xs.forEach((x, i) => add(new Dropper(s, Phaser.Math.Clamp(x, L, R), tex, 0.7 + i * 0.35)));
         break;
       }
       case 'geyser': {
-        // Vents across the floor, always leaving the spot furthest from them dry.
+        // Vents along the dog's side of the arena, always leaving one spot dry.
         const n = a.n ?? 2;
-        const pads = [220, 400, 580, 760].map((x) => ctx.cameraLeft + x);
+        const pads = (d > 0 ? [800, 950, 1100] : [180, 330, 480]).map((x) => ctx.cameraLeft + x);
         const near = pads.reduce((b, p) => (Math.abs(p - this.targetX) < Math.abs(b - this.targetX) ? p : b), pads[0]);
-        const others = pads.filter((p) => p !== near);
-        const chosen = [near, ...others.slice(0, n - 1)];
+        const chosen = [near, ...pads.filter((p) => p !== near)].slice(0, Math.min(n, pads.length - 1));
         chosen.forEach((x) => add(new Geyser(s, x, a.color)));
         Audio.play('burst_stretch');
         break;
@@ -417,41 +454,55 @@ export class PatternBoss extends Entity implements Boss {
     }
   }
 
+  /** Builds the climbing frame once the camera has settled. */
+  private buildDecks(ctx: GameContext): void {
+    if (this.decksBuilt) return;
+    this.decksBuilt = true;
+    for (const d of ARENA_DECKS) ctx.spawn(this.makeDeck(ctx.cameraLeft + d.x, d.w, G - d.h));
+  }
+
   update(dt: number, ctx: GameContext): void {
     this.t += dt;
+    this.flash = Math.max(0, this.flash - dt);
     const ease = (k: number) => 1 - Math.pow(1 - Phaser.Math.Clamp(k, 0, 1), 3);
-    const hover = this.def.flying ? 170 : 0;
+    const hover = this.hover;
     let rot = 0;
     let scale = this.baseScale;
+    // Always turn to face the dog (charges face where they are going).
+    const wx = this.worldX(ctx);
+    if (this.phase === 'act' && this.attack?.kind === 'swoop') this.facing = this.dir;
+    else if (this.fighting) this.facing = ctx.heroX >= wx ? 1 : -1;
     switch (this.phase) {
       case 'enter':
-        this.sx = Phaser.Math.Linear(1500, HOME_X, ease(this.t / 1.6));
+        this.sx = Phaser.Math.Linear(1500, MID_X, ease(this.t / 1.6));
         this.sy = hover + (this.def.flying ? Math.sin(this.t * 3) * 10 : 0);
         if (this.t >= 1.6) {
+          this.buildDecks(ctx);
           this.onEvent?.('start');
           this.go('idle');
         }
         break;
       case 'idle':
         this.sy = hover + (this.def.flying ? Math.sin(this.t * 3) * 10 : Math.abs(Math.sin(this.t * 5)) * 4);
-        if (this.t >= 0.6) this.beginWarn(ctx);
+        if (this.t >= 0.5) this.beginWarn(ctx);
         break;
       case 'warn': {
         const a = this.attack!;
         this.sy = hover;
-        // Wind-up wobble, plus a lane band for anything that crosses the arena.
         rot = Math.sin(this.t * 22) * 0.05;
         this.band.clear();
-        const lane = a.kind === 'sweep' || a.kind === 'swoop' ? LANE[a.height] : null;
-        if (lane && (a.kind === 'sweep' || a.kind === 'swoop')) {
+        if (a.kind === 'sweep' || a.kind === 'swoop') {
+          // A lane band on the dog's side of the arena.
+          const lane = LANE[a.height];
           const pulse = 0.18 + 0.14 * Math.abs(Math.sin(this.t * 9));
-          this.band.fillStyle(0xe5533d, pulse).fillRect(ctx.cameraLeft, lane.top, ctx.cameraRight - ctx.cameraLeft, lane.bottom - lane.top);
-          this.label.setText(a.height === 'low' ? '▲ JUMP!' : '▼ DUCK!').setPosition(ctx.cameraLeft + 640, lane.top - 26).setVisible(true);
+          const x0 = this.dir > 0 ? wx : ctx.cameraLeft;
+          const x1 = this.dir > 0 ? ctx.cameraRight : wx;
+          this.band.fillStyle(0xe5533d, pulse).fillRect(x0, lane.top, x1 - x0, lane.bottom - lane.top);
+          this.label.setText(a.height === 'low' ? '▲ JUMP!' : '▼ DUCK!').setPosition((x0 + x1) / 2, lane.top - 26).setVisible(true);
         }
         if (a.kind === 'swoop') {
-          // Lines up at the right edge, in its lane.
+          // Crouches into its lane, ready to charge.
           const L = LANE[a.height];
-          this.sx = Phaser.Math.Linear(this.fromX, 1180, ease(this.t / WARN));
           this.sy = Phaser.Math.Linear(this.fromY, G - L.bottom, ease(this.t / WARN));
           scale = this.baseScale * Phaser.Math.Linear(1, 0.55, ease(this.t / WARN));
         }
@@ -468,12 +519,12 @@ export class PatternBoss extends Entity implements Boss {
           const L = LANE[a.height];
           scale = this.baseScale * 0.55;
           this.sy = G - L.bottom;
-          this.sx -= (a.speed ?? 500) * dt;
-          rot = a.height === 'high' ? -0.08 : Math.sin(this.t * 30) * 0.04;
-          if (Math.random() < dt * 8) ctx.fx.dust(ctx.cameraLeft + this.sx + 50, G, 1);
-          if (this.sx < -220) {
-            // Comes back round from the right to its spot.
-            this.sx = 1450;
+          this.sx += this.dir * (a.speed ?? 500) * dt;
+          rot = a.height === 'high' ? -0.08 * this.dir : Math.sin(this.t * 30) * 0.04;
+          if (Math.random() < dt * 8) ctx.fx.dust(wx - this.dir * 50, G, 1);
+          if (this.sx < -220 || this.sx > 1500) {
+            // Comes back round from the other side to the middle.
+            this.sx = this.dir > 0 ? -220 : 1500;
             this.sy = hover;
             this.go('back');
           }
@@ -484,46 +535,16 @@ export class PatternBoss extends Entity implements Boss {
         break;
       }
       case 'back':
-        this.sx = Phaser.Math.Linear(this.fromX, HOME_X, ease(this.t / 0.9));
+        this.sx = Phaser.Math.Linear(this.fromX, MID_X, ease(this.t / 1.0));
         this.sy = hover;
-        if (this.t >= 0.9) this.next();
+        if (this.t >= 1.0) this.next();
         break;
-      case 'toOpen':
-        // Lands and settles where the dog can reach it.
-        this.sx = Phaser.Math.Linear(this.fromX, OPEN_X, ease(this.t / 0.6));
-        this.sy = Phaser.Math.Linear(this.fromY, 0, ease(this.t / 0.6));
-        if (this.t >= 0.6) {
-          this.go('open');
-          this.openedHit = false;
-          this.glow.setVisible(true);
-          Audio.play('burst_ready');
-        }
-        break;
-      case 'open': {
-        this.sy = 0;
+      case 'rest':
+        // Catches its breath between rounds.
+        this.sy = hover + (this.def.flying ? Math.sin(this.t * 3) * 6 : 0);
         rot = Math.sin(this.t * 6) * 0.04;
-        const w = this.img.displayWidth;
-        const h = this.img.displayHeight;
-        const fx = this.def.facesRight ? 1 - this.def.weak.x : this.def.weak.x;
-        this.glow
-          .setPosition(this.img.x - w / 2 + w * fx, this.img.y - h + h * this.def.weak.y)
-          .setRadius(22 + Math.sin(this.t * 10) * 5)
-          .setAlpha(0.6 + Math.sin(this.t * 10) * 0.3);
-        if (Math.random() < dt * 4) ctx.fx.sparkle(this.glow.x, this.glow.y, 1);
-        if (this.t >= this.def.openTime) {
-          this.glow.setVisible(false);
-          this.go('back');
-        }
-        break;
-      }
-      case 'hitReact':
-        rot = Math.sin(this.t * 40) * 0.08;
-        this.img.setTint(Math.floor(this.t * 12) % 2 ? 0xffffff : 0xff9a8a);
-        if (this.t >= 0.7) {
-          this.img.clearTint();
-          this.step = 0;
-          this.go('back');
-        }
+        scale = this.baseScale * (1 + Math.sin(this.t * 8) * 0.02);
+        if (this.t >= this.def.openTime) this.go('idle');
         break;
       case 'defeat':
         // Wobbles, spins and topples off the arena.
@@ -533,7 +554,7 @@ export class PatternBoss extends Entity implements Boss {
         this.fall.rot += dt * 5;
         rot = this.fall.rot;
         scale = this.baseScale * Math.max(0.3, 1 - this.t * 0.25);
-        if (Math.random() < dt * 10) ctx.fx.stars(ctx.cameraLeft + this.sx, G - 120, 1);
+        if (Math.random() < dt * 10) ctx.fx.stars(wx, G - 120, 1);
         if (this.t > 1.8) {
           this.go('done');
           this.img.setVisible(false);
@@ -543,15 +564,19 @@ export class PatternBoss extends Entity implements Boss {
       case 'done':
         break;
     }
-    const wx = this.worldX(ctx);
-    this.img.setPosition(wx, G - this.sy).setRotation(rot).setScale(scale);
-    this.bubble.setPosition(wx - 20, G - this.sy - this.img.displayHeight - 4);
+    const x = this.worldX(ctx);
+    // Drawings face either way; mirror them to face this.facing.
+    const flip = this.def.facesRight ? this.facing < 0 : this.facing > 0;
+    this.img.setPosition(x, G - this.sy).setRotation(rot).setScale(scale).setFlipX(flip);
+    if (this.flash > 0) this.img.setTint(Math.floor(this.flash * 30) % 2 ? 0xffffff : 0xff9a8a);
+    else this.img.clearTint();
+    this.bubble.setPosition(x - 20, G - this.sy - this.img.displayHeight - 4);
   }
 
-  /** On to the next attack, or drop its guard after the last one in the tier. */
+  /** On to the next attack, or a breather after the last one in the tier. */
   private next(): void {
     this.step++;
-    if (this.step % this.tier.length === 0) this.go('toOpen');
+    if (this.step % this.tier.length === 0) this.go('rest');
     else this.go('idle');
   }
 
@@ -560,6 +585,5 @@ export class PatternBoss extends Entity implements Boss {
     this.bubble.destroy();
     this.band.destroy();
     this.label.destroy();
-    this.glow.destroy();
   }
 }

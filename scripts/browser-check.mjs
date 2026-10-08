@@ -404,19 +404,19 @@ try {
           const a = s.bossAttack;
           let mx = 0;
           let duck = false;
-          if (s.bossPhase === 'open') {
-            mx = s.screenX < 620 ? 1 : 0;
-            if (s.barkCooldown <= 0) {
-              input.touchDown('bark', 78);
-              input.touchUp(78);
-              w.__bot.barks++;
-            }
-          } else if (a) {
+          // Hold station just outside the boss's reach and bark whenever in range.
+          const bx = s.bossScreenX ?? 660;
+          const want = bx - 290;
+          if (Math.abs(s.screenX - bx) < 310 && s.barkCooldown <= 0) {
+            input.touchDown('bark', 78);
+            input.touchUp(78);
+            w.__bot.barks++;
+          }
+          if (a && (a.kind === 'volley' || a.kind === 'drop' || a.kind === 'geyser')) {
             const tx = a.targetX - (s.x - s.screenX);
-            if (a.kind === 'volley' || a.kind === 'drop' || a.kind === 'geyser') mx = Math.abs(s.screenX - tx) > 260 ? 0 : tx > 400 ? -1 : 1;
-            else mx = s.screenX > 300 ? -1 : 0;
-            duck = a.height === 'high';
-          } else mx = s.screenX > 300 ? -1 : s.screenX < 240 ? 1 : 0;
+            mx = Math.abs(s.screenX - tx) > 200 || s.screenX < 110 ? 0 : tx > s.screenX ? -1 : s.screenX < want - 40 ? 1 : -1;
+          } else mx = s.screenX < want - 30 ? 1 : s.screenX > want + 30 ? -1 : 0;
+          duck = !!a && a.height === 'high';
           input.setStick(duck ? 0 : mx, duck ? 0.95 : 0, duck || mx !== 0);
           if (closing(s, now) && s.grounded && !w.__hold && !duck) {
             input.touchDown('jump', 77);
@@ -564,15 +564,14 @@ try {
         const a = s.bossAttack;
         let mx = 0;
         let duck = false;
-        if (s.bossPhase === 'open') {
-          mx = s.screenX < 620 ? 1 : 0;
-          bark();
-        } else if (a) {
+        const bx = s.bossScreenX ?? 660;
+        const want = bx - 290;
+        if (Math.abs(s.screenX - bx) < 310) bark();
+        if (a && (a.kind === 'volley' || a.kind === 'drop' || a.kind === 'geyser')) {
           const tx = a.targetX - (s.x - s.screenX);
-          if (a.kind === 'volley' || a.kind === 'drop' || a.kind === 'geyser') mx = Math.abs(s.screenX - tx) > 260 ? 0 : tx > 400 ? -1 : 1;
-          else mx = s.screenX > 300 ? -1 : 0;
-          if (a.height === 'high') duck = true;
-        } else mx = s.screenX > 300 ? -1 : s.screenX < 240 ? 1 : 0;
+          mx = Math.abs(s.screenX - tx) > 200 || s.screenX < 110 ? 0 : tx > s.screenX ? -1 : s.screenX < want - 40 ? 1 : -1;
+        } else mx = s.screenX < want - 30 ? 1 : s.screenX > want + 30 ? -1 : 0;
+        if (a && a.height === 'high') duck = true;
         const glider = duck || s.hazardsAhead.find((h) => h.bottom > 18 && h.bottom < 70 && h.dx > -40 && h.dx < 200);
         if (glider && s.grounded && holdUntil === 0) {
           input.setStick(0, 0.95, true);
