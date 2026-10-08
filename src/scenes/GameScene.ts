@@ -594,8 +594,18 @@ export class GameScene extends Phaser.Scene {
 
   // ------------------------------------------------------------ loop
 
+  private lastWall = 0;
+
   update(_time: number, deltaMs: number): void {
-    if (this.paused) return;
+    if (this.paused) {
+      this.lastWall = 0;
+      return;
+    }
+    if (debugFlags.realtime) {
+      const now = performance.now();
+      deltaMs = this.lastWall ? now - this.lastWall : deltaMs;
+      this.lastWall = now;
+    }
     const dt = Math.min(deltaMs / 1000, TUNING.maxFrameDelta);
     // Presses made during a freeze-frame stay latched for the next frame.
     if (this.hitstop > 0) {

@@ -273,7 +273,7 @@ try {
 
   // ---------------------------------------------------------------- full chapter (god mode autopilot)
   if (!quick) {
-    page = await newPage('?god=1');
+    page = await newPage('?god=1&realtime=1');
     await page.keyboard.press('Enter');
     await waitScene(page, 'ChapterMap');
     await sleep(400);
@@ -346,7 +346,7 @@ try {
 
   // ---------------------------------------------------------------- whole chapter at base stats, no god mode
   if (!quick) {
-    page = await newPage();
+    page = await newPage('?realtime=1');
     await page.evaluate(() => {
       const p = JSON.parse(localStorage.getItem('homeward-hound.progress') ?? '{}');
       p.storySeen = true;
@@ -505,7 +505,7 @@ try {
   // ---------------------------------------------------------------- finales at base stats, no god mode
   const BOSS_NAMES = ['Don Crumb', 'Forklift Frankie', 'Captain Gull', 'Switchback Badger', 'Boiler Brutus', 'Hardhat Hank', 'Net-O-Matic', 'Honkzilla', 'Squirrel Boss'];
   for (const fin of BOSS_NAMES.map((name, i) => ({ chapter: i + 1, name })).filter((f) => !quick || f.chapter <= 2)) {
-  page = await newPage();
+  page = await newPage('?realtime=1');
   await page.evaluate((fin) => {
     const p = JSON.parse(localStorage.getItem('homeward-hound.progress') ?? '{}');
     p.version = 2;
