@@ -11,6 +11,21 @@ const quick = process.argv.includes('--quick');
 const exe = process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 mkdirSync('screenshots', { recursive: true });
 
+// Refuse to test a stale build: the preview serves dist/, not src/.
+{
+  const { statSync, readdirSync } = await import('node:fs');
+  const newest = (dir) => readdirSync(dir, { withFileTypes: true }).reduce((m, e) => Math.max(m, e.isDirectory() ? newest(`${dir}/${e.name}`) : statSync(`${dir}/${e.name}`).mtimeMs), 0);
+  let built = 0;
+  try {
+    built = statSync('dist/index.html').mtimeMs;
+  } catch {
+    /* no build */
+  }
+  if (newest('src') > built) {
+    console.error('dist/ is older than src/ — run `npm run build` first.');
+    process.exit(2);
+  }
+}
 const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--port', String(PORT), '--strictPort'], { stdio: ['ignore', 'pipe', 'ignore'] });
 await new Promise((res, rej) => {
   const onData = (d) => {
