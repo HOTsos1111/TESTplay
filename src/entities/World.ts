@@ -788,12 +788,35 @@ export class LowBar extends Entity {
     this.speed = 2.2 + ((x * 0.0071) % 1.4);
     this.chains = scene.add.graphics().setDepth(DEPTH.enemy);
     this.img = scene.add.image(x - 3, WORLD.groundY, theme().lowbar).setOrigin(0, 1).setScale(ART_SCALE).setDepth(DEPTH.enemy);
+    this.floating = !!theme().level;
+    if (this.floating) {
+      // A big beam hovering low over the street: duck under it, or time a jump over it.
+      this.img.setOrigin(0.5, 0.5).setDisplaySize(LowBar.FLOAT_W + 30, LowBar.FLOAT_H + 26);
+      this.shade = scene.add.image(x + LowBar.W / 2, WORLD.groundY + 3, 'shadow').setDepth(DEPTH.groundShadow).setAlpha(0.6);
+    }
     this.place();
   }
+  /** Guide levels: no ceiling pipes; it bobs gently, never low enough to catch a ducking dog. */
+  private floating = false;
+  private shade: Phaser.GameObjects.Image | null = null;
+  static readonly FLOAT_W = 150;
+  static readonly FLOAT_H = 38;
+  /** Underside of a floating beam: always above a ducking dog's back (22 px). */
+  static readonly FLOAT_LOW = 27;
+  static readonly FLOAT_HIGH = 42;
   get right(): number {
-    return this.x + LowBar.W;
+    return this.x + (this.floating ? LowBar.FLOAT_W : LowBar.W);
   }
   private place(): void {
+    if (this.floating) {
+      const k = (1 - Math.cos(this.t * this.speed * 0.6)) / 2;
+      this.clearance = LowBar.FLOAT_LOW + (LowBar.FLOAT_HIGH - LowBar.FLOAT_LOW) * k;
+      const cy = WORLD.groundY - this.clearance - LowBar.FLOAT_H / 2;
+      this.img.setPosition(this.x + LowBar.FLOAT_W / 2, cy);
+      this.chains.clear();
+      this.shade?.setPosition(this.x + LowBar.FLOAT_W / 2, WORLD.groundY + 3).setScale(ART_SCALE * 1.5 * (1 - k * 0.2), ART_SCALE);
+      return;
+    }
     const k = (1 - Math.cos(this.t * this.speed)) / 2;
     this.clearance = LowBar.CLEARANCE + (LowBar.MAX_CLEARANCE - LowBar.CLEARANCE) * k;
     const bottom = WORLD.groundY - this.clearance;
@@ -824,15 +847,17 @@ export class LowBar extends Entity {
   update(dt: number): void {
     this.t += dt;
     this.place();
-    this.img.rotation = Math.sin(this.t * 2) * 0.012;
+    this.img.rotation = Math.sin(this.t * 2) * (this.floating ? 0.03 : 0.012);
   }
   hazard(): Rect {
     const bottom = WORLD.groundY - this.clearance;
+    if (this.floating) return { x: this.x + 4, y: bottom - LowBar.FLOAT_H, w: LowBar.FLOAT_W - 8, h: LowBar.FLOAT_H };
     return { x: this.x, y: bottom - LowBar.H, w: LowBar.W, h: LowBar.H };
   }
   destroy(): void {
     this.img.destroy();
     this.chains.destroy();
+    this.shade?.destroy();
   }
 }
 

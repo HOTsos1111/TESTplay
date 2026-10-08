@@ -395,7 +395,7 @@ export class GameScene extends Phaser.Scene {
       case 'ground':
         return new GroundPiece(this, it.x, it.w, it.edgeLeft, it.edgeRight);
       case 'platform':
-        return new Platform(this, it.x, it.w, it.top);
+        return new Platform(this, it.x, it.w, it.top, !it.floating);
       case 'crate':
         return new Crate(this, it.x, it.top);
       case 'cardboard':

@@ -71,7 +71,7 @@ export function buildLevelTheme(scene: Phaser.Scene, level: number): string | nu
   const breakable = art.breakable ? make(`${id}_break`, art.breakable, 60, 56, 'contain') : null;
   const low = make(`${id}_low`, art.low, 52, 44, 'contain');
   const roller = make(`${id}_roll`, art.roller, 50, 50, 'contain', 'center');
-  const duck = make(`${id}_duck`, art.duck, 112, 62, 'contain');
+  const duck = make(`${id}_duck`, art.duck, 180, 64, 'stretch');
   const shot = make(`${id}_shot`, art.shot, 28, 28, 'contain', 'center');
   const pile = make(`${id}_pile`, art.shot, 40, 30, 'contain');
   // Thrower: 90 px tall, as wide as its proportions need.

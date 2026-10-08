@@ -41,7 +41,7 @@ export const HINTS: Record<string, HintCopy> = {
   hover: { keys: 'Hold jump to give your tail a spin!', touch: 'Hold the stick UP to give your tail a spin!' },
   hover_recharge: { keys: 'Your tail recharges while your paws are on the ground.', touch: 'Your tail recharges while your paws are on the ground.' },
   burst: { keys: 'Arrows on the floor? Press SHIFT to BURST, then jump and hold!', touch: 'Arrows on the floor? Tap SPEED, then jump and hold!' },
-  duck: { keys: 'Pumping pipe! Hold ↓ (or S) to duck — but not when it slams down.', touch: 'Pumping pipe! Pull the stick DOWN to duck — but not when it slams down.' },
+  duck: { keys: 'Floating beam! Hold ↓ (or S) to DUCK under it, or time a JUMP over it.', touch: 'Floating beam! Pull DOWN to duck under it, or time a jump over it.' },
   double: { keys: 'Too tall! Jump EARLY, then press jump again at the top to double-jump.', touch: 'Too tall! Push UP early, let go, then push UP again at the top to double-jump.' },
   encounter: { keys: 'Jump the chargers, DUCK the gliders, BARK (X) them away!', touch: 'Jump the chargers, DUCK the gliders, tap BARK to blast them!' },
   encounter_pigeon: { keys: 'Jump the rolls, DUCK the swoops, BARK (X) when he lands!', touch: 'Jump the rolls, DUCK the swoops, BARK when he lands!' },

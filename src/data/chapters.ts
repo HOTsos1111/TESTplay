@@ -15,8 +15,10 @@ export interface ChapterDef {
   chunks: string[];
   /** Legacy set-piece encounters, or 'boss' for the level's own boss (see data/bosses). */
   encounterId: 'trolley' | 'swarm' | 'pigeon' | 'boss' | null;
-  /** Double jump is learned in Level 6; earlier levels never need it. */
+  /** Double jump available in this level. */
   doubleJump: boolean;
+  /** Optional floating second- and third-tier platform routes. */
+  skyRoutes?: boolean;
   /** Background, obstacle skins and gate. */
   theme: ThemeId;
   /** Campaign level (1–9) whose asset guide dresses this chapter, if any. */
@@ -39,7 +41,8 @@ export const CHAPTERS: ChapterDef[] = [
     speedEnd: 370,
     chunks: ['depot_start', 'jump_tyre', 'bark_intro', 'jump_gap', 'hop_or_leap', 'squirrel_intro', 'platforms_intro', 'crate_steps', 'depot_mix_a', 'speed_run', 'high_route', 'exit_gate'],
     encounterId: 'boss',
-    doubleJump: false,
+    doubleJump: true,
+    skyRoutes: true,
     theme: 'depot',
     art: 1,
     music: 'level01',
@@ -57,7 +60,8 @@ export const CHAPTERS: ChapterDef[] = [
     speedEnd: 375,
     chunks: ['street_start', 'duck_intro', 'street_hydrants', 'street_bakery_boxes', 'street_awnings', 'street_gaps', 'street_squirrels', 'street_mix', 'street_market', 'squirrel_pair', 'exit_gate'],
     encounterId: 'boss',
-    doubleJump: false,
+    doubleJump: true,
+    skyRoutes: true,
     theme: 'depot',
     art: 2,
     music: 'level02',
@@ -75,7 +79,8 @@ export const CHAPTERS: ChapterDef[] = [
     speedEnd: 380,
     chunks: ['depot_start', 'hover_intro', 'jump_gap', 'hover_recharge', 'street_hover', 'platforms_intro', 'street_hover_squirrel', 'mixed_hover', 'street_gaps', 'exit_gate'],
     encounterId: 'boss',
-    doubleJump: false,
+    doubleJump: true,
+    skyRoutes: true,
     theme: 'depot',
     art: 3,
     music: 'level03',
@@ -93,7 +98,8 @@ export const CHAPTERS: ChapterDef[] = [
     speedEnd: 385,
     chunks: ['street_start', 'street_awnings', 'high_route', 'duck_intro', 'crate_steps', 'street_mix', 'hop_or_leap', 'street_market', 'final_gauntlet', 'exit_gate'],
     encounterId: 'boss',
-    doubleJump: false,
+    doubleJump: true,
+    skyRoutes: true,
     theme: 'depot',
     art: 4,
     music: 'level04',
@@ -111,7 +117,8 @@ export const CHAPTERS: ChapterDef[] = [
     speedEnd: 390,
     chunks: ['depot_start', 'bark_intro', 'street_bakery_boxes', 'depot_mix_a', 'burst_intro', 'squirrel_pair', 'mixed_hover', 'street_burst', 'high_route', 'exit_gate'],
     encounterId: 'boss',
-    doubleJump: false,
+    doubleJump: true,
+    skyRoutes: true,
     theme: 'depot',
     art: 5,
     music: 'level05',
@@ -130,6 +137,7 @@ export const CHAPTERS: ChapterDef[] = [
     chunks: ['street_start', 'double_intro', 'street_double', 'hover_recharge', 'duck_double_mix', 'street_hover', 'crate_steps', 'final_gauntlet', 'exit_gate'],
     encounterId: 'boss',
     doubleJump: true,
+    skyRoutes: true,
     theme: 'depot',
     art: 6,
     music: 'level06',
@@ -148,6 +156,7 @@ export const CHAPTERS: ChapterDef[] = [
     chunks: ['depot_start', 'street_double_duck', 'street_mix', 'burst_gauntlet', 'street_squirrels', 'duck_double_mix', 'street_final', 'exit_gate'],
     encounterId: 'boss',
     doubleJump: true,
+    skyRoutes: true,
     theme: 'depot',
     art: 7,
     music: 'level07',
@@ -166,6 +175,7 @@ export const CHAPTERS: ChapterDef[] = [
     chunks: ['street_start', 'street_hover_squirrel', 'mixed_hover', 'squirrel_pair', 'street_burst_gauntlet', 'hover_recharge', 'street_double', 'final_gauntlet', 'exit_gate'],
     encounterId: 'boss',
     doubleJump: true,
+    skyRoutes: true,
     theme: 'depot',
     art: 8,
     music: 'level08',
@@ -184,6 +194,7 @@ export const CHAPTERS: ChapterDef[] = [
     chunks: ['depot_start', 'street_final', 'duck_double_mix', 'burst_gauntlet', 'street_double_duck', 'final_gauntlet', 'street_burst_gauntlet', 'high_route', 'exit_gate'],
     encounterId: 'boss',
     doubleJump: true,
+    skyRoutes: true,
     theme: 'depot',
     art: 9,
     music: 'level09',

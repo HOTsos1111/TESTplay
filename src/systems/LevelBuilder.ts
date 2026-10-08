@@ -5,7 +5,7 @@ import { chunkById, OBJECT_SIZE, type BonePattern, type ChunkDef } from '../data
 /** A placed object in world space, created lazily by the spawner. */
 export type Spawnable =
   | { type: 'ground'; x: number; w: number; edgeLeft: boolean; edgeRight: boolean }
-  | { type: 'platform'; x: number; w: number; top: number }
+  | { type: 'platform'; x: number; w: number; top: number; floating?: boolean }
   | { type: 'crate'; x: number; top: number }
   | { type: 'cardboard'; x: number; top: number; stack: string }
   | { type: 'tyre'; x: number; bottom: number }
@@ -91,6 +91,59 @@ export function autoBoneTrails(c: ChunkDef, chapterId: number, ci: number): { ty
   return out;
 }
 
+/** Heights of the three platform tiers (the first is the authored ledge height). */
+export const TIERS = [90, 190, 290] as const;
+
+/**
+ * A floating sky route over one chunk: up a tier-1 step, a tier-2 deck, a
+ * tier-3 deck and back down via tier 2. Each step is one normal jump above the
+ * last; it is an optional path, so it is placed only where it neither cuts into
+ * crates, hanging bars or lifts nor ends over a pit.
+ */
+export function skyRoute(c: ChunkDef, ci: number): { x: number; w: number; h: number }[] {
+  const ROUTE = [
+    { dx: 0, w: 300, h: TIERS[0] },
+    { dx: 230, w: 330, h: TIERS[1] },
+    { dx: 500, w: 320, h: TIERS[2] },
+    { dx: 760, w: 300, h: TIERS[1] },
+  ];
+  // Things each tier must keep clear of: [x0, x1, tallest point].
+  const solid: [number, number, number][] = [];
+  for (const cr of c.crates ?? []) solid.push([cr.x - 50, cr.x + OBJECT_SIZE.crate.w + 50, (cr.h ?? 0) + (cr.stack ?? 1) * OBJECT_SIZE.crate.h]);
+  for (const cb of c.cardboard ?? []) solid.push([cb.x - 50, cb.x + OBJECT_SIZE.cardboard.w + 50, (cb.h ?? 0) + cb.stack * OBJECT_SIZE.cardboard.h]);
+  for (const p of c.platforms ?? []) solid.push([p.x - 60, p.x + p.w + 60, p.h + 40]);
+  // Duck beams float low over the street (no ceiling pipes in the guide levels).
+  for (const l of c.lowbars ?? []) solid.push([l.x - 60, l.x + 170, 150]);
+  for (const l of c.lifts ?? []) solid.push([l.x - 80, l.x + l.w + 80, 9999]);
+  for (const b of c.bones ?? []) {
+    const top = b.h + (b.kind === 'arc' ? b.rise : 0);
+    const [a, z] = b.kind === 'line' ? [b.x, b.x + (b.n - 1) * (b.spacing ?? 60)] : [b.x - b.width / 2, b.x + b.width / 2];
+    // Bones just under a deck are fine; only ones that would sit inside it block.
+    solid.push([a - 20, z + 20, top + 50]);
+  }
+  const overGap = (x: number) => (c.gaps ?? []).some(([gx, gw]) => x > gx - 60 && x < gx + gw + 60);
+  const end = c.exitGate ? c.exitGate.x - 500 : c.length - 260;
+  // Prefer a different spot in each chunk.
+  const offset = ((ci * 137) % 5) * 60;
+  const fits = (r: { dx: number; w: number; h: number }, s: number) => {
+    const x0 = s + r.dx;
+    const x1 = x0 + r.w;
+    return !solid.some(([a, z, top]) => z > x0 && a < x1 && top > r.h - 40);
+  };
+  // Full route first, then shorter ones (tier 2 is a double jump from the floor).
+  const variants = [ROUTE, ROUTE.slice(1), ROUTE.slice(1, 3), ROUTE.slice(0, 2), [ROUTE[1]]];
+  for (const steps of variants) {
+    const len = steps[steps.length - 1].dx + steps[steps.length - 1].w;
+    for (let s = 260 + offset - steps[0].dx; s + len <= end; s += 40) {
+      // Every way down (off each deck's far end) must land on floor.
+      if (steps.every((r) => fits(r, s) && !overGap(s + r.dx + r.w + 40)) && !overGap(s + steps[0].dx - 40)) {
+        return steps.map((r) => ({ x: s + r.dx, w: r.w, h: r.h }));
+      }
+    }
+  }
+  return [];
+}
+
 /** How many power-ups appear per run of a chapter. */
 export const POWERUPS_PER_RUN = 5;
 
@@ -109,6 +162,16 @@ export function buildLevel(chapter: ChapterDef, random: () => number = Math.rand
     chunkStarts.push({ id: c.id, x: o });
     for (const [gx, gw] of c.gaps ?? []) gaps.push([o + gx, gw]);
     for (const p of c.platforms ?? []) items.push({ type: 'platform', x: o + p.x, w: p.w, top: g - p.h });
+    // Upper tiers: floating decks with a bone trail along the top one.
+    if (chapter.skyRoutes && ci > 0) {
+      const route = skyRoute(c, ci);
+      route.forEach((r, ri) => {
+        items.push({ type: 'platform', x: o + r.x, w: r.w, top: g - r.h, floating: true });
+        if (r.h > TIERS[0]) {
+          for (let k = 0; k < 4; k++) items.push({ type: 'bone', x: o + r.x + 60 + k * ((r.w - 120) / 3), y: g - r.h - 34, id: `${chapter.id}:${ci}:sky${ri}:${k}` });
+        }
+      });
+    }
     for (const cr of c.crates ?? []) {
       const base = cr.h ?? 0;
       for (let i = 0; i < (cr.stack ?? 1); i++) {
