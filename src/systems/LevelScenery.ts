@@ -81,6 +81,8 @@ class Layer {
 export class LevelScenery {
   private sky: Phaser.GameObjects.Graphics;
   private haze: Phaser.GameObjects.Graphics;
+  /** Light atmospheric wash over all the scenery, so the play layer pops in front of it. */
+  private veil!: Phaser.GameObjects.Graphics;
   private layers: Layer[] = [];
 
   constructor(private scene: Phaser.Scene, private level: number, startCamX: number) {
@@ -88,17 +90,17 @@ export class LevelScenery {
     const rand = rng(level * 7919);
     this.sky = scene.add.graphics().setScrollFactor(0).setDepth(DEPTH.farBg - 2);
     this.haze = scene.add.graphics().setScrollFactor(0).setDepth(DEPTH.farBg + 1);
+    this.veil = scene.add.graphics().setScrollFactor(0).setDepth(DEPTH.nearBg + 2);
     this.layout(scene.scale.width);
     const [fg1, fg2] = art.near;
     const specs: LayerSpec[] = [
       { pieces: [art.far], factor: 0.08, height: 250, bottom: 482, gap: [260, 760], depth: DEPTH.farBg, alpha: 0.95, mirror: true },
       { pieces: [art.distant], factor: 0.18, height: 200, bottom: 528, gap: [-30, -10], depth: DEPTH.farBg + 2, alpha: 0.97, mirror: true },
-      { pieces: [art.mid[0]], factor: 0.55, height: 300, bottom: 596, gap: [140, 520], depth: DEPTH.midBg },
-      { pieces: [art.mid[1]], factor: 0.75, height: 230, bottom: 600, gap: [520, 1100], depth: DEPTH.nearBg },
-      // Street dressing standing on the far edge of the ground, behind the action.
-      { pieces: [fg2, fg1], factor: 1, height: 96, bottom: 590, gap: [700, 1500], depth: DEPTH.ground - 1 },
-      // Foreground accents peeking up from the bottom edge.
-      { pieces: [fg1, fg2], factor: 1.08, height: 120, bottom: 760, gap: [1300, 2400], depth: DEPTH.fx - 1 },
+      // Scenery is drawn big and set well back (slow parallax, behind the far edge
+      // of the street, under a veil of haze) so it never reads as an obstacle.
+      { pieces: [art.mid[0]], factor: 0.4, height: 600, bottom: 586, gap: [220, 700], depth: DEPTH.midBg },
+      { pieces: [art.mid[1]], factor: 0.5, height: 460, bottom: 586, gap: [700, 1400], depth: DEPTH.midBg + 1 },
+      { pieces: [fg2, fg1], factor: 0.62, height: 192, bottom: 586, gap: [500, 1200], depth: DEPTH.nearBg },
     ];
     this.layers = specs.map((s) => new Layer(scene, level, s, rand, startCamX));
   }
@@ -127,6 +129,8 @@ export class LevelScenery {
     this.haze.clear();
     this.haze.fillStyle(art.haze, 0.55).fillRect(0, 470, width, 140);
     this.haze.fillStyle(art.haze, 0.85).fillRect(0, 520, width, 90);
+    this.veil.clear();
+    this.veil.fillStyle(art.haze, 0.36).fillRect(0, 0, width, 590);
   }
 
   get debug(): unknown {
@@ -142,5 +146,6 @@ export class LevelScenery {
     for (const l of this.layers) l.destroy();
     this.sky.destroy();
     this.haze.destroy();
+    this.veil.destroy();
   }
 }

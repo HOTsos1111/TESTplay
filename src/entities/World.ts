@@ -16,6 +16,18 @@ export function pickSkin<T>(list: readonly T[], seed: number | string): T {
   return list[(h >>> 0) % list.length];
 }
 
+/**
+ * Soft oval shadow on the street under an obstacle. Only things on the play
+ * line cast one, which sets them apart from the scenery behind.
+ */
+function groundShadow(scene: Phaser.Scene, cx: number, w: number): Phaser.GameObjects.Image {
+  return scene.add
+    .image(cx, WORLD.groundY + 3, 'shadow')
+    .setScale(ART_SCALE * ((w * 1.25) / 120), ART_SCALE * 1.1)
+    .setDepth(DEPTH.groundShadow)
+    .setAlpha(0.85);
+}
+
 /** Services the game scene provides to entities. */
 export interface GameContext {
   scene: Phaser.Scene;
@@ -223,12 +235,15 @@ export class Crate extends Entity {
     const { w, h } = OBJECT_SIZE.crate;
     this.img = scene.add.image(x, top, pickSkin(theme().crate, `${x}:${top}`)).setOrigin(0, 0).setScale(ART_SCALE).setDepth(DEPTH.prop);
     this.solid = { x, y: top, w, h, oneWay: false, kind: 'crate', ref: this };
+    if (top + h >= WORLD.groundY - 1) this.shadow = groundShadow(scene, x + w / 2, w);
   }
+  private shadow: Phaser.GameObjects.Image | null = null;
   get right(): number {
     return this.x + OBJECT_SIZE.crate.w;
   }
   destroy(): void {
     this.img.destroy();
+    this.shadow?.destroy();
   }
 }
 
@@ -238,12 +253,14 @@ export class Cardboard extends Entity {
   private breakT = -1;
   private wobble = Math.random() * 6;
   private flat: Phaser.GameObjects.Image | null = null;
+  private shadow: Phaser.GameObjects.Image | null = null;
   constructor(scene: Phaser.Scene, private x: number, private top: number, readonly stack: string, private onStackBreak: (stack: string) => void) {
     super();
     const { w, h } = OBJECT_SIZE.cardboard;
     this.skin = pickSkin(theme().cardboard, `${stack}:${top}`);
     this.img = scene.add.image(x + w / 2, top + h, this.skin).setOrigin(0.5, 1).setScale(ART_SCALE).setDepth(DEPTH.prop);
     this.solid = { x, y: top, w, h, oneWay: false, kind: 'cardboard', ref: this };
+    if (top + h >= WORLD.groundY - 1) this.shadow = groundShadow(scene, x + w / 2, w);
   }
   get right(): number {
     return this.x + OBJECT_SIZE.cardboard.w;
@@ -278,6 +295,7 @@ export class Cardboard extends Entity {
       if (this.breakT <= 0 && this.solid) {
         this.solid = null;
         this.img.setVisible(false);
+        this.shadow?.setVisible(false);
         const cx = this.x + OBJECT_SIZE.cardboard.w / 2;
         const cy = this.top + OBJECT_SIZE.cardboard.h / 2;
         ctx.fx.bits(cx, cy, 9);
@@ -292,6 +310,7 @@ export class Cardboard extends Entity {
   destroy(): void {
     this.img.destroy();
     this.flat?.destroy();
+    this.shadow?.destroy();
   }
 }
 
@@ -300,7 +319,9 @@ export class Tyre extends Entity {
   constructor(scene: Phaser.Scene, private x: number, private bottom: number) {
     super();
     this.img = scene.add.image(x + OBJECT_SIZE.tyre.w / 2, bottom, pickSkin(theme().low, x)).setOrigin(0.5, 1).setScale(ART_SCALE).setDepth(DEPTH.prop);
+    if (bottom >= WORLD.groundY - 1) this.shadow = groundShadow(scene, x + OBJECT_SIZE.tyre.w / 2, OBJECT_SIZE.tyre.w);
   }
+  private shadow: Phaser.GameObjects.Image | null = null;
   get right(): number {
     return this.x + OBJECT_SIZE.tyre.w;
   }
@@ -309,6 +330,7 @@ export class Tyre extends Entity {
   }
   destroy(): void {
     this.img.destroy();
+    this.shadow?.destroy();
   }
 }
 
@@ -830,7 +852,9 @@ export class Barrel extends Entity {
       .setOrigin(0.5, this.tumble ? 0.5 : 1)
       .setScale(ART_SCALE)
       .setDepth(DEPTH.enemy);
+    this.shadow = groundShadow(scene, x, 44);
   }
+  private shadow: Phaser.GameObjects.Image;
   get right(): number {
     return this.x + 24;
   }
@@ -854,8 +878,10 @@ export class Barrel extends Entity {
       this.img.rotation = Math.sin(this.t * 6) * 0.05;
     }
     this.img.x = this.x;
+    this.shadow.x = this.x;
     // Fell into a pit or rolled off screen.
     if (ctx.surfaceBelow(this.x, WORLD.groundY - 1) === null) {
+      this.shadow.setVisible(false);
       this.img.y += 600 * dt;
       if (this.img.y > WORLD.pitDeathY) this.alive = false;
     }
@@ -863,6 +889,7 @@ export class Barrel extends Entity {
   }
   destroy(): void {
     this.img.destroy();
+    this.shadow.destroy();
   }
 }
 
