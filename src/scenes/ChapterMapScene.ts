@@ -13,7 +13,8 @@ import { centerMenu } from '../ui/layout';
 /** completed: beaten; open: reachable and playable; soon: reachable, not built yet; locked: not reached. */
 type LevelState = 'completed' | 'open' | 'soon' | 'locked';
 
-const PLAQUE = { w: 222, h: 76 };
+/** Tile button size on the map, and how far above its blank sign it sits. */
+const PLAQUE = { w: 176, h: 157, dy: -30 };
 const PAPER = 0xfff6e3;
 
 /**
@@ -39,6 +40,7 @@ export class ChapterMapScene extends Phaser.Scene {
   preload(): void {
     if (!this.textures.exists('level_map')) this.load.image('level_map', 'ui/level_map.webp');
     if (!this.textures.exists('level_map_ghost')) this.load.image('level_map_ghost', 'ui/level_map_ghost.webp');
+    for (const l of LEVELS) if (!this.textures.exists(`level_tile_${l.id}`)) this.load.image(`level_tile_${l.id}`, `ui/tile_0${l.id}.webp`);
   }
 
   private stateOf(l: LevelDef): LevelState {
@@ -117,7 +119,7 @@ export class ChapterMapScene extends Phaser.Scene {
     const here = LEVELS.find((l) => this.stateOf(l) === 'open' && !p.completedChapters.includes(l.standIn ?? -1)) ?? LEVELS.filter((l) => this.stateOf(l) !== 'locked').pop() ?? LEVELS[0];
     this.selected = here.id;
     if (this.textures.exists('hero_s_idle')) {
-      this.marker = this.add.image(here.map.x - PLAQUE.w / 2 + 6, here.map.y - PLAQUE.h / 2 - 2, 'hero_s_idle').setOrigin(0.5, 1).setScale(0.32).setDepth(D + 2);
+      this.marker = this.add.image(here.map.x - PLAQUE.w / 2 - 4, here.map.y + PLAQUE.dy + PLAQUE.h / 2 + 6, 'hero_s_idle').setOrigin(0.5, 1).setScale(0.32).setDepth(D + 2);
     }
 
     const kb = this.input.keyboard;
@@ -139,75 +141,55 @@ export class ChapterMapScene extends Phaser.Scene {
     this.select(this.selected, true);
   }
 
-  /** A glossy two-line plaque sitting on the district's blank sign. */
+  /** The district's painted tile button, sitting over its blank sign on the map. */
   private makePlaque(l: LevelDef, i: number): Phaser.GameObjects.Container {
     const st = this.stateOf(l);
     const { w, h } = PLAQUE;
-    const c = this.add.container(l.map.x, l.map.y).setDepth(DEPTH.hud + 1);
-    const face = this.add.graphics();
-    const fill = st === 'locked' ? 0x9a8f9c : st === 'completed' ? 0x2e8b86 : st === 'soon' ? 0x5f9fc4 : COLOR.coral;
-    const col = Phaser.Display.Color.IntegerToColor(fill);
-    const dark = Phaser.Display.Color.GetColor(col.red * 0.6, col.green * 0.6, col.blue * 0.6);
-    const r = 22;
-    face.fillStyle(COLOR.outline, 0.35).fillRoundedRect(-w / 2 + 4, -h / 2 + 12, w, h, r);
-    face.fillStyle(COLOR.outline, 1).fillRoundedRect(-w / 2 - 2, -h / 2 + 4, w + 4, h + 4, r + 2);
-    face.fillStyle(dark, 1).fillRoundedRect(-w / 2, -h / 2 + 6, w, h, r);
-    face.fillStyle(fill, 1).fillRoundedRect(-w / 2, -h / 2, w, h, r);
-    face.fillStyle(0x000000, 0.1).fillRoundedRect(-w / 2 + 6, h * 0.08, w - 12, h * 0.38, { tl: 0, tr: 0, bl: r - 6, br: r - 6 });
-    face.fillStyle(0xffffff, 0.3).fillRoundedRect(-w / 2 + 12, -h / 2 + 5, w - 24, h * 0.32, r - 9);
-    face.fillStyle(0xffffff, 0.55).fillCircle(-w / 2 + 22, -h / 2 + 13, 4);
-    face.lineStyle(4, COLOR.outline, 1).strokeRoundedRect(-w / 2, -h / 2, w, h, r);
-    c.add(face);
+    const c = this.add.container(l.map.x, l.map.y + PLAQUE.dy).setDepth(DEPTH.hud + 1);
+    // Soft drop shadow under the tile.
+    const shade = this.add.graphics();
+    shade.fillStyle(COLOR.outline, 0.35).fillRoundedRect(-w / 2 + 5, -h / 2 + 9, w, h, 22);
+    c.add(shade);
     this.faces.push(this.add.graphics());
     c.add(this.faces[i]);
+    const tile = this.add.image(0, 0, `level_tile_${l.id}`);
+    tile.setScale(Math.min(w / tile.width, h / tile.height));
+    c.add(tile);
 
-    // Number (or padlock) badge.
-    const bx = -w / 2 + 30;
-    const badge = this.add.graphics();
-    badge.fillStyle(COLOR.outline, 1).fillCircle(bx, -2, 21);
-    badge.fillStyle(st === 'locked' ? 0x6e6470 : PAPER, 1).fillCircle(bx, -2, 17.5);
-    c.add(badge);
     if (st === 'locked') {
+      // Out of reach: greyed out, with a padlock over the picture.
+      tile.setTint(0x8c8592);
       const lock = this.add.graphics();
-      lock.lineStyle(5, COLOR.outline, 1).strokeCircle(bx, -9, 7);
-      lock.lineStyle(2.5, PAPER, 1).strokeCircle(bx, -9, 7);
-      lock.fillStyle(COLOR.outline, 1).fillRoundedRect(bx - 11, -6, 22, 17, 4);
-      lock.fillStyle(COLOR.butter, 1).fillRoundedRect(bx - 8, -3, 16, 11, 3);
+      const ly = -8;
+      lock.fillStyle(COLOR.outline, 0.45).fillCircle(0, ly + 4, 34);
+      lock.lineStyle(9, COLOR.outline, 1).strokeCircle(0, ly - 12, 13);
+      lock.lineStyle(5, PAPER, 1).strokeCircle(0, ly - 12, 13);
+      lock.fillStyle(COLOR.outline, 1).fillRoundedRect(-22, ly - 6, 44, 34, 7);
+      lock.fillStyle(COLOR.butter, 1).fillRoundedRect(-18, ly - 2, 36, 26, 5);
+      lock.fillStyle(COLOR.outline, 1).fillCircle(0, ly + 9, 4);
       c.add(lock);
-    } else {
-      c.add(this.add.text(bx, -2, String(l.id), { fontFamily: FONT, fontSize: '22px', fontStyle: 'bold', color: CSS.outline }).setOrigin(0.5));
+      c.setAlpha(0.92);
     }
-
-    const tx = bx + 30;
-    const avail = w / 2 - 12 - tx;
-    const name = this.add.text(tx, -13, l.district, textStyle(20, st === 'locked' ? '#E9E2EA' : CSS.white, 4)).setOrigin(0, 0.5);
-    if (name.width > avail) name.setScale(avail / name.width);
-    const sub = this.add.text(tx, 14, st === 'soon' ? `${l.title} · Soon` : l.title, { fontFamily: FONT, fontSize: '15px', fontStyle: 'bold', color: st === 'locked' ? '#D4CBD6' : '#FFF6E3' }).setOrigin(0, 0.5);
-    sub.setShadow(0, 2, CSS.outline, 0, false, true);
-    if (sub.width > avail) sub.setScale(avail / sub.width);
-    c.add([name, sub]);
-
     if (st === 'completed') {
       const tick = this.add.graphics();
-      const sx = w / 2 - 6;
-      const sy = -h / 2 + 4;
-      tick.fillStyle(COLOR.outline, 1).fillCircle(sx, sy, 16);
-      tick.fillStyle(0x5aa95a, 1).fillCircle(sx, sy, 13);
-      tick.lineStyle(4, 0xffffff, 1).beginPath();
-      tick.moveTo(sx - 7, sy).lineTo(sx - 2, sy + 5).lineTo(sx + 7, sy - 6).strokePath();
+      const sx = w / 2 - 12;
+      const sy = -h / 2 + 12;
+      tick.fillStyle(COLOR.outline, 1).fillCircle(sx, sy, 18);
+      tick.fillStyle(0x5aa95a, 1).fillCircle(sx, sy, 15);
+      tick.lineStyle(4.5, 0xffffff, 1).beginPath();
+      tick.moveTo(sx - 8, sy).lineTo(sx - 2, sy + 6).lineTo(sx + 8, sy - 7).strokePath();
       c.add(tick);
     }
-    if (st === 'locked') c.setAlpha(0.88);
 
-    c.setSize(w, h + 8).setInteractive({ useHandCursor: true });
+    c.setSize(w, h).setInteractive({ useHandCursor: true });
     c.on('pointerover', () => !this.popup && this.select(l.id, true));
-    c.on('pointerdown', () => !this.popup && c.setScale(0.96));
+    c.on('pointerdown', () => !this.popup && c.setScale(0.95));
     c.on('pointerout', () => c.setScale(1));
     c.on('pointerup', () => {
       c.setScale(1);
       if (!this.popup) this.choose(l.id);
     });
-    // Plaques pop in along the route.
+    // Tiles pop in along the route.
     c.setScale(0);
     this.tweens.add({ targets: c, scale: 1, duration: 320, delay: 120 + i * 70, ease: 'Back.Out' });
     return c;
@@ -234,7 +216,7 @@ export class ChapterMapScene extends Phaser.Scene {
   }
 
   private toast(l: LevelDef, text: string): void {
-    const t = this.add.text(l.map.x, l.map.y - PLAQUE.h / 2 - 22, text, textStyle(18, CSS.white, 5)).setOrigin(0.5).setDepth(DEPTH.hud + 6);
+    const t = this.add.text(l.map.x, l.map.y + PLAQUE.dy - PLAQUE.h / 2 - 16, text, textStyle(18, CSS.white, 5)).setOrigin(0.5).setDepth(DEPTH.hud + 6);
     t.setX(Phaser.Math.Clamp(l.map.x, t.width / 2 + 12, 1280 - t.width / 2 - 12));
     this.tweens.add({ targets: t, y: t.y - 26, alpha: 0, delay: 900, duration: 500, onComplete: () => t.destroy() });
   }
@@ -330,7 +312,7 @@ export class ChapterMapScene extends Phaser.Scene {
       g.clear();
       if (i !== this.selected - 1) return;
       g.lineStyle(6, COLOR.butter, pulse);
-      g.strokeRoundedRect(-PLAQUE.w / 2 - 10, -PLAQUE.h / 2 - 10, PLAQUE.w + 20, PLAQUE.h + 26, 30);
+      g.strokeRoundedRect(-PLAQUE.w / 2 - 8, -PLAQUE.h / 2 - 8, PLAQUE.w + 16, PLAQUE.h + 16, 28);
     });
     if (this.marker) this.marker.y += Math.sin(this.t * 6) * 0.25;
   }
