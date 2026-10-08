@@ -38,8 +38,19 @@ const errors = [];
 
 // Pages open on the Title menu (?intro=0 skips the launch story and instructions).
 const withIntroOff = (query) => (query.includes('intro=') ? query : query ? `${query}&intro=0` : '?intro=0');
+/** A page switch can blur the game and pause it; resume so long runs are not stalled. */
+async function keepRunning(page) {
+  await page.bringToFront();
+  await page.evaluate(() => {
+    const m = window.__HH__?.manager?.();
+    const pause = m?.getScene('Pause');
+    if (pause && m.isActive('Pause')) pause.resume?.();
+  });
+}
+
 async function newPage(query = '') {
   const page = await context.newPage();
+  await page.bringToFront();
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
   page.on('console', (m) => m.type() === 'error' && errors.push(`console: ${m.text()}`));
   await page.goto(BASE + withIntroOff(query));
@@ -491,7 +502,11 @@ try {
       requestAnimationFrame(tick);
     });
     try {
-      await waitScene(page, 'Results', 720000);
+      const t0 = Date.now();
+      while (Date.now() - t0 < 720000 && !(await scenes(page)).includes('Results')) {
+        await keepRunning(page);
+        await sleep(4000);
+      }
     } catch {
       /* reported below */
     }
@@ -519,6 +534,7 @@ try {
   await sleep(400);
   await page.evaluate((ch) => { window.__HH__.manager().getScene('Title').scene.start('Game', { chapter: ch, startAt: 'encounter' }); }, fin.chapter);
   await waitScene(page, 'Game');
+  await keepRunning(page);
   {
     // In-page autopilot: reacts every animation frame using only what a player sees
     // (hazards ahead, the glowing latch), injecting input like a touch player would.
@@ -593,10 +609,12 @@ try {
       };
       requestAnimationFrame(tick);
     });
-    try {
-      await waitScene(page, 'Results', 420000);
-    } catch {
-      /* reported below */
+    {
+      const t0 = Date.now();
+      while (Date.now() - t0 < 420000 && !(await scenes(page)).includes('Results')) {
+        await keepRunning(page);
+        await sleep(4000);
+      }
     }
     const sc = await scenes(page);
     const bot = await page.evaluate(() => window.__bot);
