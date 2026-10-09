@@ -47,6 +47,8 @@ export interface LevelArtDef {
   distant: Piece;
   mid: Piece[];
   near: Piece[];
+  /** Shared building textures (public/levels/shared) that replace MG1 as the street of buildings. */
+  buildings?: string[];
 }
 
 const P = (code: string, crop?: Piece['crop']): Piece => ({ code, crop });
@@ -69,6 +71,7 @@ export const LEVEL_ART: Record<number, LevelArtDef> = {
     distant: P('bg1'),
     mid: [P('mg1'), P('mg2')],
     near: [P('fg1'), P('fg2')],
+    buildings: ['building_1', 'building_2', 'building_3'],
   },
   2: {
     sky: [0x9bc6e6, 0xf2e2c4],

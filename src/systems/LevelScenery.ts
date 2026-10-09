@@ -16,6 +16,10 @@ interface LayerSpec {
   alpha?: number;
   /** Mirror every other copy so a repeated strip never looks stamped. */
   mirror?: boolean;
+  /** Ready-made texture keys used instead of guide pieces, picked in a shuffled order. */
+  keys?: string[];
+  /** Scale every piece to this display width instead of to `height`. */
+  width?: number;
 }
 
 interface Placed {
@@ -24,6 +28,7 @@ interface Placed {
 }
 
 class Layer {
+  private lastKey = '';
   private items: Placed[] = [];
   private cursor: number;
   private n = 0;
@@ -42,15 +47,21 @@ class Layer {
     const left = camX * s.factor;
     const right = left + width;
     while (this.cursor < right + 400) {
-      const piece = s.pieces[this.n % s.pieces.length];
-      const key = pieceKey(this.level, piece.code);
+      let key: string;
+      if (s.keys?.length) {
+        // Mix and match: a random building, never the same one twice in a row.
+        let pick = Math.floor(this.rand() * s.keys.length);
+        if (s.keys.length > 1 && s.keys[pick] === this.lastKey) pick = (pick + 1) % s.keys.length;
+        key = s.keys[pick];
+        this.lastKey = key;
+      } else key = pieceKey(this.level, s.pieces[this.n % s.pieces.length].code);
       this.n++;
       if (!this.scene.textures.exists(key)) {
         this.cursor += 400;
         continue;
       }
       const img = this.scene.add.image(this.cursor, s.bottom, key).setOrigin(0, 1).setScrollFactor(s.factor, 0).setDepth(s.depth);
-      const k = s.height / img.height;
+      const k = s.width ? s.width / img.width : s.height / img.height;
       img.setScale(k).setAlpha(s.alpha ?? 1);
       if (s.mirror && this.n % 2 === 0) img.setFlipX(true);
       const w = img.width * k;
@@ -98,7 +109,9 @@ export class LevelScenery {
       { pieces: [art.distant], factor: 0.18, height: 200, bottom: 528, gap: [-30, -10], depth: DEPTH.farBg + 2, alpha: 0.97, mirror: true },
       // Scenery is drawn big and set well back (slow parallax, behind the far edge
       // of the street, under a veil of haze) so it never reads as an obstacle.
-      { pieces: [art.mid[0]], factor: 0.4, height: 600, bottom: 586, gap: [220, 700], depth: DEPTH.midBg },
+      art.buildings
+        ? { pieces: [], keys: art.buildings, factor: 0.4, height: 0, width: 600, bottom: 586, gap: [40, 260], depth: DEPTH.midBg }
+        : { pieces: [art.mid[0]], factor: 0.4, height: 600, bottom: 586, gap: [220, 700], depth: DEPTH.midBg },
       { pieces: [art.mid[1]], factor: 0.5, height: 460, bottom: 586, gap: [700, 1400], depth: DEPTH.midBg + 1 },
       { pieces: [fg2, fg1], factor: 0.62, height: 192, bottom: 586, gap: [500, 1200], depth: DEPTH.nearBg },
     ];

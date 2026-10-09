@@ -158,6 +158,9 @@ export class GameScene extends Phaser.Scene {
     const data = (this.sys.settings.data ?? {}) as GameSceneData;
     const n = chapterById(data.chapter ?? 1).art;
     if (!n || !LEVEL_ART[n]) return;
+    for (const key of LEVEL_ART[n].buildings ?? []) {
+      if (!this.textures.exists(key)) this.load.image(key, `levels/shared/${key}.webp`);
+    }
     for (const code of ['e1', 'e2', 'b1', 'h1', 'h2', 'h3', 'p1', 'p2', 'p3', 'fg1', 'fg2', 'mg1', 'mg2', 'bg1', 'bg2']) {
       const key = pieceKey(n, code);
       if (!this.textures.exists(key)) this.load.image(key, `levels/l0${n}/${code}.webp`);
