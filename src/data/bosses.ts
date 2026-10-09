@@ -18,7 +18,9 @@ export type Attack =
   /** Things fall onto marked spots near the dog. */
   | { kind: 'drop'; shot: Piece; n?: number }
   /** Jets of steam or water burst up from marked spots (always one safe pad). */
-  | { kind: 'geyser'; n?: number; color: number };
+  | { kind: 'geyser'; n?: number; color: number }
+  /** Leaps onto the marked spot; the landing sends a shockwave along the floor both ways (jump it). */
+  | { kind: 'slam' };
 
 export interface BossDef {
   level: number;

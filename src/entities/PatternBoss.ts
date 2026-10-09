@@ -228,12 +228,49 @@ class Geyser extends Entity {
   }
 }
 
+/** A ripple of dust and rubble racing along the floor from a slam: jump it. */
+class Shockwave extends Entity {
+  private g: Phaser.GameObjects.Graphics;
+  private t = 0;
+  constructor(scene: Phaser.Scene, private x: number, private speed: number) {
+    super();
+    this.g = scene.add.graphics().setDepth(DEPTH.boss + 1);
+  }
+  get right(): number {
+    return Number.POSITIVE_INFINITY;
+  }
+  hazard(): Rect {
+    return { x: this.x - 20, y: G - 32, w: 40, h: 32 };
+  }
+  update(dt: number, ctx: GameContext): void {
+    this.t += dt;
+    this.x += this.speed * dt;
+    const g = this.g;
+    const d = Math.sign(this.speed);
+    const h = 34 + Math.sin(this.t * 30) * 3;
+    g.clear();
+    g.fillStyle(0x302331, 0.9).fillTriangle(this.x - d * 34, G, this.x + d * 12, G - h - 3, this.x + d * 26, G);
+    g.fillStyle(0xd9b48a, 1).fillTriangle(this.x - d * 28, G - 1, this.x + d * 10, G - h + 3, this.x + d * 20, G - 1);
+    g.fillStyle(0xfff1d8, 0.8).fillTriangle(this.x - d * 8, G - 2, this.x + d * 8, G - h + 8, this.x + d * 12, G - 2);
+    if (Math.random() < dt * 20) ctx.fx.dust(this.x - d * 20, G, 1);
+    if (this.x < ctx.cameraLeft - 60 || this.x > ctx.cameraRight + 60) this.alive = false;
+  }
+  destroy(): void {
+    this.g.destroy();
+  }
+}
+
 // ---------------------------------------------------------------- the boss
 
-type Phase = 'enter' | 'idle' | 'warn' | 'act' | 'back' | 'rest' | 'defeat' | 'done';
+type Phase = 'enter' | 'idle' | 'warn' | 'act' | 'back' | 'rest' | 'move' | 'defeat' | 'done';
 
 /** Screen x where the boss holds the middle of the arena. */
 const MID_X = 660;
+/** Spots it bounds (or glides) between after each breather, so the fight keeps moving. */
+const SPOTS = [430, 660, 890];
+/** How far a slam can land from the arena edges (screen x). */
+const SLAM_MIN = 240;
+const SLAM_MAX = 1060;
 /**
  * The arena frame, in screen space: low ledges and higher ledges on both sides
  * and a bridge over the boss, so the dog can climb up and over to its back.
@@ -284,6 +321,15 @@ export class PatternBoss extends Entity implements Boss {
   private flash = 0;
   private decksBuilt = false;
   private fall = { vy: 0, rot: 0 };
+  /** Where it stands between attacks (it moves around the arena). */
+  private homeX = MID_X;
+  private toX = MID_X;
+  /** Attack lists per tier: walkers also learn the slam once hurt. */
+  private tiers: Attack[][];
+  /** Final tier: quicker warnings and shorter breathers. */
+  private enraged = false;
+  private shout = 0;
+  private slamMark: Phaser.GameObjects.Ellipse | null = null;
 
   constructor(private scene: Phaser.Scene, level: number, private makeDeck: (x: number, w: number, top: number) => Entity) {
     super();
@@ -299,6 +345,7 @@ export class PatternBoss extends Entity implements Boss {
     this.band = scene.add.graphics().setDepth(DEPTH.groundShadow + 1);
     this.label = scene.add.text(0, 0, '', { fontFamily: 'Trebuchet MS, sans-serif', fontSize: '26px', fontStyle: 'bold', color: '#FFFFFF', stroke: '#302331', strokeThickness: 6 }).setOrigin(0.5).setDepth(DEPTH.fx + 2).setVisible(false);
     this.sy = this.hover;
+    this.tiers = this.def.tiers.map((t, i) => (!this.def.flying && i > 0 ? [...t, { kind: 'slam' } as Attack] : t));
     Audio.play('whistle');
   }
 
@@ -319,14 +366,22 @@ export class PatternBoss extends Entity implements Boss {
   /** What the current or upcoming attack is (for tests and the touch arrows). */
   get telegraph(): { kind: Attack['kind']; height?: 'low' | 'high'; targetX: number; dir: number } | null {
     if (!this.attack || (this.phase !== 'warn' && this.phase !== 'act')) return null;
+    if (this.attack.kind === 'slam' && this.phase === 'act' && this.t > 0.7) return null;
     const a = this.attack;
     return { kind: a.kind, height: a.kind === 'sweep' || a.kind === 'swoop' ? a.height : undefined, targetX: this.targetX, dir: this.dir };
   }
 
-  private get tier(): Attack[] {
+  private get tierIndex(): number {
     const k = this.hits / this.maxHits;
-    const i = k >= 2 / 3 ? 2 : k >= 1 / 3 ? 1 : 0;
-    return this.def.tiers[Math.min(i, this.def.tiers.length - 1)];
+    return Math.min(k >= 2 / 3 ? 2 : k >= 1 / 3 ? 1 : 0, this.tiers.length - 1);
+  }
+
+  private get tier(): Attack[] {
+    return this.tiers[this.tierIndex];
+  }
+
+  private get warnTime(): number {
+    return this.enraged ? 0.8 : WARN;
   }
 
   private go(p: Phase): void {
@@ -373,6 +428,12 @@ export class PatternBoss extends Entity implements Boss {
     ctx.fx.puff(this.img.x + (Math.random() - 0.5) * 80, this.img.y - Math.random() * this.img.displayHeight * 0.7, 2, 0.8);
     this.scene.cameras.main.shake(90, 0.004);
     this.onEvent?.('hit');
+    if (!this.enraged && this.tierIndex === 2 && this.hits < this.maxHits) {
+      this.enraged = true;
+      this.shout = 1.4;
+      this.label.setText('IT’S ANGRY!').setVisible(true);
+      Audio.play('squirrel_angry');
+    }
     if (this.hits >= this.maxHits) {
       for (const k of this.kids) k.alive = false;
       this.clearTelegraph();
@@ -385,6 +446,10 @@ export class PatternBoss extends Entity implements Boss {
 
   private clearTelegraph(): void {
     this.band.clear();
+    if (this.phase === 'defeat' || this.hits >= this.maxHits) {
+      this.slamMark?.destroy();
+      this.slamMark = null;
+    }
     this.label.setVisible(false);
     this.bubble.setVisible(false);
   }
@@ -393,6 +458,11 @@ export class PatternBoss extends Entity implements Boss {
     const list = this.tier;
     this.attack = list[this.step % list.length];
     this.targetX = ctx.heroX;
+    if (this.attack.kind === 'slam') {
+      this.targetX = Phaser.Math.Clamp(ctx.heroX, ctx.cameraLeft + SLAM_MIN, ctx.cameraLeft + SLAM_MAX);
+      this.slamMark?.destroy();
+      this.slamMark = marker(this.scene, this.targetX, 120);
+    }
     this.dir = ctx.heroX >= this.worldX(ctx) ? 1 : -1;
     this.go('warn');
     this.bubble.setVisible(true);
@@ -451,7 +521,29 @@ export class PatternBoss extends Entity implements Boss {
       case 'swoop':
         Audio.play(this.def.flying ? 'squirrel_angry' : 'parcel');
         break;
+      case 'slam':
+        this.toX = this.targetX - ctx.cameraLeft;
+        Audio.play('jump');
+        break;
     }
+  }
+
+  /** The slam lands: shockwaves race out both ways and it stays where it landed. */
+  private land(ctx: GameContext): void {
+    const x = this.worldX(ctx);
+    const v = this.enraged ? 460 : 390;
+    for (const d of [-1, 1]) {
+      const e = new Shockwave(this.scene, x + d * 70, d * v);
+      this.kids.push(e);
+      ctx.spawn(e);
+    }
+    this.slamMark?.destroy();
+    this.slamMark = null;
+    ctx.fx.dust(x, G, 10);
+    ctx.fx.puff(x, G - 20, 6, 1.2);
+    this.scene.cameras.main.shake(220, 0.012);
+    Audio.play('land');
+    this.homeX = this.sx;
   }
 
   /** Builds the climbing frame once the camera has settled. */
@@ -503,10 +595,17 @@ export class PatternBoss extends Entity implements Boss {
         if (a.kind === 'swoop') {
           // Crouches into its lane, ready to charge.
           const L = LANE[a.height];
-          this.sy = Phaser.Math.Linear(this.fromY, G - L.bottom, ease(this.t / WARN));
-          scale = this.baseScale * Phaser.Math.Linear(1, 0.55, ease(this.t / WARN));
+          this.sy = Phaser.Math.Linear(this.fromY, G - L.bottom, ease(this.t / this.warnTime));
+          scale = this.baseScale * Phaser.Math.Linear(1, 0.55, ease(this.t / this.warnTime));
         }
-        if (this.t >= WARN) {
+        if (a.kind === 'slam') {
+          // Crouches low, eyeing the marked spot.
+          scale = this.baseScale * (1 + 0.04 * Math.sin(this.t * 30));
+          this.img.setScale(this.baseScale * 1.08, this.baseScale * Phaser.Math.Linear(1, 0.8, ease(this.t / this.warnTime)));
+          this.slamMark?.setAlpha(0.35 + 0.35 * Math.abs(Math.sin(this.t * 12)));
+          this.label.setText('▲ SHOCKWAVE!').setPosition(this.targetX, G - 150).setVisible(true);
+        }
+        if (this.t >= this.warnTime) {
           this.clearTelegraph();
           this.launch(ctx);
           this.go('act');
@@ -530,12 +629,31 @@ export class PatternBoss extends Entity implements Boss {
           }
           break;
         }
+        if (a.kind === 'slam') {
+          const FLY = 0.75;
+          if (this.t < FLY) {
+            const k = this.t / FLY;
+            this.sx = Phaser.Math.Linear(this.fromX, this.toX, k);
+            this.sy = Math.sin(k * Math.PI) * 260;
+            rot = this.facing * 0.25 * Math.sin(k * Math.PI);
+            break;
+          }
+          if (this.sy !== 0) {
+            this.sx = this.toX;
+            this.sy = 0;
+            this.land(ctx);
+          }
+          // Squashes on landing, then shakes off the dizziness.
+          scale = this.baseScale * (1 + 0.12 * Math.exp(-(this.t - FLY) * 8) * Math.sin((this.t - FLY) * 40));
+          if (this.t > FLY + 0.6 && this.kids.every((k) => !k.alive)) this.next();
+          break;
+        }
         this.sy = hover + (this.def.flying ? Math.sin(this.t * 3) * 8 : 0);
         if (this.t > 0.5 && this.kids.every((k) => !k.alive)) this.next();
         break;
       }
       case 'back':
-        this.sx = Phaser.Math.Linear(this.fromX, MID_X, ease(this.t / 1.0));
+        this.sx = Phaser.Math.Linear(this.fromX, this.homeX, ease(this.t / 1.0));
         this.sy = hover;
         if (this.t >= 1.0) this.next();
         break;
@@ -544,8 +662,30 @@ export class PatternBoss extends Entity implements Boss {
         this.sy = hover + (this.def.flying ? Math.sin(this.t * 3) * 6 : 0);
         rot = Math.sin(this.t * 6) * 0.04;
         scale = this.baseScale * (1 + Math.sin(this.t * 8) * 0.02);
-        if (this.t >= this.def.openTime) this.go('idle');
+        if (this.t >= this.def.openTime * (this.enraged ? 0.65 : 1)) {
+          // Off to another spot in the arena before the next round.
+          const spots = SPOTS.filter((x) => Math.abs(x - this.homeX) > 60);
+          this.toX = spots[Math.floor(Math.random() * spots.length)];
+          this.homeX = this.toX;
+          this.go('move');
+        }
         break;
+      case 'move': {
+        const T = 0.9;
+        const k = Math.min(1, this.t / T);
+        this.sx = Phaser.Math.Linear(this.fromX, this.toX, this.def.flying ? ease(k) : k);
+        this.sy = this.def.flying ? hover + Math.sin(k * Math.PI) * 40 : Math.sin(k * Math.PI) * 120;
+        this.facing = this.toX >= this.fromX ? 1 : -1;
+        if (this.t >= T) {
+          if (!this.def.flying) {
+            ctx.fx.dust(wx, G, 5);
+            this.scene.cameras.main.shake(100, 0.005);
+            Audio.play('land');
+          }
+          this.go('idle');
+        }
+        break;
+      }
       case 'defeat':
         // Wobbles, spins and topples off the arena.
         this.fall.vy += 900 * dt;
@@ -567,9 +707,18 @@ export class PatternBoss extends Entity implements Boss {
     const x = this.worldX(ctx);
     // Drawings face either way; mirror them to face this.facing.
     const flip = this.def.facesRight ? this.facing < 0 : this.facing > 0;
-    this.img.setPosition(x, G - this.sy).setRotation(rot).setScale(scale).setFlipX(flip);
+    this.img.setPosition(x, G - this.sy).setRotation(rot).setFlipX(flip);
+    if (!(this.phase === 'warn' && this.attack?.kind === 'slam')) this.img.setScale(scale);
     if (this.flash > 0) this.img.setTint(Math.floor(this.flash * 30) % 2 ? 0xffffff : 0xff9a8a);
-    else this.img.clearTint();
+    else if (this.enraged && this.fighting) {
+      // Flushed with anger in the final round.
+      const r = 0.5 + 0.5 * Math.sin(this.t * 8);
+      this.img.setTint(Phaser.Display.Color.GetColor(255, 200 - r * 50, 200 - r * 60));
+    } else this.img.clearTint();
+    if (this.shout > 0) {
+      this.shout -= dt;
+      if (this.phase !== 'warn') this.label.setText('IT’S ANGRY!').setPosition(x, G - this.sy - this.img.displayHeight - 40).setVisible(this.shout > 0);
+    }
     this.bubble.setPosition(x - 20, G - this.sy - this.img.displayHeight - 4);
   }
 
@@ -581,6 +730,7 @@ export class PatternBoss extends Entity implements Boss {
   }
 
   destroy(): void {
+    this.slamMark?.destroy();
     this.img.destroy();
     this.bubble.destroy();
     this.band.destroy();

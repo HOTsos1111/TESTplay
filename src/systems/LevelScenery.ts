@@ -93,7 +93,7 @@ class Layer {
 }
 
 /** Back street: where the mid-ground floor meets the haze, and how fast it scrolls there. */
-const FLOOR_TOP = 540;
+const FLOOR_TOP = 512;
 const FLOOR_NEAR = 600;
 const FLOOR_FAR_F = 0.4;
 /** Screen y on the back street of something scrolling at parallax factor f. */
@@ -121,9 +121,10 @@ class BackStreet {
     const lipKey = `${key}_lip`;
     const W = 168;
     const H = 4;
-    const paving = mix(art.ground.top, art.haze, 0.3);
-    const joint = mix(art.ground.seam, art.haze, 0.25);
-    const lip = mix(art.ground.lip, art.haze, 0.2);
+    // Solid ground, only lightly hazed, so the scenery clearly stands on something.
+    const paving = mix(art.ground.topDark, art.haze, 0.12);
+    const joint = mix(art.ground.seam, 0x302331, 0.25);
+    const lip = mix(art.ground.lip, art.ground.top, 0.4);
     const tex = (k: string, fill: number) => {
       if (scene.textures.exists(k)) return;
       const t = scene.textures.createCanvas(k, W, H);
@@ -143,7 +144,7 @@ class BackStreet {
       const f = FLOOR_FAR_F + t * (1 - FLOOR_FAR_F);
       const ts = scene.add.tileSprite(0, y, scene.scale.width, H, y < FLOOR_TOP + 6 ? lipKey : key).setOrigin(0, 0).setScrollFactor(0).setDepth(depth);
       // Slab joints across the street, and the drop-off below the front kerb.
-      const rowJoint = [552, 567, 584].some((j) => y <= j && j < y + H - 1);
+      const rowJoint = [530, 548, 566, 584].some((j) => y <= j && j < y + H - 1);
       let shade = rowJoint ? 0.86 : 1;
       if (y >= FLOOR_TOP + 4 && y < FLOOR_TOP + 10) shade *= 0.8; // kerb shadow
       if (y > FLOOR_NEAR) shade *= Math.max(0.35, 1 - (y - FLOOR_NEAR) / 70);
@@ -193,8 +194,9 @@ export class LevelScenery {
     const on = (f: number) => Math.round(floorY(f)) + 4;
     const [fg1, fg2] = art.near;
     const specs: LayerSpec[] = [
-      { pieces: [art.far], factor: 0.08, height: 250, bottom: 482, gap: [260, 760], depth: DEPTH.farBg, alpha: 0.95, mirror: true },
-      { pieces: [art.distant], factor: 0.18, height: 200, bottom: FLOOR_TOP + 8, gap: [-30, -10], depth: DEPTH.farBg + 2, alpha: 0.97, mirror: true },
+      // The far landmark and skyline fill most of the sky, with little space between.
+      { pieces: [art.far], factor: 0.08, height: 440, bottom: FLOOR_TOP - 10, gap: [-60, 120], depth: DEPTH.farBg, alpha: 0.92, mirror: true },
+      { pieces: [art.distant], factor: 0.18, height: 330, bottom: FLOOR_TOP + 8, gap: [-30, -10], depth: DEPTH.farBg + 2, alpha: 0.97, mirror: true },
       // Scenery is drawn big and set well back (slow parallax, behind the far edge
       // of the street, under a veil of haze) so it never reads as an obstacle.
       art.buildings
@@ -231,7 +233,8 @@ export class LevelScenery {
     this.haze.fillStyle(art.haze, 0.55).fillRect(0, 470, width, 140);
     this.haze.fillStyle(art.haze, 0.85).fillRect(0, 520, width, 90);
     this.veil.clear();
-    this.veil.fillStyle(art.haze, 0.36).fillRect(0, 0, width, 590);
+    this.veil.fillStyle(art.haze, 0.36).fillRect(0, 0, width, FLOOR_TOP);
+    this.veil.fillStyle(art.haze, 0.14).fillRect(0, FLOOR_TOP, width, 590 - FLOOR_TOP);
   }
 
   get debug(): unknown {

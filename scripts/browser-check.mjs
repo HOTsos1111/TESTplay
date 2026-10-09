@@ -401,17 +401,20 @@ try {
         }
         const now = performance.now();
         // Time a jump from how fast the nearest low threat is closing in.
+        // Shockwaves can come from behind too: measure the gap on either side.
         const closing = (s, now) => {
-          const low = s.hazardsAhead.filter((h) => h.bottom < 18 && h.dx > -20).sort((a, b) => a.dx - b.dx)[0];
+          const gapOf = (h) => (h.dx > -20 ? h.dx : -(h.dx + h.w));
+          const low = s.hazardsAhead.filter((h) => h.bottom < 18 && (h.dx > -20 || h.dx + h.w < -10)).sort((a, b) => gapOf(a) - gapOf(b))[0];
           if (!low) {
             w.__lp = null;
             return false;
           }
+          const gap = gapOf(low);
           let v = w.__lv ?? 400;
-          if (w.__lp && now > w.__lp.t) v = Math.max(60, Math.min(1400, (w.__lp.dx - low.dx) / ((now - w.__lp.t) / 1000)));
-          w.__lp = { dx: low.dx, t: now };
+          if (w.__lp && now > w.__lp.t && w.__lp.gap > gap) v = Math.max(60, Math.min(1400, (w.__lp.gap - gap) / ((now - w.__lp.t) / 1000)));
+          w.__lp = { gap, t: now };
           w.__lv = v;
-          const tc = (low.dx - 30) / v;
+          const tc = (gap - 30) / v;
           return tc > 0 && tc < 0.3;
         };
         if (lastHearts !== null && s.hearts < lastHearts) w.__bot.hits.push(Math.round(s.x));
@@ -567,17 +570,20 @@ try {
         }
         const now = performance.now();
         // Time a jump from how fast the nearest low threat is closing in.
+        // Shockwaves can come from behind too: measure the gap on either side.
         const closing = (s, now) => {
-          const low = s.hazardsAhead.filter((h) => h.bottom < 18 && h.dx > -20).sort((a, b) => a.dx - b.dx)[0];
+          const gapOf = (h) => (h.dx > -20 ? h.dx : -(h.dx + h.w));
+          const low = s.hazardsAhead.filter((h) => h.bottom < 18 && (h.dx > -20 || h.dx + h.w < -10)).sort((a, b) => gapOf(a) - gapOf(b))[0];
           if (!low) {
             w.__lp = null;
             return false;
           }
+          const gap = gapOf(low);
           let v = w.__lv ?? 400;
-          if (w.__lp && now > w.__lp.t) v = Math.max(60, Math.min(1400, (w.__lp.dx - low.dx) / ((now - w.__lp.t) / 1000)));
-          w.__lp = { dx: low.dx, t: now };
+          if (w.__lp && now > w.__lp.t && w.__lp.gap > gap) v = Math.max(60, Math.min(1400, (w.__lp.gap - gap) / ((now - w.__lp.t) / 1000)));
+          w.__lp = { gap, t: now };
           w.__lv = v;
-          const tc = (low.dx - 30) / v;
+          const tc = (gap - 30) / v;
           return tc > 0 && tc < 0.3;
         };
         w.__bot.minHearts = Math.min(w.__bot.minHearts, s.hearts);
@@ -596,9 +602,15 @@ try {
         let mx = 0;
         let duck = false;
         const bx = s.bossScreenX ?? 660;
-        const want = bx - 290;
+        // Stay on whichever side of the boss the dog is on (it moves around).
+        const side = s.screenX > bx && bx + 290 < 1180 ? 1 : bx - 290 > 100 ? -1 : 1;
+        const want = bx + side * 290;
         if (Math.abs(s.screenX - bx) < 310) bark();
-        if (a && (a.kind === 'volley' || a.kind === 'drop' || a.kind === 'geyser')) {
+        if (a && a.kind === 'slam') {
+          // Clear the landing spot toward the roomier side.
+          const tx = a.targetX - (s.x - s.screenX);
+          mx = Math.abs(s.screenX - tx) > 190 ? 0 : tx > 640 ? -1 : 1;
+        } else if (a && (a.kind === 'volley' || a.kind === 'drop' || a.kind === 'geyser')) {
           const tx = a.targetX - (s.x - s.screenX);
           mx = Math.abs(s.screenX - tx) > 200 || s.screenX < 110 ? 0 : tx > s.screenX ? -1 : s.screenX < want - 40 ? 1 : -1;
         } else mx = s.screenX < want - 30 ? 1 : s.screenX > want + 30 ? -1 : 0;

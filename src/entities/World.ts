@@ -7,6 +7,7 @@ import type { Fx } from '../systems/Fx';
 import type { Rect, Solid } from '../systems/PlayerController';
 import { drawGround3D } from '../systems/Ground3D';
 import { theme } from '../systems/LevelTheme';
+import { makeTexture } from '../systems/art/canvas';
 
 /** Deterministic pick so a given spot in the level always looks the same. */
 export function pickSkin<T>(list: readonly T[], seed: number | string): T {
@@ -781,17 +782,19 @@ export class LowBar extends Entity {
   /** Highest point: a standing dog fits under it, if the timing is right. */
   static readonly MAX_CLEARANCE = 128;
   static readonly H = 58;
-  constructor(scene: Phaser.Scene, private x: number) {
+  constructor(scene: Phaser.Scene, private x: number, phase?: number) {
     super();
     // Each pipe pumps up and down on its own hydraulic rhythm.
-    this.t = (x * 0.0137) % (Math.PI * 2);
-    this.speed = 2.2 + ((x * 0.0071) % 1.4);
+    // Authored rows share one tempo, each a set phase (radians) behind the last.
+    this.speed = phase === undefined ? 2.2 + ((x * 0.0071) % 1.4) : 2.7;
+    this.t = phase === undefined ? (x * 0.0137) % (Math.PI * 2) : phase / (this.speed * 0.62);
     this.chains = scene.add.graphics().setDepth(DEPTH.enemy);
-    this.img = scene.add.image(x - 3, WORLD.groundY, theme().lowbar).setOrigin(0, 1).setScale(ART_SCALE).setDepth(DEPTH.enemy);
     this.floating = !!theme().level;
+    this.img = scene.add.image(x - 3, WORLD.groundY, this.floating ? LowBar.redBeam(scene) : theme().lowbar).setOrigin(0, 1).setScale(ART_SCALE).setDepth(DEPTH.enemy);
     if (this.floating) {
-      // A big beam hovering low over the street: duck under it, or time a jump over it.
-      this.img.setOrigin(0.5, 0.5).setDisplaySize(LowBar.FLOAT_W + 30, LowBar.FLOAT_H + 26);
+      // A red hazard beam pumping between the street and well overhead: run under
+      // it high, duck it halfway, jump it when it slams down to the ground.
+      this.img.setOrigin(0.5, 0.5).setDisplaySize(LowBar.FLOAT_W, LowBar.FLOAT_H);
       this.shade = scene.add.image(x + LowBar.W / 2, WORLD.groundY + 3, 'shadow').setDepth(DEPTH.groundShadow).setAlpha(0.6);
     }
     this.place();
@@ -801,20 +804,67 @@ export class LowBar extends Entity {
   private shade: Phaser.GameObjects.Image | null = null;
   static readonly FLOAT_W = 150;
   static readonly FLOAT_H = 38;
-  /** Underside of a floating beam: always above a ducking dog's back (22 px). */
-  static readonly FLOAT_LOW = 27;
-  static readonly FLOAT_HIGH = 42;
+  /** Underside of a floating beam: from resting on the street to well above a standing dog. */
+  static readonly FLOAT_LOW = 0;
+  static readonly FLOAT_HIGH = 165;
+
+  /** The red warning beam that marks a moving obstacle (never a platform). */
+  static redBeam(scene: Phaser.Scene): string {
+    const key = 'beam_red';
+    const W = LowBar.FLOAT_W;
+    const H = LowBar.FLOAT_H;
+    makeTexture(scene, key, W, H, (c) => {
+      const r = 9;
+      const box = (x: number, y: number, w: number, h: number, rr: number) => {
+        c.beginPath();
+        c.roundRect(x, y, w, h, rr);
+      };
+      box(1.5, 1.5, W - 3, H - 3, r);
+      c.fillStyle = '#D6362B';
+      c.fill();
+      c.save();
+      c.clip();
+      // Hazard chevrons at both ends.
+      c.fillStyle = '#FFF4E2';
+      for (const x0 of [4, W - 34]) for (let i = 0; i < 3; i++) {
+        c.beginPath();
+        c.moveTo(x0 + i * 11, H);
+        c.lineTo(x0 + i * 11 + 5, H);
+        c.lineTo(x0 + i * 11 + 5 + 14, 0);
+        c.lineTo(x0 + i * 11 + 14, 0);
+        c.closePath();
+        c.fill();
+      }
+      c.fillStyle = 'rgba(255,255,255,0.28)';
+      c.fillRect(0, 4, W, 6);
+      c.fillStyle = 'rgba(80,0,0,0.3)';
+      c.fillRect(0, H - 10, W, 10);
+      c.restore();
+      // Rivets.
+      c.fillStyle = '#7E1B16';
+      for (const x of [44, 62, W - 62, W - 44]) {
+        c.beginPath();
+        c.arc(x, H / 2, 2.6, 0, Math.PI * 2);
+        c.fill();
+      }
+      box(1.5, 1.5, W - 3, H - 3, r);
+      c.lineWidth = 3;
+      c.strokeStyle = '#302331';
+      c.stroke();
+    });
+    return key;
+  }
   get right(): number {
     return this.x + (this.floating ? LowBar.FLOAT_W : LowBar.W);
   }
   private place(): void {
     if (this.floating) {
-      const k = (1 - Math.cos(this.t * this.speed * 0.6)) / 2;
+      const k = (1 - Math.cos(this.t * this.speed * 0.62)) / 2;
       this.clearance = LowBar.FLOAT_LOW + (LowBar.FLOAT_HIGH - LowBar.FLOAT_LOW) * k;
       const cy = WORLD.groundY - this.clearance - LowBar.FLOAT_H / 2;
       this.img.setPosition(this.x + LowBar.FLOAT_W / 2, cy);
       this.chains.clear();
-      this.shade?.setPosition(this.x + LowBar.FLOAT_W / 2, WORLD.groundY + 3).setScale(ART_SCALE * 1.5 * (1 - k * 0.2), ART_SCALE);
+      this.shade?.setPosition(this.x + LowBar.FLOAT_W / 2, WORLD.groundY + 3).setScale(ART_SCALE * 1.5 * (1 - k * 0.4), ART_SCALE).setAlpha(0.75 - k * 0.4);
       return;
     }
     const k = (1 - Math.cos(this.t * this.speed)) / 2;

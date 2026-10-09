@@ -317,7 +317,7 @@ export class GameScene extends Phaser.Scene {
       scenery: this.scenery.debug,
       hazardsAhead: this.entities
         .map((e) => (e.alive ? e.hazard() : null))
-        .filter((r): r is Rect => !!r && r.x + r.w > this.pc.x - 40 && r.x < this.pc.x + 600)
+        .filter((r): r is Rect => !!r && r.x + r.w > this.pc.x - 500 && r.x < this.pc.x + 600)
         .map((r) => ({ dx: Math.round(r.x - this.pc.x), w: r.w, top: WORLD.groundY - r.y, bottom: WORLD.groundY - (r.y + r.h) })),
       ducking: this.pc.ducking,
       doubleUsed: this.pc.doubleUsed,
@@ -420,7 +420,7 @@ export class GameScene extends Phaser.Scene {
       case 'barrel':
         return new Barrel(this, it.x);
       case 'lowbar':
-        return new LowBar(this, it.x);
+        return new LowBar(this, it.x, it.phase);
       case 'powerup':
         return new PowerUp(this, it.x, it.y, it.kind);
       case 'lift':

@@ -141,7 +141,8 @@ export function validateChunk(c: ChunkDef, minSpeed: number, maxSpeed: number): 
     ...(c.tyres ?? []).filter((t) => !t.h).map((t) => ({ x: t.x, w: OBJECT_SIZE.tyre.w })),
     ...(c.cardboard ?? []).filter((b) => !b.h).map((b) => ({ x: b.x, w: OBJECT_SIZE.cardboard.w })),
     ...(c.gaps ?? []).map(([x, w]) => ({ x, w })),
-    ...(c.lowbars ?? []).map((l) => ({ x: l.x, w: 104 })),
+    // Guide-level beams are 150 wide (the old pipes 104): judge by the wider one.
+    ...(c.lowbars ?? []).map((l) => ({ x: l.x, w: 150 })),
     // Barrels roll about this far toward the hero before they meet him.
     ...(c.barrels ?? []).map((b) => ({ x: b.x - BARREL_TRAVEL, w: 48 })),
   ].sort((a, b) => a.x - b.x);

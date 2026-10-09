@@ -41,8 +41,8 @@ export interface ChunkDef {
   powerupSlots?: { x: number; h: number }[];
   /** Lift platforms moving up and down between two heights (optional routes). */
   lifts?: { x: number; w: number; low: number; high: number; period: number }[];
-  /** Low-clearance signs to duck under. */
-  lowbars?: { x: number }[];
+  /** Low-clearance signs to duck under (guide levels: pumping red beams; phase in radians sets their timing). */
+  lowbars?: { x: number; phase?: number }[];
   /** Barrels that roll toward the hero when he approaches (x = resting spot). */
   barrels?: { x: number }[];
   bones?: BonePattern[];
@@ -268,6 +268,17 @@ export const CHUNKS: Record<string, ChunkDef> = {
     bones: [
       { kind: 'line', x: 815, h: 14, n: 3, spacing: 35 },
       { kind: 'line', x: 1515, h: 14, n: 3, spacing: 35 },
+    ],
+  },
+  beam_gauntlet: {
+    id: 'beam_gauntlet', length: 2900, entryHeight: 0, exitHeight: 0, requires: ['jump', 'duck'], recovery: 500,
+    // Three pumping beams in a row, each a beat behind the last: read the rhythm,
+    // then run under, duck or jump each one in turn.
+    lowbars: [{ x: 700, phase: 0 }, { x: 1180, phase: 1.3 }, { x: 1660, phase: 2.6 }, { x: 2140, phase: 3.9 }],
+    bones: [
+      { kind: 'line', x: 900, h: 20, n: 3, spacing: 40 },
+      { kind: 'line', x: 1380, h: 20, n: 3, spacing: 40 },
+      { kind: 'line', x: 1860, h: 20, n: 3, spacing: 40 },
     ],
   },
   double_intro: {

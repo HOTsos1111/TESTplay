@@ -16,7 +16,7 @@ export type Spawnable =
   | { type: 'gate'; x: number }
   | { type: 'burstMarker'; x: number }
   | { type: 'barrel'; x: number }
-  | { type: 'lowbar'; x: number }
+  | { type: 'lowbar'; x: number; phase?: number }
   | { type: 'powerup'; x: number; y: number; kind: 'magnet' | 'shield' | 'whistle' | 'bacon' }
   | { type: 'lift'; x: number; w: number; lowTop: number; highTop: number; period: number };
 
@@ -113,7 +113,7 @@ export function skyRoute(c: ChunkDef, ci: number): { x: number; w: number; h: nu
   for (const cb of c.cardboard ?? []) solid.push([cb.x - 50, cb.x + OBJECT_SIZE.cardboard.w + 50, (cb.h ?? 0) + cb.stack * OBJECT_SIZE.cardboard.h]);
   for (const p of c.platforms ?? []) solid.push([p.x - 60, p.x + p.w + 60, p.h + 40]);
   // Duck beams float low over the street (no ceiling pipes in the guide levels).
-  for (const l of c.lowbars ?? []) solid.push([l.x - 60, l.x + 170, 150]);
+  for (const l of c.lowbars ?? []) solid.push([l.x - 60, l.x + 170, 230]);
   for (const l of c.lifts ?? []) solid.push([l.x - 80, l.x + l.w + 80, 9999]);
   for (const b of c.bones ?? []) {
     const top = b.h + (b.kind === 'arc' ? b.rise : 0);
@@ -196,7 +196,7 @@ export function buildLevel(chapter: ChapterDef, random: () => number = Math.rand
     }
     for (const p of c.powerupSlots ?? []) slots.push({ x: o + p.x, h: p.h });
     for (const l of c.lifts ?? []) items.push({ type: 'lift', x: o + l.x, w: l.w, lowTop: g - l.low, highTop: g - l.high, period: l.period });
-    for (const l of c.lowbars ?? []) items.push({ type: 'lowbar', x: o + l.x });
+    for (const l of c.lowbars ?? []) items.push({ type: 'lowbar', x: o + l.x, phase: l.phase });
     for (const b of c.barrels ?? []) items.push({ type: 'barrel', x: o + b.x });
     for (const m of c.burstMarkers ?? []) items.push({ type: 'burstMarker', x: o + m.x });
     autoBoneTrails(c, chapter.id, ci).forEach((b) => items.push({ ...b, x: o + b.x, y: g - b.h }));
