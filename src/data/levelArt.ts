@@ -47,6 +47,8 @@ export interface LevelArtDef {
   distant: Piece;
   mid: Piece[];
   near: Piece[];
+  /** Display height of the nearer mid-ground piece (MG2); default 460. */
+  mid2Height?: number;
   /** Shared building textures (public/levels/shared) that replace MG1 as the street of buildings. */
   buildings?: string[];
 }
@@ -72,6 +74,8 @@ export const LEVEL_ART: Record<number, LevelArtDef> = {
     mid: [P('mg1'), P('mg2')],
     near: [P('fg1'), P('fg2')],
     buildings: ['building_1', 'building_2', 'building_3'],
+    // The brick arches are twice the usual size: the street runs through them.
+    mid2Height: 920,
   },
   2: {
     sky: [0x9bc6e6, 0xf2e2c4],

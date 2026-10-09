@@ -202,7 +202,7 @@ export class LevelScenery {
       art.buildings
         ? { pieces: [], keys: art.buildings, factor: 0.4, height: 0, width: 600, bottom: on(0.4), gap: [40, 260], depth: DEPTH.midBg }
         : { pieces: [art.mid[0]], factor: 0.4, height: 600, bottom: on(0.4), gap: [220, 700], depth: DEPTH.midBg },
-      { pieces: [art.mid[1]], factor: 0.5, height: 460, bottom: on(0.5), gap: [700, 1400], depth: DEPTH.midBg + 1 },
+      { pieces: [art.mid[1]], factor: 0.5, height: art.mid2Height ?? 460, bottom: on(0.5), gap: [700, 1400], depth: DEPTH.midBg + 1 },
       { pieces: [fg2, fg1], factor: 0.62, height: 192, bottom: on(0.62), gap: [500, 1200], depth: DEPTH.nearBg },
     ];
     this.layers = specs.map((s) => new Layer(scene, level, s, rand, startCamX));
