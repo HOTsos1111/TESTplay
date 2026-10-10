@@ -755,7 +755,7 @@ export class PatternBoss extends Entity implements Boss {
         Audio.play('parcel');
         break;
       case 'sweep':
-        add(new Sweeper(s, bx + d * 80, shotTexture(s, lv, a.shot, 130, 70), a.height, -d * (a.speed ?? 480)));
+        add(new Sweeper(s, bx + d * 80, shotTexture(s, lv, a.shot, 130, 70), a.height, -d * (a.speed ?? 430)));
         Audio.play('throw');
         break;
       case 'drop': {
@@ -782,7 +782,7 @@ export class PatternBoss extends Entity implements Boss {
         Audio.play('jump');
         break;
       case 'barrage':
-        add(new Barrage(s, bx + d * 60, d, shotTexture(s, lv, a.shot, 110, 60), a.lanes, this.enraged ? 560 : 500, add));
+        add(new Barrage(s, bx + d * 60, d, shotTexture(s, lv, a.shot, 110, 60), a.lanes, this.enraged ? 500 : 440, add));
         break;
       case 'bounce': {
         const n = a.n ?? 1;
@@ -984,9 +984,10 @@ export class PatternBoss extends Entity implements Boss {
           break;
         }
         this.sy = this.perch + (this.def.flying ? Math.sin(this.t * 3) * 8 : 0);
-        // Moves on before its shots have cleared the arena (only a barrage must finish
-        // throwing), so attacks overlap and the pressure stays on.
-        if (this.kids.every((k) => !k.alive) || (this.t > 1.0 && !this.kids.some((k) => k.alive && k instanceof Barrage))) this.wander(ctx);
+        // In the opening third it waits for its shots to clear (learn its moves);
+        // after that it presses on while they are still flying.
+        const overlap = this.tierIndex >= 1 && this.t > 1.0 && !this.kids.some((k) => k.alive && k instanceof Barrage);
+        if (this.kids.every((k) => !k.alive) || overlap) this.wander(ctx);
         break;
       }
       case 'dizzy': {
