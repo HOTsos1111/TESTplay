@@ -381,8 +381,15 @@ export const ARENA_DECKS = [
   { x: 540, w: 200, h: 195 },
 ] as const;
 /** Hits the boss can take in one opening before it shakes itself awake. */
-const HITS_PER_OPENING = 3;
-const DIZZY = 3.2;
+const HITS_PER_OPENING = 4;
+const DIZZY = 2.6;
+/** Every bark lands: 1 damage normally, 3 (a crit) while it is dazed. */
+const CRIT = 3;
+/** This many normal hits in a row stagger it into a short daze, even mid-attack. */
+const STAGGER = 5;
+const STAGGER_DAZE = 1.7;
+/** Health is this many times the data's hp (every bark now does damage). */
+const HP_SCALE = 4;
 /**
  * Places it moves between during a round: the two ends of the street, the two
  * low ledges and the high one (flyers circle at different heights instead).
@@ -455,6 +462,12 @@ export class PatternBoss extends Entity implements Boss {
   private fall = { vy: 0, rot: 0 };
   private tierSeen = 0;
   private openingHits = 0;
+  private stagger = 0;
+  /** How long the current daze lasts (a full one after a finisher, a short one from a stagger). */
+  private dazeFor = DIZZY;
+  /** A shot it can lob mid-hop (from round two on). */
+  private hopShot: Piece | null = null;
+  private hopThrown = false;
   private clangT = 0;
   private popT = 0;
   private slamMark: Phaser.GameObjects.Ellipse | null = null;
@@ -470,7 +483,7 @@ export class PatternBoss extends Entity implements Boss {
   constructor(private scene: Phaser.Scene, level: number, private makeDeck: (x: number, w: number, top: number) => Entity) {
     super();
     this.def = BOSSES[level];
-    this.maxHits = this.def.hp;
+    this.maxHits = this.def.hp * HP_SCALE;
     this.title = this.def.name;
     const key = pieceKey(level, 'b1');
     this.icon = scene.textures.exists(key) ? key : 'boss_flex';
@@ -488,6 +501,7 @@ export class PatternBoss extends Entity implements Boss {
     this.aim = scene.add.graphics().setDepth(DEPTH.fx + 1);
     const withShot = this.def.tiers.flat().find((a) => 'shot' in a) as { shot: Piece } | undefined;
     const shot = withShot?.shot;
+    this.hopShot = shot ?? null;
     const finisher: Attack = this.def.flying ? { kind: 'swoop', height: 'high' } : { kind: 'slam' };
     this.tiers = this.def.tiers.map((t, i) => {
       const list = [...t];
@@ -547,7 +561,7 @@ export class PatternBoss extends Entity implements Boss {
   }
 
   private get warnTime(): number {
-    return this.enraged ? 0.8 : WARN;
+    return this.enraged ? 0.55 : 0.75;
   }
 
   private go(p: Phase): void {
@@ -603,25 +617,19 @@ export class PatternBoss extends Entity implements Boss {
   }
 
   onBark(ctx: GameContext): void {
-    if (!this.fighting) return;
-    if (this.phase !== 'dizzy') {
-      // Armoured: the bark clangs off.
-      if (this.clangT <= 0) {
-        this.clangT = 0.3;
-        ctx.fx.puff(this.img.x, this.img.y - this.img.displayHeight * 0.5, 2, 0.5);
-        this.popText('BLOCKED!', '#C9D3E6');
-        Audio.play('squeak');
-      }
-      return;
-    }
-    this.hits++;
-    this.openingHits++;
-    this.flash = 0.25;
+    if (!this.fighting || this.phase === 'roar') return;
+    // Every bark lands. Dazed: a crit. Otherwise a chip that builds up a stagger.
+    const open = this.phase === 'dizzy';
+    const dmg = open ? CRIT : 1;
+    this.hits = Math.min(this.maxHits, this.hits + dmg);
+    this.flash = open ? 0.25 : 0.12;
     Audio.play('boss_hit');
-    ctx.fx.stars(this.img.x, this.img.y - this.img.displayHeight * 0.6, 5);
-    ctx.fx.puff(this.img.x + (Math.random() - 0.5) * 80, this.img.y - Math.random() * this.img.displayHeight * 0.7, 2, 0.8);
-    this.scene.cameras.main.shake(90, 0.004);
-    this.popText(this.openingHits >= HITS_PER_OPENING ? 'COMBO!' : `HIT ${this.openingHits}!`, '#FFE27A');
+    ctx.fx.stars(this.img.x, this.img.y - this.img.displayHeight * 0.6, open ? 6 : 2);
+    ctx.fx.puff(this.img.x + (Math.random() - 0.5) * 80, this.img.y - Math.random() * this.img.displayHeight * 0.7, open ? 2 : 1, 0.8);
+    this.scene.cameras.main.shake(open ? 110 : 60, open ? 0.005 : 0.0025);
+    // Knocked back a little by the bark.
+    const away = ctx.heroX < this.worldX(ctx) ? 1 : -1;
+    if (this.phase !== 'act') this.sx = Phaser.Math.Clamp(this.sx + away * (open ? 18 : 8), 120, 1160);
     this.onEvent?.('hit');
     if (this.hits >= this.maxHits) {
       for (const k of this.kids) k.alive = false;
@@ -631,7 +639,29 @@ export class PatternBoss extends Entity implements Boss {
       this.fall = { vy: -420, rot: 0 };
       Audio.play('boss_clear');
       this.onEvent?.('defeated');
-    } else if (this.openingHits >= HITS_PER_OPENING) this.go('recover');
+      return;
+    }
+    if (open) {
+      this.openingHits++;
+      this.popText(this.openingHits >= HITS_PER_OPENING ? 'COMBO! +3' : 'CRIT! +3', '#FFE27A');
+      if (this.openingHits >= HITS_PER_OPENING) this.go('recover');
+      return;
+    }
+    this.stagger++;
+    this.popText(this.stagger >= STAGGER ? 'STAGGERED!' : '+1', this.stagger >= STAGGER ? '#FFE27A' : '#FFFFFF');
+    // Not in the air mid-slam: it can't be knocked out of that.
+    const airborne = this.phase === 'act' && this.attack?.kind === 'slam';
+    if (this.stagger >= STAGGER && !airborne) {
+      this.stagger = 0;
+      this.clearTelegraph();
+      if (this.def.flying || this.perch > 0) this.side = 0;
+      this.perch = 0;
+      this.sy = 0;
+      this.openingHits = 0;
+      this.dazeFor = STAGGER_DAZE;
+      this.queue = [];
+      this.go('dizzy');
+    }
   }
 
   private popText(text: string, color: string): void {
@@ -653,7 +683,7 @@ export class PatternBoss extends Entity implements Boss {
     const moves = list.filter((a) => !PatternBoss.finishes(a));
     const ends = list.filter(PatternBoss.finishes);
     const out: Attack[] = [];
-    const n = Math.min(2, moves.length);
+    const n = Math.min(3, moves.length);
     for (let i = 0; i < n; i++) out.push(moves[(this.round * n + i) % moves.length]);
     out.push(ends[this.round % ends.length]);
     this.round++;
@@ -774,6 +804,8 @@ export class PatternBoss extends Entity implements Boss {
     this.scene.cameras.main.shake(220, slam ? 0.012 : 0.009);
     Audio.play('land');
     this.openingHits = 0;
+    this.stagger = 0;
+    this.dazeFor = DIZZY;
     this.go('dizzy');
   }
 
@@ -795,12 +827,16 @@ export class PatternBoss extends Entity implements Boss {
 
   /** Between attacks it often bounds to another spot (never onto the dog). */
   private wander(ctx: GameContext): void {
-    if (Math.random() > 0.6) {
+    if (Math.random() > 0.85) {
       this.go('idle');
       return;
     }
+    // Presses the dog: one of the two spots nearest it (but never on top of it).
     const hero = ctx.heroX - ctx.cameraLeft;
-    const spots = (this.def.flying ? FLY_SPOTS : WALK_SPOTS).filter((p) => Math.abs(p.x - this.sx) > 120 && Math.abs(p.x - hero) > 230);
+    const spots = (this.def.flying ? FLY_SPOTS : WALK_SPOTS)
+      .filter((p) => Math.abs(p.x - this.sx) > 120 && Math.abs(p.x - hero) > 230)
+      .sort((a, b) => Math.abs(a.x - hero) - Math.abs(b.x - hero))
+      .slice(0, 2);
     if (!spots.length) {
       this.go('idle');
       return;
@@ -839,11 +875,19 @@ export class PatternBoss extends Entity implements Boss {
         break;
       case 'idle':
         this.sy = this.perch + (this.def.flying ? Math.sin(this.t * 3) * 10 : Math.abs(Math.sin(this.t * 5)) * 4);
-        if (this.t >= (this.enraged ? 0.3 : 0.5)) this.beginWarn(ctx);
+        if (this.t >= (this.enraged ? 0.12 : 0.22)) this.beginWarn(ctx);
         break;
       case 'hop': {
-        const T = 0.8;
+        const T = this.def.flying ? 0.6 : 0.55;
         const k = Math.min(1, this.t / T);
+        if (this.t < dt * 1.5) this.hopThrown = false;
+        // From round two it lobs a shot at the dog from the top of its hop.
+        if (!this.hopThrown && k >= 0.5 && this.tierIndex >= 1 && this.hopShot) {
+          this.hopThrown = true;
+          const tex = shotTexture(this.scene, this.def.level, this.hopShot, 34, 30);
+          ctx.spawn(new LobShot(this.scene, wx, G - this.sy - this.img.displayHeight * 0.5, Phaser.Math.Clamp(ctx.heroX, ctx.cameraLeft + 90, ctx.cameraRight - 90), tex, 0.8));
+          Audio.play('throw');
+        }
         this.sx = Phaser.Math.Linear(this.fromX, this.toX, this.def.flying ? ease(k) : k);
         this.sy = Phaser.Math.Linear(this.fromY, this.toY, this.def.flying ? ease(k) : k) + Math.sin(k * Math.PI) * (this.def.flying ? 30 : 130);
         if (this.t >= T) {
@@ -931,12 +975,14 @@ export class PatternBoss extends Entity implements Boss {
           break;
         }
         this.sy = this.perch + (this.def.flying ? Math.sin(this.t * 3) * 8 : 0);
-        if (this.t > 0.5 && this.kids.every((k) => !k.alive)) this.wander(ctx);
+        // Moves on before its shots have cleared the arena (only a barrage must finish
+        // throwing), so attacks overlap and the pressure stays on.
+        if (this.kids.every((k) => !k.alive) || (this.t > 0.8 && !this.kids.some((k) => k.alive && k instanceof Barrage))) this.wander(ctx);
         break;
       }
       case 'dizzy': {
         // Dazed on the floor: stars circle its head and the weak spot glows.
-        const dur = this.enraged ? DIZZY - 0.6 : DIZZY;
+        const dur = this.enraged ? this.dazeFor * 0.8 : this.dazeFor;
         this.sy = 0;
         rot = Math.sin(this.t * 4) * 0.06;
         sxScale = 1 + Math.sin(this.t * 6) * 0.02;
@@ -1019,7 +1065,7 @@ export class PatternBoss extends Entity implements Boss {
     }
   }
 
-  /** A target on its weak spot while the dog's bark would reach it: gold when it is open, grey when armoured. */
+  /** A target on its weak spot while the dog's bark would reach it: white (a hit lands), gold while dazed (a crit). */
   private drawAim(flip: boolean): void {
     const g = this.aim;
     g.clear();
@@ -1029,10 +1075,10 @@ export class PatternBoss extends Entity implements Boss {
     const wx = this.img.x + (this.def.weak.x - 0.5) * w * (flip ? -1 : 1);
     const wy = this.img.y - h * (1 - this.def.weak.y);
     const open = this.phase === 'dizzy';
-    const col = open ? 0xffe27a : 0xc9d3e6;
+    const col = open ? 0xffe27a : 0xffffff;
     const pulse = 0.5 + 0.5 * Math.sin(this.t * (open ? 14 : 6));
     const r = (open ? 30 : 24) + pulse * 4;
-    const a = open ? 1 : 0.55;
+    const a = open ? 1 : 0.85;
     g.lineStyle(7, 0x302331, a * 0.8).strokeCircle(wx, wy, r);
     g.lineStyle(4, col, a).strokeCircle(wx, wy, r);
     // Four ticks that spin slowly round the ring.

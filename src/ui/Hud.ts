@@ -284,9 +284,9 @@ export class Hud {
       g.fillStyle(low ? 0xe0503f : 0xf07562, 1).fillRoundedRect(x, y, w * this.bossShown, h, 9);
       g.fillStyle(0xffffff, 0.3).fillRoundedRect(x + 6, y + 4, Math.max(0, w * this.bossShown - 12), h * 0.32, 5);
     }
-    // One notch per enemy.
     g.lineStyle(3, COLOR.outline, 0.8);
-    for (let i = 1; i < s.bossMax; i++) {
+    // Notches every 4 points of health (one per normal-sized chunk).
+    for (let i = 4; i < s.bossMax && s.bossMax > 4; i += 4) {
       const nx = x + (w * i) / s.bossMax;
       g.lineBetween(nx, y + 2, nx, y + h - 2);
     }

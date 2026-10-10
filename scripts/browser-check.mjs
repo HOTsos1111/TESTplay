@@ -616,8 +616,9 @@ try {
         // dazed (stars, BARK NOW!) rush in and bark.
         const open = !!s.bossVulnerable;
         const side = s.screenX > bx ? 1 : -1;
-        const want = open ? bx + side * 160 : 640 + (bx > 640 ? -1 : 1) * 120;
-        if (open && Math.abs(s.screenX - bx) < 260) bark();
+        // Every bark lands now: stay just in reach and keep barking.
+        const want = Math.max(110, Math.min(1170, bx + side * (open ? 160 : 230)));
+        if (Math.abs(s.screenX - bx) < 260) bark();
         if (a && a.kind === 'slam') {
           // Clear the landing spot toward the roomier side.
           const tx = a.targetX - (s.x - s.screenX);
@@ -648,18 +649,20 @@ try {
       };
       requestAnimationFrame(tick);
     });
+    let fightSecs = 0;
     {
       const t0 = Date.now();
       while (Date.now() - t0 < 420000 && !(await scenes(page)).includes('Results')) {
         await keepRunning(page);
         await sleep(4000);
       }
+      fightSecs = Math.round((Date.now() - t0) / 1000);
     }
     const sc = await scenes(page);
     const bot = await page.evaluate(() => ({ ...window.__bot, end: (({ phase, bossPhase, bossHits, bossVulnerable, screenX, height, grounded }) => ({ phase, bossPhase, bossHits, bossVulnerable, screenX, height, grounded }))(window.__HH__.game?.() ?? {}) }));
     await page.screenshot({ path: `screenshots/11-boss-${fin.chapter}.png` });
     const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('homeward-hound.progress')));
-    check(`Level ${fin.chapter} boss ${fin.name} is beatable at base stats without god mode`, sc.includes('Results') && saved.checkpoint === null && saved.completedChapters.includes(fin.chapter), `scenes=${sc} bot=${JSON.stringify(bot)}`);
+    check(`Level ${fin.chapter} boss ${fin.name} is beatable at base stats without god mode`, sc.includes('Results') && saved.checkpoint === null && saved.completedChapters.includes(fin.chapter), `${fightSecs}s wall, scenes=${sc} bot=${JSON.stringify(bot)}`);
   }
   await page.close();
   }
