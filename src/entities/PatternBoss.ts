@@ -63,6 +63,9 @@ class LobShot extends Entity {
   hazard(): Rect {
     return { x: this.x - 15, y: this.y - 14, w: 30, h: 28 };
   }
+  danger(): { x: number; w: number } {
+    return { x: this.mark.x, w: 70 };
+  }
   barkTarget(): Rect {
     return { x: this.x - 22, y: this.y - 22, w: 44, h: 44 };
   }
@@ -168,6 +171,9 @@ class Dropper extends Entity {
   hazard(): Rect | null {
     return this.t >= this.delay ? { x: this.x - 30, y: this.y - 26, w: 60, h: 52 } : null;
   }
+  danger(): { x: number; w: number } {
+    return { x: this.x, w: 90 };
+  }
   update(dt: number, ctx: GameContext): void {
     this.t += dt;
     this.mark.setAlpha(0.35 + 0.35 * Math.abs(Math.sin(this.t * 10)));
@@ -207,6 +213,9 @@ class Geyser extends Entity {
   }
   hazard(): Rect | null {
     return this.on ? { x: this.x - 34, y: G - 170, w: 68, h: 170 } : null;
+  }
+  danger(): { x: number; w: number } {
+    return { x: this.x, w: 90 };
   }
   update(dt: number, ctx: GameContext): void {
     this.t += dt;
@@ -465,7 +474,7 @@ export class PatternBoss extends Entity implements Boss {
   private stagger = 0;
   /** How long the current daze lasts (a full one after a finisher, a short one from a stagger). */
   private dazeFor = DIZZY;
-  /** A shot it can lob mid-hop (from round two on). */
+  /** A shot it lobs mid-hop once angry. */
   private hopShot: Piece | null = null;
   private hopThrown = false;
   private clangT = 0;
@@ -881,8 +890,8 @@ export class PatternBoss extends Entity implements Boss {
         const T = this.def.flying ? 0.6 : 0.55;
         const k = Math.min(1, this.t / T);
         if (this.t < dt * 1.5) this.hopThrown = false;
-        // From round two it lobs a shot at the dog from the top of its hop.
-        if (!this.hopThrown && k >= 0.5 && this.tierIndex >= 1 && this.hopShot) {
+        // Angry: it lobs a shot at the dog from the top of each hop.
+        if (!this.hopThrown && k >= 0.5 && this.enraged && this.hopShot) {
           this.hopThrown = true;
           const tex = shotTexture(this.scene, this.def.level, this.hopShot, 34, 30);
           ctx.spawn(new LobShot(this.scene, wx, G - this.sy - this.img.displayHeight * 0.5, Phaser.Math.Clamp(ctx.heroX, ctx.cameraLeft + 90, ctx.cameraRight - 90), tex, 0.8));
@@ -977,7 +986,7 @@ export class PatternBoss extends Entity implements Boss {
         this.sy = this.perch + (this.def.flying ? Math.sin(this.t * 3) * 8 : 0);
         // Moves on before its shots have cleared the arena (only a barrage must finish
         // throwing), so attacks overlap and the pressure stays on.
-        if (this.kids.every((k) => !k.alive) || (this.t > 0.8 && !this.kids.some((k) => k.alive && k instanceof Barrage))) this.wander(ctx);
+        if (this.kids.every((k) => !k.alive) || (this.t > 1.0 && !this.kids.some((k) => k.alive && k instanceof Barrage))) this.wander(ctx);
         break;
       }
       case 'dizzy': {

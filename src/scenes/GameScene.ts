@@ -332,8 +332,12 @@ export class GameScene extends Phaser.Scene {
       powerupsAt: this.entities.filter((e): e is PowerUp => e instanceof PowerUp).map((p) => p.where),
       barkTargetsAhead: this.entities
         .map((e) => (e.alive ? e.barkTarget() : null))
-        .filter((r): r is Rect => !!r && r.x + r.w > this.pc.x && r.x < this.pc.x + 600)
-        .map((r) => ({ dx: Math.round(r.x - this.pc.x), top: WORLD.groundY - r.y, bottom: WORLD.groundY - (r.y + r.h) })),
+        .filter((r): r is Rect => !!r && r.x + r.w > this.pc.x - (this.arena ? 600 : 0) && r.x < this.pc.x + 600)
+        .map((r) => ({ dx: Math.round(r.x - this.pc.x), w: Math.round(r.w), top: WORLD.groundY - r.y, bottom: WORLD.groundY - (r.y + r.h) })),
+      dangers: this.entities
+        .map((e) => (e.alive ? e.danger() : null))
+        .filter((d): d is { x: number; w: number } => !!d)
+        .map((d) => ({ dx: Math.round(d.x - this.pc.x), w: d.w })),
       solidsAhead: this.solids
         .filter((r) => r.kind !== 'ground' && r.x + r.w > this.pc.x - 46 && r.x < this.pc.x + 600)
         .map((r) => ({ dx: Math.round(r.x - this.pc.x), w: r.w, top: WORLD.groundY - r.y, kind: r.kind })),

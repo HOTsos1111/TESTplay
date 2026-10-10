@@ -61,6 +61,10 @@ export abstract class Entity {
     return null;
   }
   onHeroHit(_ctx: GameContext): void {}
+  /** A marked spot on the floor about to be hit (for tests reading what a player sees). */
+  danger(): { x: number; w: number } | null {
+    return null;
+  }
   /** Rect that a bark pulse can affect. */
   barkTarget(): Rect | null {
     return null;

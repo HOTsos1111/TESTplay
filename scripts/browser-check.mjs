@@ -604,7 +604,10 @@ try {
           w.__bot.barks++;
         };
         // Bark anything in reach (rollers, crumbs).
-        const reach = s.barkTargetsAhead.find((t) => t.dx > 40 && t.dx < 60 + s.barkRange - 25 && t.bottom < s.height + 105 && t.top > s.height - 15);
+        // Bark anything in reach, whichever way the dog faces.
+        const f = s.facing ?? 1;
+        const inReach = (t) => (f > 0 ? t.dx < 50 + s.barkRange && t.dx + (t.w ?? 40) > 60 : t.dx + (t.w ?? 40) > -(50 + s.barkRange) && t.dx < -60);
+        const reach = s.barkTargetsAhead.find((t) => inReach(t) && t.bottom < s.height + 105 && t.top > s.height - 15);
         if (reach) bark();
         // The arena: read the boss's warning, keep clear of marked spots, and run
         // in to bark while its guard is down. Duck the high lane; jump the low one.
@@ -627,6 +630,15 @@ try {
           const tx = a.targetX - (s.x - s.screenX);
           mx = Math.abs(s.screenX - tx) > 200 || s.screenX < 110 ? 0 : tx > s.screenX ? -1 : s.screenX < want - 40 ? 1 : -1;
         } else mx = s.screenX < want - 30 ? 1 : s.screenX > want + 30 ? -1 : 0;
+        // Step off any red marker (lobbed shots, drops, steam vents) unless dodging a slam.
+        if (!(a && a.kind === 'slam')) {
+          const mark = (s.dangers ?? []).find((d) => Math.abs(d.dx) < d.w / 2 + 55);
+          if (mark) {
+            mx = mark.dx > 0 ? -1 : 1;
+            if (mx < 0 && s.screenX < 140) mx = 1;
+            if (mx > 0 && s.screenX > 1140) mx = -1;
+          }
+        }
         if (a && a.height === 'high') duck = true;
         const glider = duck || s.hazardsAhead.find((h) => h.bottom > 18 && h.bottom < 70 && h.dx > -40 && h.dx < 200);
         if (glider && s.grounded && holdUntil === 0) {
