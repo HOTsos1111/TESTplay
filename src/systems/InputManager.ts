@@ -14,6 +14,8 @@ export class InputManager {
   private keyJumpHeld = new Set<string>();
   private touchJump = new Set<number>();
   private touchBark = new Set<number>();
+  private touchBurst = new Set<number>();
+  private burstKeys: Phaser.Input.Keyboard.Key[] = [];
   private keys: Phaser.Input.Keyboard.Key[] = [];
   private dirKeys: { left: Phaser.Input.Keyboard.Key[]; right: Phaser.Input.Keyboard.Key[]; down: Phaser.Input.Keyboard.Key[] } = { left: [], right: [], down: [] };
   /** Virtual joystick vector (-1..1 each axis, y down), set by the touch layer. */
@@ -63,6 +65,7 @@ export class InputManager {
       if (action === 'jump') this.keyJumpHeld.delete(id);
     });
     this.keys.push(key);
+    if (action === 'burst') this.burstKeys.push(key);
   }
 
   /** Touch buttons forward pointer presses here. */
@@ -70,6 +73,7 @@ export class InputManager {
     InputManager.touchMode = true;
     if (!this.enabled) return;
     if (action === 'burst') {
+      this.touchBurst.add(pointerId);
       this.burstLatch = true;
     } else if (action === 'jump') {
       this.touchJump.add(pointerId);
@@ -83,6 +87,12 @@ export class InputManager {
   touchUp(pointerId: number): void {
     this.touchJump.delete(pointerId);
     this.touchBark.delete(pointerId);
+    this.touchBurst.delete(pointerId);
+  }
+
+  /** SPEED held down: the burst lasts as long as it is held (and the meter lasts). */
+  get burstHeld(): boolean {
+    return this.touchBurst.size > 0 || this.burstKeys.some((k) => k.isDown);
   }
 
   /** Joystick update from the touch layer. Pushing up acts like pressing jump. */
@@ -122,7 +132,7 @@ export class InputManager {
   }
 
   /** Consumes latched presses. Call once per rendered frame. */
-  consume(): FrameInput & { burstPressed: boolean; pausePressed: boolean; pace: number } {
+  consume(): FrameInput & { burstPressed: boolean; burstHeld: boolean; pausePressed: boolean; pace: number } {
     const out = {
       jumpPressed: this.jumpLatch,
       jumpHeld: this.jumpHeld,
@@ -130,6 +140,7 @@ export class InputManager {
       pace: this.pace,
       barkPressed: this.barkLatch,
       burstPressed: this.burstLatch,
+      burstHeld: this.burstHeld,
       pausePressed: this.pauseLatch,
     };
     this.jumpLatch = false;
@@ -148,6 +159,7 @@ export class InputManager {
     this.keyJumpHeld.clear();
     this.touchJump.clear();
     this.touchBark.clear();
+    this.touchBurst.clear();
     this.stick = { x: 0, y: 0, active: false };
     this.stickUp = false;
   }

@@ -40,7 +40,7 @@ export const HINTS: Record<string, HintCopy> = {
   squirrel: { keys: 'Squirrels pelt you with acorns! Jump them, and BARK (X) when the squirrel comes close.', touch: 'Squirrels pelt you with acorns! Jump them, and tap BARK when the squirrel comes close.' },
   hover: { keys: 'Hold jump to give your tail a spin!', touch: 'Hold the stick UP to give your tail a spin!' },
   hover_recharge: { keys: 'Your tail recharges while your paws are on the ground.', touch: 'Your tail recharges while your paws are on the ground.' },
-  burst: { keys: 'Arrows on the floor? Press SHIFT to BURST, then jump and hold!', touch: 'Arrows on the floor? Tap SPEED, then jump and hold!' },
+  burst: { keys: 'Arrows ahead? HOLD SHIFT to stretch, let go to SNAP forward — then jump!', touch: 'Arrows ahead? HOLD SPEED to stretch, let go to SNAP forward — then jump!' },
   duck: { keys: 'Red beams pump up and down! Run under, DUCK (↓) or JUMP — time it!', touch: 'Red beams pump up and down! Run under, pull DOWN or jump — time it!' },
   drop: { keys: 'On a platform? Press ↓ (or S) to drop down a layer.', touch: 'On a platform? Pull DOWN to drop down a layer.' },
   double: { keys: 'Too tall! Jump EARLY, then press jump again at the top to double-jump.', touch: 'Too tall! Push UP early, let go, then push UP again at the top to double-jump.' },

@@ -222,3 +222,36 @@ describe('dropping through platforms', () => {
     expect(pc.y).toBe(G);
   });
 });
+
+describe('slingshot burst', () => {
+  it('holding SPEED winds up (no burst yet); releasing fires a stronger, longer burst than a tap', () => {
+    const tap = new PlayerController(0, G);
+    run(tap, 0.02, { burstPressed: true });
+    expect(tap.bursting).toBe(true);
+    const tapSpeed = tap.effectiveSpeed;
+
+    const pc = new PlayerController(0, G);
+    const ev: string[] = [];
+    for (let i = 0; i < Math.round(1.2 / dt); i++) {
+      ev.push(...pc.step(dt, { ...none, burstPressed: i === 0, burstHeld: true }, floor).map((e) => e.type));
+    }
+    expect(ev).toContain('burstCharge');
+    expect(ev).not.toContain('burstStart');
+    expect(pc.bursting).toBe(false);
+    expect(pc.chargeLevel).toBe(1);
+    const fired = pc.step(dt, { ...none, burstHeld: false }, floor).map((e) => e.type);
+    expect(fired).toContain('burstStart');
+    expect(pc.effectiveSpeed).toBeGreaterThan(tapSpeed);
+    expect(pc.burstT).toBeGreaterThan(TUNING.burstDuration * 1.5);
+    expect(pc.burstMeter).toBe(0);
+  });
+
+  it('fires by itself if held too long', () => {
+    const pc = new PlayerController(0, G);
+    const ev: string[] = [];
+    for (let i = 0; i < Math.round((TUNING.burstHoldMax + 0.2) / dt); i++) {
+      ev.push(...pc.step(dt, { ...none, burstPressed: i === 0, burstHeld: true }, floor).map((e) => e.type));
+    }
+    expect(ev).toContain('burstStart');
+  });
+});

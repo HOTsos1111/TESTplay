@@ -25,6 +25,8 @@ export interface FrameInput {
   jumpHeld: boolean;
   barkPressed: boolean;
   burstPressed?: boolean;
+  /** SPEED held: winds up a slingshot burst that fires on release. */
+  burstHeld?: boolean;
   /** Down held: duck on the ground; a fresh press on a platform drops through it. */
   duckHeld?: boolean;
 }
@@ -39,7 +41,8 @@ export type PlayerEvent =
   | { type: 'hoverStart' }
   | { type: 'hoverStop' }
   | { type: 'bark' }
-  | { type: 'burstStart' }
+  | { type: 'burstCharge' }
+  | { type: 'burstStart'; power: number }
   | { type: 'burstEnd' }
   | { type: 'bonk'; solid: Solid };
 
@@ -85,6 +88,10 @@ export class PlayerController {
   burstT = 0;
   /** True while a burst's speed is being carried through a jump. */
   burstCarry = false;
+  /** Seconds SPEED has been held winding up a slingshot burst (null when not charging). */
+  charge: number | null = null;
+  /** Strength of the current burst, 0 (tap) .. 1 (full wind-up). */
+  burstPower = 0;
   /** Second jump already used this time in the air. */
   doubleUsed = false;
   ducking = false;
@@ -134,13 +141,19 @@ export class PlayerController {
     return this.burstT > 0 || this.burstCarry;
   }
 
+  /** Wind-up so far, 0..1. */
+  get chargeLevel(): number {
+    return this.charge === null ? 0 : Math.min(1, this.charge / TUNING.burstChargeFull);
+  }
+
   /** Current horizontal speed including any burst. */
   get effectiveSpeed(): number {
-    if (this.burstCarry) return this.speed * (1 + TUNING.burstSpeedBonus);
+    const bonus = TUNING.burstSpeedBonus * (1 + 0.5 * this.burstPower);
+    if (this.burstCarry) return this.speed * (1 + bonus);
     if (this.burstT <= 0) return this.speed;
     // Ease off over the final 0.2 s on the ground.
     const k = Math.min(1, this.burstT / 0.2);
-    return this.speed * (1 + TUNING.burstSpeedBonus * k);
+    return this.speed * (1 + bonus * k);
   }
 
   get wagFraction(): number {
@@ -174,10 +187,23 @@ export class PlayerController {
     }
 
     // --- Burst: needs a full meter; the meter refills slowly while not bursting.
-    if (input.burstPressed && this.burstMeter >= 1 && !this.bursting) {
-      this.burstMeter = 0;
-      this.burstT = TUNING.burstDuration;
-      events.push({ type: 'burstStart' });
+    // Slingshot: pressing SPEED winds up (he stretches out long); releasing it
+    // snaps him forward. The longer the wind-up, the faster and longer the shot;
+    // a quick tap is the standard burst.
+    if (input.burstPressed && this.burstMeter >= 1 && !this.bursting && this.charge === null) {
+      this.charge = 0;
+      events.push({ type: 'burstCharge' });
+    }
+    if (this.charge !== null) {
+      if (input.burstHeld && this.charge < TUNING.burstHoldMax) this.charge += dt;
+      else {
+        const power = this.chargeLevel;
+        this.charge = null;
+        this.burstMeter = 0;
+        this.burstPower = power;
+        this.burstT = TUNING.burstDuration * (1 + 0.6 * power);
+        events.push({ type: 'burstStart', power });
+      }
     } else if (this.bursting) {
       if (this.burstT > 0) this.burstT = Math.max(0, this.burstT - dt);
       if (!this.bursting) events.push({ type: 'burstEnd' });

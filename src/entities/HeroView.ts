@@ -10,6 +10,8 @@ export interface HeroVisualState {
   speed: number;
   invulnerable: number;
   bursting?: boolean;
+  /** Slingshot wind-up 0..1 while SPEED is held (null when not winding up). */
+  charge?: number | null;
   ducking?: boolean;
 }
 
@@ -93,6 +95,8 @@ export class HeroView {
   private stepAcc = 0;
   /** Burst animation clock (-1 when idle) and whether the rear has snapped yet. */
   private burstAnimT = -1;
+  private holdStretch = false;
+  private charge = 0;
   private flipT = -1;
   private snapped = false;
   /** Elastic body: how far the front (F) and rear (R) are pulled ahead, in px. */
@@ -273,6 +277,15 @@ export class HeroView {
     this.burstAnimT += dt;
     const t = this.burstAnimT;
     const T = HeroView.STRETCH_TIME;
+    if (this.holdStretch && !this.snapped) {
+      // Winding up: the front keeps pulling out longer the longer SPEED is held,
+      // quivering like a stretched elastic band, until release snaps the rear after it.
+      const c = this.charge;
+      const reach = HeroView.STRETCH_PX * (0.55 + 0.75 * c) * (1 - Math.pow(1 - Math.min(1, t / T), 3));
+      this.elF = reach * (1 + (0.015 + 0.05 * c) * Math.sin(t * (30 + 30 * c)));
+      this.elR = 0;
+      return;
+    }
     if (t < T) {
       const k = t / T;
       this.elF = HeroView.STRETCH_PX * (1 + 0.12 * Math.sin(k * Math.PI)) * (1 - Math.pow(1 - k, 3));
@@ -481,12 +494,33 @@ export class HeroView {
     let stretchX = 1;
     let stretchShift = 0;
     if (this.mode === 'play') {
+      const holding = s.charge != null;
+      // Released after a long wind-up: snap now (rebase the clock to the snap point).
+      if (this.holdStretch && !holding && this.burstAnimT > HeroView.STRETCH_TIME) this.burstAnimT = HeroView.STRETCH_TIME;
+      this.holdStretch = holding;
+      this.charge = s.charge ?? this.charge;
       this.updateElastic(dt);
       if (this.burstAnimT >= 0) {
         // Front pulls ahead while the rear stays put, then the rear snaps after it.
         stretchX = Math.max(0.6, 1 + (this.elF - this.elR) / 150);
         stretchShift = (this.elF + this.elR) / 2;
-        if (this.burstAnimT < HeroView.STRETCH_TIME) {
+        if (this.holdStretch && !this.snapped && s.grounded) {
+          // Wound up like a slinky: the long body wiggles and waddles, front and
+          // back legs scurrying out of step, ears flapping and tail going wild.
+          pose = 'rig';
+          const c = this.charge;
+          const w = this.t * (16 + 10 * c);
+          legs[0] = 0.75 + Math.sin(w) * 0.55;
+          legs[1] = -0.75 + Math.sin(w + Math.PI) * 0.55;
+          legs[2] = 0.75 + Math.sin(w + Math.PI / 2) * 0.55;
+          legs[3] = -0.75 + Math.sin(w + Math.PI * 1.5) * 0.55;
+          rigRot = Math.sin(w * 0.5) * (0.05 + 0.05 * c);
+          rigY = -Math.abs(Math.sin(w * 0.5)) * (4 + 6 * c);
+          earTarget = 1.1 + Math.sin(w * 0.5) * 0.35;
+          tailRot = Math.sin(w * 1.3) * 0.7;
+          stretchX *= 1 + Math.sin(w * 0.5 + 1) * 0.04;
+          this.sqY += (0.9 - 0.06 * c - this.sqY) * Math.min(1, dt * 18);
+        } else if (this.burstAnimT < HeroView.STRETCH_TIME || (this.holdStretch && !this.snapped)) {
           earTarget = 1.3;
           legs[0] = legs[2] = 0.9;
           legs[1] = legs[3] = -0.9;

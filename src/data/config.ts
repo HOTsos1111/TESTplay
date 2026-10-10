@@ -46,8 +46,11 @@ export const TUNING = {
   groundRecharge: 0.6,
   /** Seconds for the burst meter to fill from empty. */
   burstChargeTime: 6,
-  /** Seconds a burst lasts on the ground; a jump started during it keeps the speed until landing. */
+  /** Seconds a tapped burst lasts on the ground; a jump started during it keeps the speed until landing. */
   burstDuration: 0.9,
+  /** Holding SPEED winds up a slingshot: seconds to reach full charge (it fires itself after burstHoldMax). */
+  burstChargeFull: 1.0,
+  burstHoldMax: 2.5,
   /** Extra speed during a burst, as a fraction of the current run speed. */
   burstSpeedBonus: 0.65,
   /** How far forward the hero slides on screen while bursting (cosmetic camera lead). */

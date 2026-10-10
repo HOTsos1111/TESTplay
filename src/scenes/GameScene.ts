@@ -626,7 +626,7 @@ export class GameScene extends Phaser.Scene {
     const steps = Math.max(1, Math.ceil(dt / TUNING.maxStep));
     const h = dt / steps;
     for (let i = 0; i < steps; i++) {
-      const inp: FrameInput = i === 0 ? frame : { jumpPressed: false, jumpHeld: frame.jumpHeld, barkPressed: false, duckHeld: frame.duckHeld };
+      const inp: FrameInput = i === 0 ? frame : { jumpPressed: false, jumpHeld: frame.jumpHeld, barkPressed: false, duckHeld: frame.duckHeld, burstHeld: frame.burstHeld };
       this.simulate(h, inp);
       if (this.resultsSent) return;
     }
@@ -715,10 +715,14 @@ export class GameScene extends Phaser.Scene {
         case 'duckStart':
           Audio.play('duck');
           break;
-        case 'burstStart':
+        case 'burstCharge':
+          // Wind-up: he stretches out long until SPEED is released.
           this.hero.burst();
           Audio.play('burst_stretch');
-          this.fx.dust(this.pc.x - 40, this.pc.y, 6);
+          break;
+        case 'burstStart':
+          this.fx.dust(this.pc.x - 40, this.pc.y, 6 + Math.round(ev.power * 8));
+          if (ev.power > 0.5) this.cameras.main.shake(120, 0.003 + ev.power * 0.004);
           break;
         case 'bark':
           if (this.power.whistle) this.pc.barkCooldown = POWERUP_TUNING.whistleCooldown;
@@ -864,6 +868,7 @@ export class GameScene extends Phaser.Scene {
       speed: Math.abs(this.pc.effectiveSpeed),
       invulnerable: this.pc.invulnerable,
       bursting: this.pc.bursting,
+      charge: this.pc.charge === null ? null : this.pc.chargeLevel,
       ducking: this.pc.ducking,
     });
     this.touch.update(dt, 1 - this.pc.barkCooldown / TUNING.barkCooldown, this.pc.bursting ? 0 : this.pc.burstMeter);
