@@ -537,7 +537,7 @@ try {
 
   // ---------------------------------------------------------------- finales at base stats, no god mode
   const BOSS_NAMES = ['Don Crumb', 'Forklift Frankie', 'Captain Gull', 'Switchback Badger', 'Boiler Brutus', 'Hardhat Hank', 'Net-O-Matic', 'Honkzilla', 'Squirrel Boss'];
-  for (const fin of BOSS_NAMES.map((name, i) => ({ chapter: i + 1, name })).filter((f) => !quick || f.chapter <= 2)) {
+  for (const fin of BOSS_NAMES.map((name, i) => ({ chapter: i + 1, name })).filter((f) => !quick || f.chapter <= 2).filter((f) => !process.env.BOSSES || process.env.BOSSES.split(',').map(Number).includes(f.chapter))) {
   page = await newPage('?realtime=1');
   await page.evaluate((fin) => {
     const p = JSON.parse(localStorage.getItem('homeward-hound.progress') ?? '{}');
@@ -587,6 +587,11 @@ try {
           return tc > 0 && tc < 0.3;
         };
         w.__bot.minHearts = Math.min(w.__bot.minHearts, s.hearts);
+        // What hit us (for diagnosing an unfair attack).
+        if (w.__lastHearts !== undefined && s.hearts < w.__lastHearts) {
+          (w.__bot.hurt ??= []).push({ ph: s.bossPhase, a: s.bossAttack?.kind, open: s.bossVulnerable, sx: Math.round(s.screenX), bx: Math.round(s.bossScreenX ?? 0), h: Math.round(s.height), hz: s.hazardsAhead.filter((z) => z.dx > -150 && z.dx < 150).map((z) => [z.dx, z.w, z.bottom, z.top]) });
+        }
+        w.__lastHearts = s.hearts;
         const bark = () => {
           if (s.barkCooldown > 0) return;
           input.touchDown('bark', 78);

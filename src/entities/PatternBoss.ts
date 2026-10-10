@@ -613,7 +613,7 @@ export class PatternBoss extends Entity implements Boss {
     for (const d of ARENA_DECKS) ctx.spawn(this.makeDeck(ctx.cameraLeft + d.x, d.w, G - d.h));
   }
 
-  /** Back to one end of the arena: the one farther from the dog. */
+  /** After an opening it springs back to an end of the arena, the one farther from the dog, so it never attacks point-blank. */
   private goHome(ctx: GameContext): void {
     const hero = ctx.heroX - ctx.cameraLeft;
     this.side = Math.abs(hero - HOME[-1]) > Math.abs(hero - HOME[1]) ? -1 : 1;
@@ -775,8 +775,7 @@ export class PatternBoss extends Entity implements Boss {
             this.label.setText(this.enraged ? 'IT’S ANGRY!' : 'ROUND 2!').setPosition(wx, G - this.img.displayHeight - 50).setVisible(true);
             Audio.play('squirrel_angry');
             this.scene.cameras.main.shake(500, 0.008);
-          } else if (this.side === 0) this.goHome(ctx);
-          else this.go('idle');
+          } else this.goHome(ctx);
         }
         break;
       case 'roar':
@@ -786,8 +785,7 @@ export class PatternBoss extends Entity implements Boss {
         if (Math.random() < dt * 12) ctx.fx.puff(wx + (Math.random() - 0.5) * 120, G - Math.random() * this.def.height, 1, 0.8);
         if (this.t >= 1.4) {
           this.label.setVisible(false);
-          if (this.side === 0) this.goHome(ctx);
-          else this.go('idle');
+          this.goHome(ctx);
         }
         break;
       case 'defeat':
