@@ -86,8 +86,11 @@ const waitScene = async (page, key, timeout = 15000) => {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 try {
+  let page;
+  // BOSSES=2,5 runs only those boss fights.
+  if (!process.env.BOSSES) {
   // ---------------------------------------------------------------- fresh start, story, controls
-  let page = await newPage();
+  page = await newPage();
   await page.evaluate(() => localStorage.clear());
   await page.reload();
   await waitScene(page, 'Title');
@@ -535,6 +538,8 @@ try {
     await page.close();
   }
 
+  }
+
   // ---------------------------------------------------------------- finales at base stats, no god mode
   const BOSS_NAMES = ['Don Crumb', 'Forklift Frankie', 'Captain Gull', 'Switchback Badger', 'Boiler Brutus', 'Hardhat Hank', 'Net-O-Matic', 'Honkzilla', 'Squirrel Boss'];
   for (const fin of BOSS_NAMES.map((name, i) => ({ chapter: i + 1, name })).filter((f) => !quick || f.chapter <= 2).filter((f) => !process.env.BOSSES || process.env.BOSSES.split(',').map(Number).includes(f.chapter))) {
@@ -616,7 +621,7 @@ try {
         if (a && a.kind === 'slam') {
           // Clear the landing spot toward the roomier side.
           const tx = a.targetX - (s.x - s.screenX);
-          mx = Math.abs(s.screenX - tx) > 190 ? 0 : tx > 640 ? -1 : 1;
+          mx = Math.abs(s.screenX - tx) > (a.reach ?? 150) + 70 ? 0 : tx > 640 ? -1 : 1;
         } else if (a && (a.kind === 'volley' || a.kind === 'drop' || a.kind === 'geyser')) {
           const tx = a.targetX - (s.x - s.screenX);
           mx = Math.abs(s.screenX - tx) > 200 || s.screenX < 110 ? 0 : tx > s.screenX ? -1 : s.screenX < want - 40 ? 1 : -1;
@@ -651,7 +656,7 @@ try {
       }
     }
     const sc = await scenes(page);
-    const bot = await page.evaluate(() => window.__bot);
+    const bot = await page.evaluate(() => ({ ...window.__bot, end: (({ phase, bossPhase, bossHits, bossVulnerable, screenX, height, grounded }) => ({ phase, bossPhase, bossHits, bossVulnerable, screenX, height, grounded }))(window.__HH__.game?.() ?? {}) }));
     await page.screenshot({ path: `screenshots/11-boss-${fin.chapter}.png` });
     const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('homeward-hound.progress')));
     check(`Level ${fin.chapter} boss ${fin.name} is beatable at base stats without god mode`, sc.includes('Results') && saved.checkpoint === null && saved.completedChapters.includes(fin.chapter), `scenes=${sc} bot=${JSON.stringify(bot)}`);
@@ -659,6 +664,7 @@ try {
   await page.close();
   }
 
+  if (!process.env.BOSSES) {
   // ---------------------------------------------------------------- retries do not leak
   page = await newPage();
   await page.evaluate(() => {
@@ -686,6 +692,7 @@ try {
   check('ten retries do not accumulate listeners or objects', growth.length === 0, listenerCounts.map((c) => Object.values(c).join('/')).join(' '));
   check('ten retries do not accumulate entities', s10.entities < 40, `entities=${s10.entities}`);
   await page.close();
+  }
 } catch (e) {
   check('browser run completed without exceptions', false, String(e));
 } finally {

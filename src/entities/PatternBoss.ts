@@ -389,11 +389,11 @@ export class PatternBoss extends Entity implements Boss {
   }
 
   /** What the current or upcoming attack is (for tests and the touch arrows). */
-  get telegraph(): { kind: Attack['kind']; height?: 'low' | 'high'; targetX: number; dir: number } | null {
+  get telegraph(): { kind: Attack['kind']; height?: 'low' | 'high'; targetX: number; dir: number; reach?: number } | null {
     if (!this.attack || (this.phase !== 'warn' && this.phase !== 'act')) return null;
     if (this.attack.kind === 'slam' && this.phase === 'act' && this.t > 0.7) return null;
     const a = this.attack;
-    return { kind: a.kind, height: a.kind === 'sweep' || a.kind === 'swoop' ? a.height : undefined, targetX: this.targetX, dir: this.dir };
+    return { kind: a.kind, height: a.kind === 'sweep' || a.kind === 'swoop' ? a.height : undefined, targetX: this.targetX, dir: this.dir, reach: a.kind === 'slam' ? this.footprint / 2 : undefined };
   }
 
   private get tierIndex(): number {
@@ -426,6 +426,11 @@ export class PatternBoss extends Entity implements Boss {
     return { x: this.img.x - w * 0.36, y: this.img.y - h * 0.85, w: w * 0.72, h: h * 0.85 };
   }
 
+  /** Width of ground a slam lands on (its body width at full size). */
+  private get footprint(): number {
+    return Math.round((this.img.width * this.baseScale) * 0.72 + 20);
+  }
+
   /** Its bulk, for nudging the dog out of it (touching it only hurts while it attacks). */
   get bulk(): Rect | null {
     return this.fighting && this.phase !== 'dizzy' ? this.body() : null;
@@ -446,7 +451,8 @@ export class PatternBoss extends Entity implements Boss {
     if (this.attack.kind === 'slam' && this.t > 0.45 && this.sy < 70) {
       const b = this.body();
       const top = Math.max(b.y, G - 90);
-      return { x: b.x, y: top, w: b.w, h: G - top };
+      const w = this.footprint - 20;
+      return { x: this.img.x - w / 2, y: top, w, h: G - top };
     }
     return null;
   }
@@ -527,7 +533,8 @@ export class PatternBoss extends Entity implements Boss {
     if (a.kind === 'slam') {
       this.targetX = Phaser.Math.Clamp(ctx.heroX, ctx.cameraLeft + SLAM_MIN, ctx.cameraLeft + SLAM_MAX);
       this.toX = this.targetX - ctx.cameraLeft;
-      this.slamMark = marker(this.scene, this.targetX, 130);
+      // The marker is as wide as the boss's landing footprint: what it covers is what hurts.
+      this.slamMark = marker(this.scene, this.targetX, this.footprint);
     }
     this.go('warn');
     this.bubble.setVisible(true);
