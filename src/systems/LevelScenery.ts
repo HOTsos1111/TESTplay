@@ -237,13 +237,13 @@ export class LevelScenery {
     if (was <= 0.01) for (const l of this.layers) for (const img of l.images) this.blurOne(img);
     for (const [img, fx] of this.blurs) {
       if (!img.active) this.blurs.delete(img);
-      else fx.strength = k * 1.6;
+      else fx.strength = k * 1.1;
     }
   }
 
   private blurOne(img: Phaser.GameObjects.Image): void {
     if (this.blurK <= 0.01 || this.blurs.has(img) || !img.postFX) return;
-    const fx = img.postFX.addBlur(0, 2, 0, this.blurK * 1.6, 0xffffff, 3);
+    const fx = img.postFX.addBlur(0, 2, 0, this.blurK * 1.1, 0xffffff, 3);
     if (fx) this.blurs.set(img, fx);
   }
 

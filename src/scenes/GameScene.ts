@@ -689,6 +689,8 @@ export class GameScene extends Phaser.Scene {
     this.pc.speed = arena ? this.scrollSpeed + pace * ARENA.speed : Math.max(0, this.scrollSpeed + pace * TUNING.paceSpeed);
     // Drift back inside the band if a burst carried him past it.
     if (screenX > maxX + 4 && !this.pc.bursting) this.pc.speed = this.scrollSpeed - 60;
+    // The dash is the arena's dodge: its meter refills about 2.5x faster there.
+    if (arena && !this.pc.bursting && this.pc.charge === null) this.pc.burstMeter = Math.min(1, this.pc.burstMeter + (dt * 1.4) / TUNING.burstChargeTime);
     if (this.dashT > 0) {
       this.dashT -= dt;
       const atEdge = (screenX <= minX && this.dashDir < 0) || (screenX >= maxX && this.dashDir > 0);
