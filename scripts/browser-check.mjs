@@ -2,7 +2,7 @@
 // drives the real game in Chromium and reports what it verified.
 //   node scripts/browser-check.mjs [--quick]
 import { spawn } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 
 const PORT = 4179;
@@ -594,7 +594,7 @@ try {
         w.__bot.minHearts = Math.min(w.__bot.minHearts, s.hearts);
         // What hit us (for diagnosing an unfair attack).
         if (w.__lastHearts !== undefined && s.hearts < w.__lastHearts) {
-          (w.__bot.hurt ??= []).push({ ph: s.bossPhase, a: s.bossAttack?.kind, open: s.bossVulnerable, sx: Math.round(s.screenX), bx: Math.round(s.bossScreenX ?? 0), h: Math.round(s.height), hz: s.hazardsAhead.filter((z) => z.dx > -150 && z.dx < 150).map((z) => [z.dx, z.w, z.bottom, z.top]) });
+          (w.__bot.hurt ??= []).push({ by: s.lastHurtBy, ph: s.bossPhase, a: s.bossAttack?.kind, open: s.bossVulnerable, sx: Math.round(s.screenX), bx: Math.round(s.bossScreenX ?? 0), h: Math.round(s.height), hz: s.hazardsAhead.filter((z) => z.dx > -150 && z.dx < 150).map((z) => [z.dx, z.w, z.bottom, z.top]) });
         }
         w.__lastHearts = s.hearts;
         const bark = () => {
@@ -673,6 +673,7 @@ try {
     const sc = await scenes(page);
     const bot = await page.evaluate(() => ({ ...window.__bot, end: (({ phase, bossPhase, bossHits, bossVulnerable, screenX, height, grounded }) => ({ phase, bossPhase, bossHits, bossVulnerable, screenX, height, grounded }))(window.__HH__.game?.() ?? {}) }));
     await page.screenshot({ path: `screenshots/11-boss-${fin.chapter}.png` });
+    writeFileSync(`screenshots/11-boss-${fin.chapter}.json`, JSON.stringify(bot, null, 1));
     const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('homeward-hound.progress')));
     check(`Level ${fin.chapter} boss ${fin.name} is beatable at base stats without god mode`, sc.includes('Results') && saved.checkpoint === null && saved.completedChapters.includes(fin.chapter), `${fightSecs}s wall, scenes=${sc} bot=${JSON.stringify(bot)}`);
   }

@@ -94,6 +94,8 @@ export class GameScene extends Phaser.Scene {
   /** Boss arenas: a released slingshot dashes him across the screen. */
   private dashT = 0;
   private blurAmt = 0;
+  /** What last hurt the dog (for tests). */
+  private lastHurtBy = '';
   private dashDir: 1 | -1 = 1;
   private dashV = 0;
   /** Brief simulation freeze for comic timing (the hero rig keeps animating). */
@@ -334,6 +336,7 @@ export class GameScene extends Phaser.Scene {
         .map((e) => (e.alive ? e.barkTarget() : null))
         .filter((r): r is Rect => !!r && r.x + r.w > this.pc.x - (this.arena ? 600 : 0) && r.x < this.pc.x + 600)
         .map((r) => ({ dx: Math.round(r.x - this.pc.x), w: Math.round(r.w), top: WORLD.groundY - r.y, bottom: WORLD.groundY - (r.y + r.h) })),
+      lastHurtBy: this.lastHurtBy,
       dangers: this.entities
         .map((e) => (e.alive ? e.danger() : null))
         .filter((d): d is { x: number; w: number } => !!d)
@@ -851,6 +854,7 @@ export class GameScene extends Phaser.Scene {
       for (const e of this.entities) {
         const hz = e.alive ? e.hazard() : null;
         if (hz && overlaps(hurt, hz)) {
+          this.lastHurtBy = e.constructor.name + (e instanceof PatternBoss ? `:${e.telegraph?.kind ?? e.phase}` : '');
           this.damage();
           e.onHeroHit(this.ctx);
           break;
