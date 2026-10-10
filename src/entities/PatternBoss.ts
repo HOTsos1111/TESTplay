@@ -540,6 +540,15 @@ export class PatternBoss extends Entity implements Boss {
     Audio.play('whistle');
   }
 
+  /** Attacks that send something across the arena in a lane (jump / duck / stay down). */
+  private static crosses(a: Attack): boolean {
+    return a.kind === 'sweep' || a.kind === 'barrage' || a.kind === 'roll' || a.kind === 'bounce' || a.kind === 'swoop';
+  }
+
+  private static crossing(tag: string): boolean {
+    return tag === 'sweep' || tag === 'barrage' || tag === 'roll' || tag === 'bounce';
+  }
+
   /** Charges and slams end a round: the boss is left dazed and open to barks. */
   private static finishes(a: Attack): boolean {
     return a.kind === 'swoop' || a.kind === 'slam';
@@ -713,6 +722,17 @@ export class PatternBoss extends Entity implements Boss {
 
   private beginWarn(ctx: GameContext): void {
     if (!this.queue.length) this.planRound();
+    // Never two things crossing the arena at different heights at once (no safe
+    // answer): while one is still flying, bring forward something of another
+    // kind (lobs, drops, vents, a slam), or wait for it to pass.
+    if (this.kids.some((k) => k.alive && PatternBoss.crossing(k.tag))) {
+      const i = this.queue.findIndex((q) => !PatternBoss.crosses(q));
+      if (i < 0) {
+        this.go('idle');
+        return;
+      }
+      this.queue.unshift(...this.queue.splice(i, 1));
+    }
     const a = this.queue.shift()!;
     if (a.kind === 'swoop' && (this.side === 0 || (!this.def.flying && this.perch > 0))) {
       // Charges start from an end of the street: get there first.
@@ -746,7 +766,7 @@ export class PatternBoss extends Entity implements Boss {
     const bx = this.worldX(ctx);
     const by = this.img.y - this.img.displayHeight * 0.55;
     const d = this.dir;
-    this.kids = [];
+    this.kids = this.kids.filter((k) => k.alive);
     const add = (e: Entity) => {
       this.kids.push(e);
       ctx.spawn(e);
