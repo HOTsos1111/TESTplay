@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { chapterById, type ChapterDef } from '../data/chapters';
-import { DEPTH, SCORING, TUNING, UPGRADE_EFFECTS, VIEW, WORLD } from '../data/config';
+import { DEPTH, HERO_BOX, SCORING, TUNING, UPGRADE_EFFECTS, VIEW, WORLD } from '../data/config';
 import { HINTS } from '../data/copy';
 import { POWERUP_TUNING, POWERUPS, type PowerUpKind } from '../data/powerups';
 import { HeroView } from '../entities/HeroView';
@@ -302,6 +302,7 @@ export class GameScene extends Phaser.Scene {
       bossPhase: this.boss?.phase ?? null,
       bossAttack: this.boss instanceof PatternBoss ? this.boss.telegraph : null,
       bossScreenX: this.boss instanceof PatternBoss ? this.boss.screenX : null,
+      bossVulnerable: this.boss instanceof PatternBoss ? this.boss.vulnerable : null,
       facing: this.pc.facing,
       screenX: this.pc.x - this.camX,
       entities: this.entities.length,
@@ -497,7 +498,7 @@ export class GameScene extends Phaser.Scene {
     progress.setCheckpoint({ chapter: this.chapter.id, at: 'encounter' });
     Audio.playMusic('chase');
     const id = this.chapter.encounterId;
-    const pattern = id === 'boss' && this.chapter.art ? new PatternBoss(this, this.chapter.art, (x, w, top) => new Platform(this, x, w, top, false)) : null;
+    const pattern = id === 'boss' && this.chapter.art ? new PatternBoss(this, this.chapter.art, (x, w, top) => new Platform(this, x, w, top, true)) : null;
     const boss: Boss = pattern ?? (id === 'trolley' ? new TrolleyBoss(this) : id === 'pigeon' ? new PigeonBoss(this) : new SquirrelSwarm(this));
     const name = pattern ? `${pattern.def.name.charAt(0)}${pattern.def.name.slice(1).toLowerCase().replace(/(^|[\s-])\w/g, (m) => m.toUpperCase())}!` : id === 'trolley' ? 'The dogcatcher!' : id === 'pigeon' ? 'The Pigeon Captain!' : 'Squirrel swarm!';
     this.hud.banner(name, 'Boss fight! Move, dodge, bark!', 2.2);
@@ -693,6 +694,12 @@ export class GameScene extends Phaser.Scene {
             this.fx.dust(this.pc.x, this.pc.y, 3);
           }
           this.hero.land(ev.impact);
+          // First time up on a platform: show how to get back down.
+          if (this.pc.y < WORLD.groundY - 40 && this.solids.some((o) => o.oneWay && Math.abs(o.y - this.pc.y) < 1)) this.showHint('drop');
+          break;
+        case 'drop':
+          Audio.play('duck');
+          this.fx.dust(this.pc.x, this.pc.y, 2);
           break;
         case 'hoverStart':
           Audio.startTail();
@@ -730,6 +737,19 @@ export class GameScene extends Phaser.Scene {
       }
     }
     if (!wasGrounded && this.pc.grounded && this.pc.hovering) Audio.stopTail();
+
+    // A boss only hurts while it attacks; otherwise its bulk just nudges the dog aside.
+    if (this.arena && this.boss instanceof PatternBoss) {
+      const b = this.boss.bulk;
+      const me = this.pc.bodyRect();
+      if (b && overlaps(me, b)) {
+        // Out the near side, or through toward the middle when pinned against a wall.
+        let away = this.pc.x < b.x + b.w / 2 ? -1 : 1;
+        const room = away < 0 ? b.x - (this.camX + ARENA.minX) : this.camX + ARENA.maxX - (b.x + b.w);
+        if (room < HERO_BOX.body.width) away = -away;
+        this.pc.x += away * 420 * dt;
+      }
+    }
 
     if (debugFlags.god && this.pc.y > WORLD.groundY + 60) {
       this.pc.y = WORLD.groundY - 40;

@@ -25,7 +25,7 @@ export interface FrameInput {
   jumpHeld: boolean;
   barkPressed: boolean;
   burstPressed?: boolean;
-  /** Down held: duck (only on the ground). */
+  /** Down held: duck on the ground; a fresh press on a platform drops through it. */
   duckHeld?: boolean;
 }
 
@@ -34,6 +34,7 @@ export type PlayerEvent =
   | { type: 'doubleJump' }
   | { type: 'duckStart' }
   | { type: 'duckEnd' }
+  | { type: 'drop' }
   | { type: 'land'; impact: number }
   | { type: 'hoverStart' }
   | { type: 'hoverStop' }
@@ -94,6 +95,10 @@ export class PlayerController {
   /** True while the current upward motion came from a jump (enables release clamp). */
   private jumpRising = false;
   private supportTop: number | null = null;
+  private supportSolid: Solid | null = null;
+  /** Seconds left falling through one-way platforms after a drop. */
+  private dropT = 0;
+  private downWas = false;
 
   constructor(x: number, y: number, stats: PlayerStats = baseStats()) {
     this.x = x;
@@ -215,6 +220,22 @@ export class PlayerController {
       this.vy = TUNING.jumpReleaseClamp;
     }
 
+    // --- Drop through: a fresh DOWN press on a one-way platform falls to the layer below.
+    this.dropT = Math.max(0, this.dropT - dt);
+    const downPressed = !!input.duckHeld && !this.downWas;
+    this.downWas = !!input.duckHeld;
+    if (downPressed && this.grounded && this.supportSolid?.oneWay) {
+      this.grounded = false;
+      this.coyote = 0;
+      this.vy = 120;
+      this.y += 2;
+      this.dropT = 0.25;
+      this.airTime = 0;
+      this.supportTop = null;
+      this.supportSolid = null;
+      events.push({ type: 'drop' });
+    }
+
     // --- Gravity and hover.
     if (!this.grounded) {
       this.airTime += dt;
@@ -249,9 +270,11 @@ export class PlayerController {
     if (this.grounded) {
       // Stay supported while any part of the body is over a surface.
       let support: number | null = null;
+      this.supportSolid = null;
       for (const s of solids) {
         if (right > s.x && left < s.x + s.w && Math.abs(s.y - this.y) < 0.5) {
           support = s.y;
+          this.supportSolid = s;
           break;
         }
       }
@@ -269,6 +292,7 @@ export class PlayerController {
       for (const s of solids) {
         if (right <= s.x || left >= s.x + s.w) continue;
         if (this.vy < 0) continue;
+        if (this.dropT > 0 && s.oneWay) continue;
         const crossedTop = prevBottom <= (s.prevY ?? s.y) + 0.01 && this.y >= s.y;
         const stepUp = !s.oneWay && this.y >= s.y && this.y - s.y <= TUNING.stepUp && prevBottom - s.y <= TUNING.stepUp;
         if (crossedTop || stepUp) {
@@ -282,6 +306,7 @@ export class PlayerController {
         this.grounded = true;
         this.jumpRising = false;
         this.supportTop = landed.y;
+        this.supportSolid = landed;
         if (this.hovering) {
           this.hovering = false;
           events.push({ type: 'hoverStop' });

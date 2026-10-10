@@ -602,10 +602,12 @@ try {
         let mx = 0;
         let duck = false;
         const bx = s.bossScreenX ?? 660;
-        // Stay on whichever side of the boss the dog is on (it moves around).
-        const side = s.screenX > bx && bx + 290 < 1180 ? 1 : bx - 290 > 100 ? -1 : 1;
-        const want = bx + side * 290;
-        if (Math.abs(s.screenX - bx) < 310) bark();
+        // Armoured while attacking: keep to the middle, away from it. When it is
+        // dazed (stars, BARK NOW!) rush in and bark.
+        const open = !!s.bossVulnerable;
+        const side = s.screenX > bx ? 1 : -1;
+        const want = open ? bx + side * 160 : 640 + (bx > 640 ? -1 : 1) * 120;
+        if (open && Math.abs(s.screenX - bx) < 260) bark();
         if (a && a.kind === 'slam') {
           // Clear the landing spot toward the roomier side.
           const tx = a.targetX - (s.x - s.screenX);

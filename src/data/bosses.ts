@@ -1,10 +1,11 @@
 import type { Piece } from './levelArt';
 
 /**
- * The nine end-of-level bosses. Each loops through the attacks of its current
- * tier (tiers escalate as it loses HP) and pauses for breath between rounds.
- * Every bark that reaches it lands a hit. Heights: 'low' threats are jumped,
- * 'high' ones ducked under — or dodged from the platforms above.
+ * The nine end-of-level bosses. Each round it works through its current tier's
+ * attacks up to a finisher (a charge or a slam) that leaves it dazed; only then
+ * do barks land, up to three per opening. Tiers escalate as it loses HP.
+ * Heights: 'low' threats are jumped, 'high' ones ducked — or dodged from the
+ * platforms above.
  */
 export type Attack =
   /** Lobbed shots that land around where the dog was standing; move away or bark them. */
@@ -46,12 +47,12 @@ export const BOSSES: Record<number, BossDef> = {
   1: {
     level: 1,
     name: 'DON CRUMB',
-    hp: 12,
+    hp: 9,
     height: 210,
     facesRight: true,
     openTime: 1.6,
     weak: { x: 0.55, y: 0.78 },
-    hint: 'Dodge the crumbs, JUMP his swoop, then BARK at the bread basket!',
+    hint: "Dodge the crumbs and JUMP his charge. When he's dizzy, BARK!",
     tiers: [
       [{ kind: 'volley', shot: P('h3', [0, 0, 0.36, 1]), n: 3 }, { kind: 'swoop', height: 'low' }],
       [{ kind: 'volley', shot: P('h3', [0, 0, 0.36, 1]), n: 3 }, { kind: 'volley', shot: P('h3', [0.36, 0, 0.66, 1]), n: 2 }, { kind: 'swoop', height: 'low' }],
@@ -61,12 +62,12 @@ export const BOSSES: Record<number, BossDef> = {
   2: {
     level: 2,
     name: 'FORKLIFT FRANKIE',
-    hp: 14,
+    hp: 12,
     height: 220,
     facesRight: true,
     openTime: 1.6,
     weak: { x: 0.8, y: 0.55 },
-    hint: 'JUMP the barrels, dodge the forks, BARK at the latch!',
+    hint: 'JUMP the barrels and the charge. When the forklift stalls, BARK!',
     tiers: [
       [{ kind: 'roll', shot: P('h1'), heavy: true }, { kind: 'sweep', shot: P('h2', [0, 0, 1, 0.42]), height: 'high' }],
       [{ kind: 'roll', shot: P('h1'), heavy: true }, { kind: 'sweep', shot: P('h2', [0, 0, 1, 0.42]), height: 'low' }, { kind: 'roll', shot: P('h3') }],
@@ -76,13 +77,13 @@ export const BOSSES: Record<number, BossDef> = {
   3: {
     level: 3,
     name: 'CAPTAIN GULL',
-    hp: 14,
+    hp: 12,
     height: 165,
     flying: true,
     facesRight: false,
     openTime: 1.7,
     weak: { x: 0.5, y: 0.5 },
-    hint: 'DUCK his dive, dodge the shells, BARK when he lands on the buoy!',
+    hint: 'DUCK his dive, dodge the shells. When he crash-lands, BARK!',
     tiers: [
       [{ kind: 'swoop', height: 'high' }, { kind: 'drop', shot: P('h3', [0, 0, 0.36, 1]), n: 2 }],
       [{ kind: 'volley', shot: P('h3', [0.36, 0, 0.66, 1]), n: 3 }, { kind: 'swoop', height: 'high' }, { kind: 'drop', shot: P('h3', [0.66, 0, 1, 1]), n: 2 }],
@@ -92,12 +93,12 @@ export const BOSSES: Record<number, BossDef> = {
   4: {
     level: 4,
     name: 'SWITCHBACK BADGER',
-    hp: 16,
+    hp: 12,
     height: 210,
     facesRight: true,
     openTime: 1.5,
     weak: { x: 0.78, y: 0.42 },
-    hint: 'JUMP the handcar, dodge the pebbles, BARK at the brake lever!',
+    hint: 'JUMP the handcar charge. When it crashes, BARK the brake lever!',
     tiers: [
       [{ kind: 'swoop', height: 'low' }, { kind: 'drop', shot: P('h3', [0, 0, 0.36, 1]), n: 1 }],
       [{ kind: 'swoop', height: 'low' }, { kind: 'drop', shot: P('h3', [0.36, 0, 0.66, 1]), n: 2 }, { kind: 'roll', shot: P('h3', [0.66, 0, 1, 1]) }],
@@ -107,12 +108,12 @@ export const BOSSES: Record<number, BossDef> = {
   5: {
     level: 5,
     name: 'BOILER BRUTUS',
-    hp: 16,
+    hp: 15,
     height: 230,
     facesRight: false,
     openTime: 1.6,
     weak: { x: 0.5, y: 0.45 },
-    hint: 'Find the dry spot when the steam blows, BARK the bolts back, BARK the dial!',
+    hint: "Find a dry spot, jump the shockwave. When he's stuck, BARK!",
     tiers: [
       [{ kind: 'geyser', n: 2, color: 0xfff6e8 }, { kind: 'roll', shot: P('h2', [0, 0, 0.33, 1]) }],
       [{ kind: 'geyser', n: 2, color: 0xfff6e8 }, { kind: 'roll', shot: P('h2', [0, 0, 0.33, 1]) }, { kind: 'roll', shot: P('h2', [0.36, 0, 0.66, 1]), speed: 300 }],
@@ -122,12 +123,12 @@ export const BOSSES: Record<number, BossDef> = {
   6: {
     level: 6,
     name: 'HARDHAT HANK',
-    hp: 18,
+    hp: 15,
     height: 230,
     facesRight: true,
     openTime: 1.5,
     weak: { x: 0.35, y: 0.55 },
-    hint: 'JUMP the low bucket, DUCK the high one, BARK at the glowing latch!',
+    hint: "JUMP low, DUCK high, jump the shockwave. When he's dazed, BARK!",
     tiers: [
       [{ kind: 'sweep', shot: P('h3'), height: 'low' }, { kind: 'drop', shot: P('h1'), n: 1 }],
       [{ kind: 'sweep', shot: P('h3'), height: 'low' }, { kind: 'sweep', shot: P('h3'), height: 'high' }, { kind: 'drop', shot: P('h1'), n: 2 }],
@@ -137,12 +138,12 @@ export const BOSSES: Record<number, BossDef> = {
   7: {
     level: 7,
     name: 'DOGCATCHER NET-O-MATIC',
-    hp: 20,
+    hp: 15,
     height: 230,
     facesRight: true,
     openTime: 1.7,
     weak: { x: 0.82, y: 0.25 },
-    hint: 'Read the net’s height: JUMP it or DUCK it! BARK the latch when it jams!',
+    hint: "Read the net's height: JUMP it or DUCK it! When it jams, BARK!",
     tiers: [
       [{ kind: 'sweep', shot: P('h1'), height: 'high' }, { kind: 'roll', shot: P('h3') }],
       [{ kind: 'sweep', shot: P('h1'), height: 'low' }, { kind: 'roll', shot: P('h3') }, { kind: 'sweep', shot: P('h1'), height: 'high' }],
@@ -152,12 +153,12 @@ export const BOSSES: Record<number, BossDef> = {
   8: {
     level: 8,
     name: 'HONKZILLA',
-    hp: 20,
+    hp: 18,
     height: 240,
     facesRight: true,
     openTime: 1.5,
     weak: { x: 0.55, y: 0.55 },
-    hint: 'JUMP the charge, hop the gust, BARK when the goose is dizzy!',
+    hint: 'JUMP the charge and the gusts. When the goose is dizzy, BARK!',
     tiers: [
       [{ kind: 'swoop', height: 'low' }, { kind: 'sweep', shot: P('h3'), height: 'low' }],
       [{ kind: 'swoop', height: 'low' }, { kind: 'sweep', shot: P('h3'), height: 'low' }, { kind: 'volley', shot: P('h1', [0, 0, 0.33, 1]), n: 2 }],
@@ -167,12 +168,12 @@ export const BOSSES: Record<number, BossDef> = {
   9: {
     level: 9,
     name: 'SQUIRREL BOSS',
-    hp: 24,
+    hp: 18,
     height: 240,
     facesRight: true,
     openTime: 1.6,
     weak: { x: 0.72, y: 0.62 },
-    hint: 'One last prank! Dodge it all and BARK at the launcher latch!',
+    hint: 'One last prank! Dodge it all, and BARK while he sees stars!',
     tiers: [
       [{ kind: 'roll', shot: P('h3') }, { kind: 'volley', shot: P('h1', [0, 0, 0.34, 1]), n: 1 }],
       [{ kind: 'sweep', shot: P('e1'), height: 'high' }, { kind: 'volley', shot: P('h1', [0.33, 0, 0.66, 1]), n: 3 }],

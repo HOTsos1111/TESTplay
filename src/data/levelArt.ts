@@ -65,7 +65,8 @@ export const LEVEL_ART: Record<number, LevelArtDef> = {
     low: P('h1'),
     roller: P('h1'),
     duck: P('p3'),
-    deck: P('p3', [0.08, 0.06, 1, 0.42]),
+    // Stone ledge (the red awning would read as a hazard: red means danger).
+    deck: P('p1', [0, 0.08, 1, 0.62]),
     thrower: P('e1'),
     shot: P('h3', [0, 0, 0.36, 1]),
     exit: P('mg2'),

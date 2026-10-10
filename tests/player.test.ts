@@ -198,3 +198,27 @@ describe('double jump and duck', () => {
     expect(pc.ducking).toBe(false);
   });
 });
+
+describe('dropping through platforms', () => {
+  const deck: Solid = { x: -200, y: G - 100, w: 400, h: 18, oneWay: true, kind: 'platform' };
+  it('a fresh DOWN press on a platform drops to the layer below', () => {
+    const pc = new PlayerController(0, G - 100);
+    pc.speed = 0;
+    run(pc, 0.1, {}, [deck, ...floor]);
+    expect(pc.grounded).toBe(true);
+    expect(pc.y).toBe(G - 100);
+    const ev = run(pc, 0.8, { duckHeld: true }, [deck, ...floor]);
+    expect(ev).toContain('drop');
+    expect(pc.grounded).toBe(true);
+    expect(pc.y).toBe(G);
+  });
+
+  it('DOWN on solid ground just ducks', () => {
+    const pc = new PlayerController(0, G);
+    pc.speed = 0;
+    const ev = run(pc, 0.2, { duckHeld: true });
+    expect(ev).not.toContain('drop');
+    expect(pc.ducking).toBe(true);
+    expect(pc.y).toBe(G);
+  });
+});
