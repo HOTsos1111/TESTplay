@@ -7,13 +7,20 @@ import type { Piece } from './levelArt';
  * Heights: 'low' threats are jumped, 'high' ones ducked — or dodged from the
  * platforms above.
  */
+/** Heights things cross the arena at: low = jump it, high = duck it, air = stay on the ground. */
+export type Lane = 'low' | 'high' | 'air';
+
 export type Attack =
   /** Lobbed shots that land around where the dog was standing; move away or bark them. */
   | { kind: 'volley'; shot: Piece; n?: number }
   /** Something rolled along the ground at the dog; jump it (bark it unless heavy). */
   | { kind: 'roll'; shot: Piece; heavy?: boolean; speed?: number }
-  /** An object flies across the arena at one height. */
-  | { kind: 'sweep'; shot: Piece; height: 'low' | 'high'; speed?: number }
+  /** An object flies across the arena at one height: low (jump), high (duck) or air (stay on the ground). */
+  | { kind: 'sweep'; shot: Piece; height: Lane; speed?: number }
+  /** A rapid string of objects at mixed heights: jump, duck or stay down for each in turn. */
+  | { kind: 'barrage'; shot: Piece; lanes: Lane[] }
+  /** Balls that bounce toward the dog at different heights: time a jump under or over. */
+  | { kind: 'bounce'; shot: Piece; n?: number }
   /** The boss itself crosses the arena at one height. */
   | { kind: 'swoop'; height: 'low' | 'high'; speed?: number }
   /** Things fall onto marked spots near the dog. */

@@ -91,6 +91,11 @@ export class GameScene extends Phaser.Scene {
   private camX = 0;
   private scrollSpeed = 0;
   private paceInput = 0;
+  /** Boss arenas: a released slingshot dashes him across the screen. */
+  private dashT = 0;
+  private blurAmt = 0;
+  private dashDir: 1 | -1 = 1;
+  private dashV = 0;
   /** Brief simulation freeze for comic timing (the hero rig keeps animating). */
   private hitstop = 0;
   /** Remaining seconds for each active power-up. */
@@ -192,6 +197,7 @@ export class GameScene extends Phaser.Scene {
     this.camX = 0;
     this.scrollSpeed = 0;
     this.paceInput = 0;
+    this.dashT = 0;
     this.hitstop = 0;
     this.power = {};
     this.burstWasReady = true;
@@ -269,6 +275,7 @@ export class GameScene extends Phaser.Scene {
     this.events.on(Phaser.Scenes.Events.RESUME, this.onResume, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.cleanup, this);
 
+    Audio.setTempo(1);
     if (this.startAt === 'encounter') {
       this.startEncounter();
     } else {
@@ -352,6 +359,7 @@ export class GameScene extends Phaser.Scene {
 
   private cleanup(): void {
     Audio.setThreat(false);
+    Audio.setTempo(1);
     setGroundPalette(null);
     this.game.events.off(Phaser.Core.Events.HIDDEN, this.onHidden);
     this.game.events.off(Phaser.Core.Events.BLUR, this.onHidden);
@@ -496,7 +504,9 @@ export class GameScene extends Phaser.Scene {
     this.phase = 'encounter';
     this.phaseT = 0;
     progress.setCheckpoint({ chapter: this.chapter.id, at: 'encounter' });
-    Audio.playMusic('chase');
+    // The level's own song, a notch faster, for the boss fight.
+    Audio.setTempo(this.chapter.art ? 1.12 : 1);
+    Audio.playMusic(this.chapter.art ? this.chapter.music : 'chase');
     const id = this.chapter.encounterId;
     const pattern = id === 'boss' && this.chapter.art ? new PatternBoss(this, this.chapter.art, (x, w, top) => new Platform(this, x, w, top, true)) : null;
     const boss: Boss = pattern ?? (id === 'trolley' ? new TrolleyBoss(this) : id === 'pigeon' ? new PigeonBoss(this) : new SquirrelSwarm(this));
@@ -562,6 +572,7 @@ export class GameScene extends Phaser.Scene {
   private victory(): void {
     if (this.phase === 'victory' || this.phase === 'defeat') return;
     this.phase = 'victory';
+    Audio.setTempo(1);
     this.phaseT = 0;
     Audio.setThreat(false);
     this.hero.setMode('victory');
@@ -678,6 +689,15 @@ export class GameScene extends Phaser.Scene {
     this.pc.speed = arena ? this.scrollSpeed + pace * ARENA.speed : Math.max(0, this.scrollSpeed + pace * TUNING.paceSpeed);
     // Drift back inside the band if a burst carried him past it.
     if (screenX > maxX + 4 && !this.pc.bursting) this.pc.speed = this.scrollSpeed - 60;
+    if (this.dashT > 0) {
+      this.dashT -= dt;
+      const atEdge = (screenX <= minX && this.dashDir < 0) || (screenX >= maxX && this.dashDir > 0);
+      if (!arena || atEdge) this.dashT = 0;
+      else {
+        this.pc.speed = this.dashDir * this.dashV;
+        if (Math.random() < dt * 60) this.fx.streak(this.pc.x - this.dashDir * (50 + Math.random() * 60), this.pc.y - 15 - Math.random() * 45);
+      }
+    }
 
     const wasGrounded = this.pc.grounded;
     const events = this.pc.step(dt, inp, this.solids);
@@ -721,6 +741,17 @@ export class GameScene extends Phaser.Scene {
           Audio.play('burst_stretch');
           break;
         case 'burstStart':
+          if (this.arena) {
+            // The arena does not scroll: the snap shoots him across it instead,
+            // the way he is pushing (or facing).
+            this.dashDir = this.paceInput !== 0 ? (Math.sign(this.paceInput) as 1 | -1) : this.pc.facing;
+            this.dashT = 0.28 + 0.16 * ev.power;
+            this.dashV = 1100 + 700 * ev.power;
+            this.pc.burstT = 0;
+            this.pc.burstPower = 0;
+            this.fx.dust(this.pc.x - this.dashDir * 40, this.pc.y, 6 + Math.round(ev.power * 8));
+            break;
+          }
           this.fx.dust(this.pc.x - 40, this.pc.y, 6 + Math.round(ev.power * 8));
           if (ev.power > 0.5) this.cameras.main.shake(120, 0.003 + ev.power * 0.004);
           break;
@@ -772,6 +803,12 @@ export class GameScene extends Phaser.Scene {
     this.layoutCamera();
     this.ctx.heroX = this.pc.x;
     this.ctx.heroY = this.pc.y;
+
+    // Target on the boss while the bark would reach it.
+    if (this.boss instanceof PatternBoss) {
+      const t = this.boss.barkTarget();
+      this.boss.inRange = !!t && this.arena && overlaps(this.pc.barkRect(), t);
+    }
 
     // Bark pulse: each target at most once per pulse.
     if (this.pulseT > 0) {
@@ -856,9 +893,19 @@ export class GameScene extends Phaser.Scene {
   private render(dt: number): void {
     const cam = this.cameras.main;
     this.scenery.update(dt, cam.scrollX, this.pc.x);
+    // A light motion blur on the backdrop while the world rushes past in a burst.
+    if (this.scenery instanceof LevelScenery) {
+      const target = this.pc.bursting && !this.arena ? 0.6 + 0.4 * this.pc.burstPower : 0;
+      this.blurAmt += (target - this.blurAmt) * Math.min(1, dt * (target > this.blurAmt ? 14 : 5));
+      this.scenery.setBlur(this.blurAmt < 0.03 ? 0 : Math.round(this.blurAmt * 20) / 20);
+    }
 
     // In a boss arena the dog turns to face the boss, so his bark always points at it.
-    if (this.arena && this.boss instanceof PatternBoss) {
+    if (this.arena && this.dashT > 0) this.pc.facing = this.dashDir;
+    else if (this.arena && this.pc.charge !== null && this.paceInput !== 0) {
+      // Winding up: stretch the way he is about to shoot.
+      this.pc.facing = Math.sign(this.paceInput) as 1 | -1;
+    } else if (this.arena && this.boss instanceof PatternBoss) {
       this.pc.facing = this.pc.x > this.camX + this.boss.screenX ? -1 : 1;
     } else this.pc.facing = 1;
     this.hero.root.scaleX = this.pc.facing;

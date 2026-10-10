@@ -30,6 +30,7 @@ interface SongVoice {
   gain: GainNode;
   /** Context time at which the song's position 0 played. */
   anchor: number;
+  rate: number;
 }
 
 /**
@@ -69,6 +70,8 @@ class AudioManagerImpl {
   private songBus: GainNode | null = null;
   private songVoices: SongVoice[] = [];
   private songNext = 0;
+  /** Playback speed of the music (boss fights run it a little faster). */
+  private songRate = 1;
   /** Where a paused song picks up again. */
   private songPos = 0;
 
@@ -200,6 +203,17 @@ class AudioManagerImpl {
   }
 
   /** Turn the squirrel stress riff on/off (fades over half a second). */
+  /**
+   * Music speed: 1 is normal; boss fights use a little over 1 for intensity.
+   * A playing song is re-cued at its current spot at the new speed.
+   */
+  setTempo(rate: number): void {
+    if (Math.abs(rate - this.songRate) < 0.001) return;
+    const playing = this.songVoices.length > 0;
+    if (playing) this.stopSong();
+    this.songRate = rate;
+  }
+
   setThreat(on: boolean): void {
     if (on === this.overlayOn) return;
     this.overlayOn = on;
@@ -329,7 +343,9 @@ class AudioManagerImpl {
     const src = ctx.createBufferSource();
     src.buffer = buf;
     const gain = ctx.createGain();
-    const end = at + buf.duration - offset;
+    const rate = this.songRate;
+    src.playbackRate.value = rate;
+    const end = at + (buf.duration - offset) / rate;
     const fadeOut = end - SONG_XFADE;
     gain.gain.setValueAtTime(0, at);
     gain.gain.linearRampToValueAtTime(1, at + fadeIn);
@@ -338,7 +354,7 @@ class AudioManagerImpl {
     src.connect(gain).connect(this.songBus!);
     src.start(at, offset);
     src.stop(end + 0.05);
-    const voice: SongVoice = { src, gain, anchor: at - offset };
+    const voice: SongVoice = { src, gain, anchor: at - offset / rate, rate };
     src.onended = () => {
       this.songVoices = this.songVoices.filter((v) => v !== voice);
       gain.disconnect();
@@ -353,7 +369,7 @@ class AudioManagerImpl {
     if (!ctx || !this.songVoices.length) return;
     const now = ctx.currentTime;
     const playing = this.songVoices.filter((v) => v.anchor <= now).pop();
-    if (playing) this.songPos = now - playing.anchor;
+    if (playing) this.songPos = (now - playing.anchor) * playing.rate;
     for (const v of this.songVoices) {
       v.gain.gain.cancelScheduledValues(now);
       v.gain.gain.setValueAtTime(v.gain.gain.value, now);
@@ -377,7 +393,7 @@ class AudioManagerImpl {
       this.scheduleSong(song);
       return;
     }
-    const eighth = 60 / tr.bpm / 2;
+    const eighth = 60 / (tr.bpm * this.songRate) / 2;
     while (this.nextTime < ctx.currentTime + 0.12) {
       const i = this.step % tr.length;
       // Swing: off-beat eighths land a little late for a bouncy cartoon feel.

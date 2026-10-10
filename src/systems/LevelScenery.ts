@@ -29,6 +29,8 @@ interface Placed {
 }
 
 class Layer {
+  /** Called on each new piece (applies a running motion blur). */
+  onSpawn?: (img: Phaser.GameObjects.Image) => void;
   private lastKey = '';
   private items: Placed[] = [];
   private cursor: number;
@@ -72,6 +74,7 @@ class Layer {
         .setScrollFactor(s.factor, 0)
         .setDepth(s.depth - 0.5);
       this.items.push({ img, shadow, right: this.cursor + w });
+      this.onSpawn?.(img);
       this.cursor += w + s.gap[0] + this.rand() * (s.gap[1] - s.gap[0]);
     }
     for (let i = this.items.length - 1; i >= 0; i--) {
@@ -81,6 +84,10 @@ class Layer {
         this.items.splice(i, 1);
       }
     }
+  }
+
+  get images(): Phaser.GameObjects.Image[] {
+    return this.items.map((p) => p.img);
   }
 
   destroy(): void {
@@ -206,6 +213,38 @@ export class LevelScenery {
       { pieces: [fg2, fg1], factor: 0.62, height: 192, bottom: on(0.62), gap: [500, 1200], depth: DEPTH.nearBg },
     ];
     this.layers = specs.map((s) => new Layer(scene, level, s, rand, startCamX));
+    for (const l of this.layers) l.onSpawn = (img) => this.blurOne(img);
+  }
+
+  private blurK = 0;
+  private blurs = new Map<Phaser.GameObjects.Image, Phaser.FX.Blur>();
+
+  /**
+   * Horizontal motion blur on the backdrop (0 = sharp .. 1 = full), used while
+   * the dog bursts. The play layer stays crisp. WebGL only; a no-op otherwise.
+   */
+  setBlur(k: number): void {
+    k = Math.max(0, Math.min(1, k));
+    if (k === this.blurK) return;
+    const was = this.blurK;
+    this.blurK = k;
+    if (k <= 0.01) {
+      for (const [img, fx] of this.blurs) if (img.active) img.postFX?.remove(fx);
+      this.blurs.clear();
+      this.blurK = 0;
+      return;
+    }
+    if (was <= 0.01) for (const l of this.layers) for (const img of l.images) this.blurOne(img);
+    for (const [img, fx] of this.blurs) {
+      if (!img.active) this.blurs.delete(img);
+      else fx.strength = k * 1.6;
+    }
+  }
+
+  private blurOne(img: Phaser.GameObjects.Image): void {
+    if (this.blurK <= 0.01 || this.blurs.has(img) || !img.postFX) return;
+    const fx = img.postFX.addBlur(0, 2, 0, this.blurK * 1.6, 0xffffff, 3);
+    if (fx) this.blurs.set(img, fx);
   }
 
   layout(width: number): void {
@@ -248,6 +287,7 @@ export class LevelScenery {
   }
 
   destroy(): void {
+    this.blurs.clear();
     for (const l of this.layers) l.destroy();
     this.street.destroy();
     this.sky.destroy();

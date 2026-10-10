@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { DEPTH, WORLD } from '../data/config';
-import { BOSSES, type Attack, type BossDef } from '../data/bosses';
+import { BOSSES, type Attack, type BossDef, type Lane } from '../data/bosses';
 import { pieceKey, type Piece } from '../data/levelArt';
 import { Audio } from '../systems/AudioManager';
 import { pieceTexture } from '../systems/LevelSkins';
@@ -9,11 +9,16 @@ import type { Boss, BossEvent } from './SquirrelSwarm';
 import { Entity, type GameContext } from './World';
 
 const G = WORLD.groundY;
-/** Lanes for things that cross the arena: low ones are jumped, high ones ducked. */
+/**
+ * Lanes for things that cross the arena: low ones are jumped, high ones ducked,
+ * and air ones fly over a dog on the ground but catch one on a low ledge or mid-jump.
+ */
 const LANE = {
   low: { top: G - 56, bottom: G - 2 },
   high: { top: G - 100, bottom: G - 30 },
+  air: { top: G - 178, bottom: G - 112 },
 } as const;
+const LANE_CUE: Record<Lane, string> = { low: '▲ JUMP!', high: '▼ DUCK!', air: '● STAY DOWN!' };
 const WARN = 1.0;
 
 /** Fallback when a guide piece is missing: a plain ink-outlined disc. */
@@ -121,7 +126,7 @@ class Roller extends Entity {
 /** Crosses the arena in one lane after a warning band. */
 class Sweeper extends Entity {
   private img: Phaser.GameObjects.Image;
-  constructor(scene: Phaser.Scene, private x: number, tex: string, private lane: 'low' | 'high', private speed: number) {
+  constructor(scene: Phaser.Scene, private x: number, tex: string, private lane: Lane, private speed: number) {
     super();
     const L = LANE[lane];
     this.img = scene.add.image(x, (L.top + L.bottom) / 2, tex).setDepth(DEPTH.boss + 1);
@@ -260,6 +265,102 @@ class Shockwave extends Entity {
   }
 }
 
+/** A rapid string of sweeps at mixed heights, each flashing its lane just before it flies. */
+class Barrage extends Entity {
+  private t = 0;
+  private i = 0;
+  private g: Phaser.GameObjects.Graphics;
+  private cue: Phaser.GameObjects.Text;
+  static readonly GAP = 0.62;
+  static readonly LEAD = 0.42;
+  constructor(
+    private scene: Phaser.Scene,
+    private x0: number,
+    private dir: 1 | -1,
+    private tex: string,
+    private lanes: Lane[],
+    private speed: number,
+    private spawn: (e: Entity) => void,
+  ) {
+    super();
+    this.g = scene.add.graphics().setDepth(DEPTH.groundShadow + 1);
+    this.cue = scene.add.text(0, 0, '', { fontFamily: 'Trebuchet MS, sans-serif', fontSize: '22px', fontStyle: 'bold', color: '#FFFFFF', stroke: '#302331', strokeThickness: 5 }).setOrigin(0.5).setDepth(DEPTH.fx + 2);
+  }
+  get right(): number {
+    return Number.POSITIVE_INFINITY;
+  }
+  update(dt: number): void {
+    this.t += dt;
+    const g = this.g;
+    g.clear();
+    this.cue.setVisible(false);
+    // Flash the next lane along the first stretch of its path.
+    const k = this.i;
+    if (k < this.lanes.length) {
+      const start = k * Barrage.GAP;
+      if (this.t >= start) {
+        const L = LANE[this.lanes[k]];
+        const x1 = this.x0 + this.dir * 520;
+        const pulse = 0.25 + 0.2 * Math.abs(Math.sin(this.t * 22));
+        g.fillStyle(0xe5533d, pulse).fillRect(Math.min(this.x0, x1), L.top, 520, L.bottom - L.top);
+        this.cue.setText(LANE_CUE[this.lanes[k]]).setPosition(this.x0 + this.dir * 200, L.top - 18).setVisible(true);
+      }
+      if (this.t >= start + Barrage.LEAD) {
+        this.spawn(new Sweeper(this.scene, this.x0, this.tex, this.lanes[k], -this.dir * this.speed));
+        Audio.play('throw');
+        this.i++;
+      }
+    } else this.alive = false;
+  }
+  destroy(): void {
+    this.g.destroy();
+    this.cue.destroy();
+  }
+}
+
+/** A ball that bounces toward the dog, each at its own hop height: run under it or jump over. */
+class Bouncer extends Entity {
+  private img: Phaser.GameObjects.Image;
+  private vy = -250;
+  private r = 22;
+  constructor(scene: Phaser.Scene, private x: number, private y: number, tex: string, private vx: number, private hop: number) {
+    super();
+    this.img = scene.add.image(x, y, tex).setDepth(DEPTH.boss + 2);
+  }
+  get right(): number {
+    return Number.POSITIVE_INFINITY;
+  }
+  hazard(): Rect {
+    return { x: this.x - this.r + 4, y: this.y - this.r + 4, w: this.r * 2 - 8, h: this.r * 2 - 8 };
+  }
+  barkTarget(): Rect {
+    return { x: this.x - this.r - 8, y: this.y - this.r - 8, w: this.r * 2 + 16, h: this.r * 2 + 16 };
+  }
+  onBark(ctx: GameContext): void {
+    this.alive = false;
+    ctx.fx.puff(this.x, this.y, 3, 0.7);
+  }
+  onHeroHit(): void {
+    this.alive = false;
+  }
+  update(dt: number, ctx: GameContext): void {
+    this.vy += 1500 * dt;
+    this.x += this.vx * dt;
+    this.y += this.vy * dt;
+    if (this.y >= G - this.r) {
+      this.y = G - this.r;
+      this.vy = -Math.sqrt(2 * 1500 * this.hop);
+      ctx.fx.dust(this.x, G, 1);
+      Audio.play('nut_land');
+    }
+    this.img.setPosition(this.x, this.y).setRotation(this.img.rotation + (this.vx * dt) / this.r);
+    if (this.x < ctx.cameraLeft - 60 || this.x > ctx.cameraRight + 60) this.alive = false;
+  }
+  destroy(): void {
+    this.img.destroy();
+  }
+}
+
 // ---------------------------------------------------------------- the boss
 
 type Phase = 'enter' | 'idle' | 'hop' | 'warn' | 'act' | 'dizzy' | 'recover' | 'roar' | 'defeat' | 'done';
@@ -282,6 +383,30 @@ export const ARENA_DECKS = [
 /** Hits the boss can take in one opening before it shakes itself awake. */
 const HITS_PER_OPENING = 3;
 const DIZZY = 3.2;
+/**
+ * Places it moves between during a round: the two ends of the street, the two
+ * low ledges and the high one (flyers circle at different heights instead).
+ * Charges always start from an end on the ground.
+ */
+interface Spot {
+  x: number;
+  h: number;
+  side?: -1 | 1;
+}
+const WALK_SPOTS: Spot[] = [
+  { x: 170, h: 0, side: -1 },
+  { x: 1110, h: 0, side: 1 },
+  { x: 410, h: 95 },
+  { x: 870, h: 95 },
+  { x: 640, h: 195 },
+];
+const FLY_SPOTS: Spot[] = [
+  { x: 170, h: 290, side: -1 },
+  { x: 1110, h: 290, side: 1 },
+  { x: 330, h: 320 },
+  { x: 640, h: 345 },
+  { x: 950, h: 320 },
+];
 
 /**
  * A level's end boss, driven by its entry in data/bosses, built on the classic
@@ -333,6 +458,12 @@ export class PatternBoss extends Entity implements Boss {
   private clangT = 0;
   private popT = 0;
   private slamMark: Phaser.GameObjects.Ellipse | null = null;
+  /** Height it stands (or hovers) at on its current spot. */
+  private perch = 0;
+  private toY = 0;
+  private aim: Phaser.GameObjects.Graphics;
+  /** Set by the game each frame: the dog's bark would reach it right now. */
+  inRange = false;
   /** Attack lists per tier: every round ends in a finisher that leaves it dazed. */
   private tiers: Attack[][];
 
@@ -353,12 +484,22 @@ export class PatternBoss extends Entity implements Boss {
     this.label = scene.add.text(0, 0, '', { ...font, fontSize: '26px' }).setOrigin(0.5).setDepth(DEPTH.fx + 2).setVisible(false);
     this.pop = scene.add.text(0, 0, '', { ...font, fontSize: '22px' }).setOrigin(0.5).setDepth(DEPTH.fx + 2).setVisible(false);
     this.sy = this.hover;
+    this.perch = this.hover;
+    this.aim = scene.add.graphics().setDepth(DEPTH.fx + 1);
+    const withShot = this.def.tiers.flat().find((a) => 'shot' in a) as { shot: Piece } | undefined;
+    const shot = withShot?.shot;
     const finisher: Attack = this.def.flying ? { kind: 'swoop', height: 'high' } : { kind: 'slam' };
     this.tiers = this.def.tiers.map((t, i) => {
       const list = [...t];
       // Walkers learn the slam once hurt; every list needs at least one finisher.
       if (!this.def.flying && i > 0 && !list.some((a) => a.kind === 'slam')) list.push({ kind: 'slam' });
       if (!list.some(PatternBoss.finishes)) list.push(finisher);
+      // Every boss also throws things at all three heights, more as it gets hurt.
+      if (shot) {
+        if (i === 0) list.push({ kind: 'bounce', shot, n: 1 });
+        if (i === 1) list.push({ kind: 'barrage', shot, lanes: ['low', 'high', 'low'] }, { kind: 'bounce', shot, n: 2 });
+        if (i === 2) list.push({ kind: 'barrage', shot, lanes: ['high', 'air', 'low', 'high'] }, { kind: 'barrage', shot, lanes: ['low', 'air', 'low'] });
+      }
       return list;
     });
     Audio.play('whistle');
@@ -389,7 +530,7 @@ export class PatternBoss extends Entity implements Boss {
   }
 
   /** What the current or upcoming attack is (for tests and the touch arrows). */
-  get telegraph(): { kind: Attack['kind']; height?: 'low' | 'high'; targetX: number; dir: number; reach?: number } | null {
+  get telegraph(): { kind: Attack['kind']; height?: Lane; targetX: number; dir: number; reach?: number } | null {
     if (!this.attack || (this.phase !== 'warn' && this.phase !== 'act')) return null;
     if (this.attack.kind === 'slam' && this.phase === 'act' && this.t > 0.7) return null;
     const a = this.attack;
@@ -522,6 +663,12 @@ export class PatternBoss extends Entity implements Boss {
   private beginWarn(ctx: GameContext): void {
     if (!this.queue.length) this.planRound();
     const a = this.queue.shift()!;
+    if (a.kind === 'swoop' && (this.side === 0 || (!this.def.flying && this.perch > 0))) {
+      // Charges start from an end of the street: get there first.
+      this.queue.unshift(a);
+      this.goHome(ctx);
+      return;
+    }
     this.attack = a;
     this.targetX = ctx.heroX;
     const wx = this.worldX(ctx);
@@ -595,6 +742,17 @@ export class PatternBoss extends Entity implements Boss {
       case 'slam':
         Audio.play('jump');
         break;
+      case 'barrage':
+        add(new Barrage(s, bx + d * 60, d, shotTexture(s, lv, a.shot, 110, 60), a.lanes, this.enraged ? 560 : 500, add));
+        break;
+      case 'bounce': {
+        const n = a.n ?? 1;
+        const tex = shotTexture(s, lv, a.shot, 46, 46);
+        const hops = [90, 175, 120];
+        for (let i = 0; i < n; i++) add(new Bouncer(s, bx + d * (60 + i * 150), by, tex, d * (230 + i * 30), hops[(this.round + i) % hops.length]));
+        Audio.play('throw');
+        break;
+      }
     }
   }
 
@@ -609,6 +767,7 @@ export class PatternBoss extends Entity implements Boss {
       }
     }
     this.clearTelegraph();
+    this.perch = 0;
     ctx.fx.dust(x, G, 10);
     ctx.fx.puff(x + (slam ? 0 : this.dir * 60), G - 40, 6, 1.2);
     ctx.fx.stars(x, G - this.def.height, 6);
@@ -630,6 +789,26 @@ export class PatternBoss extends Entity implements Boss {
     const hero = ctx.heroX - ctx.cameraLeft;
     this.side = Math.abs(hero - HOME[-1]) > Math.abs(hero - HOME[1]) ? -1 : 1;
     this.toX = HOME[this.side];
+    this.toY = this.hover;
+    this.go('hop');
+  }
+
+  /** Between attacks it often bounds to another spot (never onto the dog). */
+  private wander(ctx: GameContext): void {
+    if (Math.random() > 0.6) {
+      this.go('idle');
+      return;
+    }
+    const hero = ctx.heroX - ctx.cameraLeft;
+    const spots = (this.def.flying ? FLY_SPOTS : WALK_SPOTS).filter((p) => Math.abs(p.x - this.sx) > 120 && Math.abs(p.x - hero) > 230);
+    if (!spots.length) {
+      this.go('idle');
+      return;
+    }
+    const p = spots[Math.floor(Math.random() * spots.length)];
+    this.side = p.side ?? 0;
+    this.toX = p.x;
+    this.toY = p.h;
     this.go('hop');
   }
 
@@ -659,17 +838,19 @@ export class PatternBoss extends Entity implements Boss {
         }
         break;
       case 'idle':
-        this.sy = hover + (this.def.flying ? Math.sin(this.t * 3) * 10 : Math.abs(Math.sin(this.t * 5)) * 4);
+        this.sy = this.perch + (this.def.flying ? Math.sin(this.t * 3) * 10 : Math.abs(Math.sin(this.t * 5)) * 4);
         if (this.t >= (this.enraged ? 0.3 : 0.5)) this.beginWarn(ctx);
         break;
       case 'hop': {
         const T = 0.8;
         const k = Math.min(1, this.t / T);
         this.sx = Phaser.Math.Linear(this.fromX, this.toX, this.def.flying ? ease(k) : k);
-        this.sy = this.def.flying ? Phaser.Math.Linear(this.fromY, hover, ease(k)) + Math.sin(k * Math.PI) * 30 : Math.sin(k * Math.PI) * 130;
+        this.sy = Phaser.Math.Linear(this.fromY, this.toY, this.def.flying ? ease(k) : k) + Math.sin(k * Math.PI) * (this.def.flying ? 30 : 130);
         if (this.t >= T) {
+          this.perch = this.toY;
+          this.sy = this.toY;
           if (!this.def.flying) {
-            ctx.fx.dust(wx, G, 5);
+            ctx.fx.dust(wx, G - this.toY, 5);
             Audio.play('land');
           }
           this.go('idle');
@@ -679,7 +860,7 @@ export class PatternBoss extends Entity implements Boss {
       case 'warn': {
         const a = this.attack!;
         const k = ease(this.t / this.warnTime);
-        this.sy = hover;
+        this.sy = this.perch;
         rot = Math.sin(this.t * 22) * 0.05;
         this.band.clear();
         if (a.kind === 'sweep' || a.kind === 'swoop') {
@@ -697,6 +878,9 @@ export class PatternBoss extends Entity implements Boss {
           this.sy = Phaser.Math.Linear(this.fromY, G - L.bottom, k);
           sxScale = syScale = Phaser.Math.Linear(1, 0.6, k);
           if (!this.def.flying && Math.random() < dt * 10) ctx.fx.dust(wx - this.dir * 40, G, 1);
+        }
+        if (a.kind === 'barrage' || a.kind === 'bounce') {
+          this.label.setText(a.kind === 'barrage' ? 'INCOMING!' : 'BOUNCERS!').setPosition(wx, G - this.sy - this.img.displayHeight - 40).setVisible(true);
         }
         if (a.kind === 'slam') {
           sxScale = 1.08;
@@ -746,8 +930,8 @@ export class PatternBoss extends Entity implements Boss {
           }
           break;
         }
-        this.sy = hover + (this.def.flying ? Math.sin(this.t * 3) * 8 : 0);
-        if (this.t > 0.5 && this.kids.every((k) => !k.alive)) this.go('idle');
+        this.sy = this.perch + (this.def.flying ? Math.sin(this.t * 3) * 8 : 0);
+        if (this.t > 0.5 && this.kids.every((k) => !k.alive)) this.wander(ctx);
         break;
       }
       case 'dizzy': {
@@ -818,7 +1002,7 @@ export class PatternBoss extends Entity implements Boss {
         break;
     }
     // Flyers come back up to their perch after a daze.
-    if (this.def.flying && this.phase === 'idle' && this.sy < hover - 1) this.sy = Phaser.Math.Linear(this.sy, hover, Math.min(1, dt * 4));
+    if (this.def.flying && this.phase === 'idle' && this.sy < this.perch - 1) this.sy = Phaser.Math.Linear(this.sy, this.perch, Math.min(1, dt * 4));
     const x = this.worldX(ctx);
     const flip = this.def.facesRight ? this.facing < 0 : this.facing > 0;
     this.img.setPosition(x, G - this.sy).setRotation(rot).setScale(this.baseScale * sxScale, this.baseScale * syScale).setFlipX(flip);
@@ -828,13 +1012,43 @@ export class PatternBoss extends Entity implements Boss {
       this.img.setTint(Phaser.Display.Color.GetColor(255, 200 - r * 50, 200 - r * 60));
     } else this.img.clearTint();
     this.bubble.setPosition(x - 20, G - this.sy - this.img.displayHeight - 4);
+    this.drawAim(flip);
     if (this.popT > 0) {
       this.popT -= dt;
       this.pop.setPosition(x, G - this.sy - this.img.displayHeight - 30 - (0.7 - this.popT) * 40).setAlpha(Math.min(1, this.popT * 3)).setVisible(this.popT > 0);
     }
   }
 
+  /** A target on its weak spot while the dog's bark would reach it: gold when it is open, grey when armoured. */
+  private drawAim(flip: boolean): void {
+    const g = this.aim;
+    g.clear();
+    if (!this.inRange || !this.fighting) return;
+    const w = this.img.displayWidth;
+    const h = this.img.displayHeight;
+    const wx = this.img.x + (this.def.weak.x - 0.5) * w * (flip ? -1 : 1);
+    const wy = this.img.y - h * (1 - this.def.weak.y);
+    const open = this.phase === 'dizzy';
+    const col = open ? 0xffe27a : 0xc9d3e6;
+    const pulse = 0.5 + 0.5 * Math.sin(this.t * (open ? 14 : 6));
+    const r = (open ? 30 : 24) + pulse * 4;
+    const a = open ? 1 : 0.55;
+    g.lineStyle(7, 0x302331, a * 0.8).strokeCircle(wx, wy, r);
+    g.lineStyle(4, col, a).strokeCircle(wx, wy, r);
+    // Four ticks that spin slowly round the ring.
+    const spin = this.t * (open ? 3 : 1);
+    for (let i = 0; i < 4; i++) {
+      const ang = spin + (i * Math.PI) / 2;
+      const c = Math.cos(ang);
+      const sn = Math.sin(ang);
+      g.lineStyle(7, 0x302331, a * 0.8).lineBetween(wx + c * (r - 8), wy + sn * (r - 8), wx + c * (r + 10), wy + sn * (r + 10));
+      g.lineStyle(4, col, a).lineBetween(wx + c * (r - 8), wy + sn * (r - 8), wx + c * (r + 10), wy + sn * (r + 10));
+    }
+    g.fillStyle(col, a).fillCircle(wx, wy, open ? 5 : 3);
+  }
+
   destroy(): void {
+    this.aim.destroy();
     this.slamMark?.destroy();
     this.img.destroy();
     this.bubble.destroy();
