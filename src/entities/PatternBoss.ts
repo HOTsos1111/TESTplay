@@ -441,8 +441,13 @@ export class PatternBoss extends Entity implements Boss {
       const L = LANE[this.attack.height];
       return { x: this.img.x - 60, y: L.top, w: 120, h: L.bottom - L.top };
     }
-    // A slam only hurts as it comes down.
-    if (this.attack.kind === 'slam' && this.t > 0.45 && this.t < 0.8) return this.body();
+    // A slam only hurts where it lands (the red marker), not on the way down,
+    // so a dog up on a ledge above the marker is safe.
+    if (this.attack.kind === 'slam' && this.t > 0.45 && this.sy < 70) {
+      const b = this.body();
+      const top = Math.max(b.y, G - 90);
+      return { x: b.x, y: top, w: b.w, h: G - top };
+    }
     return null;
   }
 
