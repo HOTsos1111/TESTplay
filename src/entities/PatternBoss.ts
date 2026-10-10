@@ -51,6 +51,7 @@ class LobShot extends Entity {
   private t = 0;
   constructor(scene: Phaser.Scene, private x: number, private y: number, target: number, tex: string, flight: number) {
     super();
+    this.tag = 'lob';
     this.img = scene.add.image(x, y, tex).setDepth(DEPTH.boss + 2);
     this.mark = marker(scene, target, 60);
     const g = 1500;
@@ -100,6 +101,7 @@ class Roller extends Entity {
   private img: Phaser.GameObjects.Image;
   constructor(scene: Phaser.Scene, private x: number, tex: string, private speed: number, private heavy: boolean, private r = 24) {
     super();
+    this.tag = 'roll';
     this.img = scene.add.image(x, G - r, tex).setDepth(DEPTH.boss + 1);
   }
   get right(): number {
@@ -131,6 +133,7 @@ class Sweeper extends Entity {
   private img: Phaser.GameObjects.Image;
   constructor(scene: Phaser.Scene, private x: number, tex: string, private lane: Lane, private speed: number) {
     super();
+    this.tag = 'sweep';
     const L = LANE[lane];
     this.img = scene.add.image(x, (L.top + L.bottom) / 2, tex).setDepth(DEPTH.boss + 1);
     this.img.setDisplaySize(130, L.bottom - L.top + 14).setFlipX(speed < 0);
@@ -162,6 +165,7 @@ class Dropper extends Entity {
   private t = 0;
   constructor(scene: Phaser.Scene, private x: number, tex: string, private delay: number) {
     super();
+    this.tag = 'drop';
     this.img = scene.add.image(x, this.y, tex).setDepth(DEPTH.boss + 2);
     this.mark = marker(scene, x, 84);
   }
@@ -202,6 +206,7 @@ class Geyser extends Entity {
   static readonly ACTIVE = 0.8;
   constructor(scene: Phaser.Scene, private x: number, private color: number) {
     super();
+    this.tag = 'geyser';
     this.mark = marker(scene, x, 90);
     this.col = scene.add.graphics().setDepth(DEPTH.boss + 1);
   }
@@ -248,6 +253,7 @@ class Shockwave extends Entity {
   private t = 0;
   constructor(scene: Phaser.Scene, private x: number, private speed: number) {
     super();
+    this.tag = 'wave';
     this.g = scene.add.graphics().setDepth(DEPTH.boss + 1);
   }
   get right(): number {
@@ -280,8 +286,11 @@ class Barrage extends Entity {
   private i = 0;
   private g: Phaser.GameObjects.Graphics;
   private cue: Phaser.GameObjects.Text;
-  static readonly GAP = 0.62;
-  static readonly LEAD = 0.42;
+  /** Seconds between throws; after a low one there is time to jump it and land first. */
+  static readonly GAP = 0.7;
+  static readonly GAP_AFTER_LOW = 1.0;
+  static readonly LEAD = 0.5;
+  private nextAt = 0;
   constructor(
     private scene: Phaser.Scene,
     private x0: number,
@@ -292,6 +301,7 @@ class Barrage extends Entity {
     private spawn: (e: Entity) => void,
   ) {
     super();
+    this.tag = 'barrage';
     this.g = scene.add.graphics().setDepth(DEPTH.groundShadow + 1);
     this.cue = scene.add.text(0, 0, '', { fontFamily: 'Trebuchet MS, sans-serif', fontSize: '22px', fontStyle: 'bold', color: '#FFFFFF', stroke: '#302331', strokeThickness: 5 }).setOrigin(0.5).setDepth(DEPTH.fx + 2);
   }
@@ -306,7 +316,7 @@ class Barrage extends Entity {
     // Flash the next lane along the first stretch of its path.
     const k = this.i;
     if (k < this.lanes.length) {
-      const start = k * Barrage.GAP;
+      const start = this.nextAt;
       if (this.t >= start) {
         const L = LANE[this.lanes[k]];
         const x1 = this.x0 + this.dir * 520;
@@ -317,6 +327,7 @@ class Barrage extends Entity {
       if (this.t >= start + Barrage.LEAD) {
         this.spawn(new Sweeper(this.scene, this.x0, this.tex, this.lanes[k], -this.dir * this.speed));
         Audio.play('throw');
+        this.nextAt = start + (this.lanes[k] === 'low' ? Barrage.GAP_AFTER_LOW : Barrage.GAP);
         this.i++;
       }
     } else this.alive = false;
@@ -334,6 +345,7 @@ class Bouncer extends Entity {
   private r = 22;
   constructor(scene: Phaser.Scene, private x: number, private y: number, tex: string, private vx: number, private hop: number) {
     super();
+    this.tag = 'bounce';
     this.img = scene.add.image(x, y, tex).setDepth(DEPTH.boss + 2);
   }
   get right(): number {
@@ -787,8 +799,8 @@ export class PatternBoss extends Entity implements Boss {
       case 'bounce': {
         const n = a.n ?? 1;
         const tex = shotTexture(s, lv, a.shot, 46, 46);
-        const hops = [90, 175, 120];
-        for (let i = 0; i < n; i++) add(new Bouncer(s, bx + d * (60 + i * 150), by, tex, d * (230 + i * 30), hops[(this.round + i) % hops.length]));
+        const hops = [85, 170];
+        for (let i = 0; i < n; i++) add(new Bouncer(s, bx + d * (60 + i * 170), by, tex, d * (190 + i * 25), hops[(this.round + i) % hops.length]));
         Audio.play('throw');
         break;
       }

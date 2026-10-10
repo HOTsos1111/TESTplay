@@ -854,7 +854,7 @@ export class GameScene extends Phaser.Scene {
       for (const e of this.entities) {
         const hz = e.alive ? e.hazard() : null;
         if (hz && overlaps(hurt, hz)) {
-          this.lastHurtBy = e.constructor.name + (e instanceof PatternBoss ? `:${e.telegraph?.kind ?? e.phase}` : '');
+          this.lastHurtBy = e instanceof PatternBoss ? `boss:${e.telegraph?.kind ?? e.phase}` : e.tag || e.constructor.name;
           this.damage();
           e.onHeroHit(this.ctx);
           break;

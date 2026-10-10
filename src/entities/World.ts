@@ -51,6 +51,8 @@ export interface GameContext {
 
 export abstract class Entity {
   alive = true;
+  /** Short readable name (survives minification; used by tests). */
+  tag = '';
   /** Last bark pulse that affected this entity (one hit per pulse). */
   lastPulse = -1;
   solid: Solid | null = null;
