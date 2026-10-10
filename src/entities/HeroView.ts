@@ -64,7 +64,11 @@ const RIG = {
   tail: { poly: [[0, 92], [20, 92], [28, 118], [50, 138], [48, 162], [18, 162], [0, 132]], px: 40, py: 152 },
 } as const;
 
-type RigPart = 'body' | 'ear' | 'tail' | 'leg0' | 'leg1' | 'leg2' | 'leg3';
+type RigPart = 'body' | 'rump' | 'ear' | 'tail' | 'leg0' | 'leg1' | 'leg2' | 'leg3';
+/** The belly between the rump and the chest (sprite px): the bit that stretches into a long floppy tube. */
+const BELLY = { x0: 116, x1: 176 } as const;
+/** Slices the stretched belly is drawn in, so it can sag and flop. */
+const BELLY_SEGS = 18;
 
 /**
  * Hero visuals built from the hand-drawn pose sprites. Purely cosmetic: squash,
@@ -78,6 +82,11 @@ export class HeroView {
   /** Animated cut-out of the side pose: legs, ear and tail move on their own. */
   private cut: Phaser.GameObjects.Container;
   private parts: Record<RigPart, Phaser.GameObjects.Image>;
+  private baseX = {} as Record<RigPart, number>;
+  private belly: Phaser.GameObjects.Image[] = [];
+  private bellyX = 0;
+  private bellyY = 0;
+  private bellyW = 0;
   private earSpring = { a: 0, v: 0 };
 
   mode: HeroMode = 'play';
@@ -133,10 +142,19 @@ export class HeroView {
       leg1: place('hero_r_leg1', RIG.legs[1].px, RIG.pivotY),
       leg2: place('hero_r_leg2', RIG.legs[2].px, RIG.pivotY),
       leg3: place('hero_r_leg3', RIG.legs[3].px, RIG.pivotY),
-      body: place('hero_r_body', W / 2, H / 2),
+      body: place('hero_r_front', W / 2, H / 2),
+      rump: place('hero_r_rump', W / 2, H / 2),
       ear: place('hero_r_ear', RIG.ear.px, RIG.ear.py),
     };
-    this.cut = scene.add.container(0, 0, [this.parts.tail, this.parts.leg0, this.parts.leg1, this.parts.leg2, this.parts.leg3, this.parts.body, this.parts.ear]);
+    // The belly: thin slices that line up seamlessly at rest and stretch apart into a sagging tube.
+    this.bellyX = (BELLY.x0 - POSE_ORIGIN_X.side * W) * s0;
+    this.bellyY = 2;
+    this.bellyW = (BELLY.x1 - BELLY.x0) * s0;
+    for (let i = 0; i < BELLY_SEGS; i++) {
+      this.belly.push(scene.add.image(this.bellyX, this.bellyY, 'hero_r_belly').setOrigin(0, 1).setScale(s0));
+    }
+    for (const k of Object.keys(this.parts) as RigPart[]) this.baseX[k] = this.parts[k].x;
+    this.cut = scene.add.container(0, 0, [this.parts.tail, this.parts.leg0, this.parts.leg1, this.parts.leg2, this.parts.leg3, this.parts.rump, ...this.belly, this.parts.body, this.parts.ear]);
     this.rig.add(this.cut);
     // Spinning blur over the tail swirl drawn in the propeller pose.
     this.propeller = scene.add.image(-37, -110, 'hero_propeller').setScale(ART_SCALE * 1.5, ART_SCALE * 0.5).setAlpha(0.7).setVisible(false);
@@ -174,7 +192,7 @@ export class HeroView {
 
   /** Splits the side pose into body, ear, tail and four legs (once per game). */
   private static ensureRigTextures(scene: Phaser.Scene): void {
-    if (scene.textures.exists('hero_r_body') || !scene.textures.exists('hero_s_side')) return;
+    if (scene.textures.exists('hero_r_belly') || !scene.textures.exists('hero_s_side')) return;
     const src = scene.textures.get('hero_s_side').getSourceImage() as HTMLImageElement | HTMLCanvasElement;
     const W = src.width;
     const H = src.height;
@@ -219,6 +237,18 @@ export class HeroView {
       c.stroke();
       c.restore();
     });
+    // Split the body into rump, belly slice and chest-and-head so only the belly stretches.
+    const body = scene.textures.get('hero_r_body').getSourceImage() as HTMLCanvasElement;
+    make('hero_r_rump', (c) => c.drawImage(body, 0, 0, BELLY.x0 + 1, H, 0, 0, BELLY.x0 + 1, H));
+    make('hero_r_front', (c) => c.drawImage(body, BELLY.x1 - 1, 0, W - BELLY.x1 + 1, H, BELLY.x1 - 1, 0, W - BELLY.x1 + 1, H));
+    {
+      const bw = BELLY.x1 - BELLY.x0;
+      const tex = scene.textures.createCanvas('hero_r_belly', bw, H);
+      if (tex) {
+        tex.getContext().drawImage(body, BELLY.x0, 0, bw, H, 0, 0, bw, H);
+        tex.refresh();
+      }
+    }
     make('hero_r_ear', (c) => {
       poly(c, RIG.ear.poly);
       c.clip();
@@ -565,8 +595,33 @@ export class HeroView {
     const ps = HeroView.SPRITE_SCALE * POSE_SCALE[this.pose];
     this.spr.setScale(ps * stretchX, ps);
     this.spr.x = stretchShift;
-    this.cut.setScale(stretchX, 1);
-    this.cut.setPosition(stretchShift, cutY);
+    // Only the belly stretches: the rump stays back, the chest and head reach
+    // forward, and the belly between them becomes a long, sagging, floppy tube.
+    const stretching = this.mode === 'play' && this.burstAnimT >= 0;
+    const ext = stretching ? Math.max(0, this.elF - this.elR) : 0;
+    const shift = stretching ? this.elR : 0;
+    const rearOff = shift - ext * 0.35;
+    const frontOff = shift + ext * 0.65;
+    for (const k of ['tail', 'leg0', 'leg2', 'rump'] as const) this.parts[k].x = this.baseX[k] + rearOff;
+    for (const k of ['body', 'ear', 'leg1', 'leg3'] as const) this.parts[k].x = this.baseX[k] + frontOff;
+    const n = this.belly.length;
+    const segW = (this.bellyW + ext) / n;
+    const sliceW = this.bellyW / n;
+    const sag = Math.min(14, ext * 0.09);
+    const k0 = HeroView.SPRITE_SCALE;
+    const texW = this.bellyW / k0;
+    this.belly.forEach((img, i) => {
+      const sx = k0 * (segW / sliceW) * (ext > 1 ? 1.06 : 1);
+      const cropX = (texW / n) * i;
+      img.setCrop(cropX, 0, texW / n + (ext > 1 ? 0.5 : 0), img.height);
+      img.setScale(sx, k0);
+      img.x = this.bellyX + rearOff + i * segW - cropX * sx;
+      const u = (i + 0.5) / n;
+      // A droop in the middle plus a slow ripple running along the tube.
+      img.y = this.bellyY + sag * Math.sin(u * Math.PI) + (ext > 1 ? Math.sin(this.t * 11 - u * Math.PI * 2) * Math.sin(u * Math.PI) * Math.min(7, ext * 0.04) : 0);
+    });
+    this.cut.setScale(1, 1);
+    this.cut.setPosition(0, cutY);
     this.parts.leg0.rotation = legs[0];
     this.parts.leg1.rotation = legs[1];
     this.parts.leg2.rotation = legs[2];

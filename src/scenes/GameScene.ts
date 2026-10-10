@@ -761,7 +761,9 @@ export class GameScene extends Phaser.Scene {
     }
 
     // The camera scrolls steadily; a burst surges the hero ahead and pushes it along at the edge.
-    this.camX += this.scrollSpeed * dt;
+    // During a burst the whole world rushes past at the dog's boosted pace (1.65-2x).
+    const surge = this.pc.bursting && this.pc.speed > 1 ? this.pc.effectiveSpeed / this.pc.speed : 1;
+    this.camX += this.scrollSpeed * surge * dt;
     const push = this.arena ? ARENA.maxX + 40 : this.phase === 'encounter' ? 520 : TUNING.paceMaxX + 140;
     if (this.pc.x - this.camX > push) this.camX = this.pc.x - push;
     if (this.pc.x - this.camX < 60) this.camX = this.pc.x - 60;

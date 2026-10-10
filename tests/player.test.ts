@@ -242,7 +242,7 @@ describe('slingshot burst', () => {
     const fired = pc.step(dt, { ...none, burstHeld: false }, floor).map((e) => e.type);
     expect(fired).toContain('burstStart');
     expect(pc.effectiveSpeed).toBeGreaterThan(tapSpeed);
-    expect(pc.burstT).toBeGreaterThan(TUNING.burstDuration * 1.5);
+    expect(pc.burstT).toBeGreaterThan(TUNING.burstDuration * 1.2);
     expect(pc.burstMeter).toBe(0);
   });
 

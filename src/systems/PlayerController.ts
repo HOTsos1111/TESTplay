@@ -148,7 +148,8 @@ export class PlayerController {
 
   /** Current horizontal speed including any burst. */
   get effectiveSpeed(): number {
-    const bonus = TUNING.burstSpeedBonus * (1 + 0.5 * this.burstPower);
+    // Tap: about 1.65x; a full wind-up: about 2x.
+    const bonus = TUNING.burstSpeedBonus * (1 + 0.55 * this.burstPower);
     if (this.burstCarry) return this.speed * (1 + bonus);
     if (this.burstT <= 0) return this.speed;
     // Ease off over the final 0.2 s on the ground.
@@ -201,7 +202,7 @@ export class PlayerController {
         this.charge = null;
         this.burstMeter = 0;
         this.burstPower = power;
-        this.burstT = TUNING.burstDuration * (1 + 0.6 * power);
+        this.burstT = TUNING.burstDuration * (1 + 0.3 * power);
         events.push({ type: 'burstStart', power });
       }
     } else if (this.bursting) {
