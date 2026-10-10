@@ -6,7 +6,7 @@ import { Audio } from '../systems/AudioManager';
 import type { Rect } from '../systems/PlayerController';
 import { Acorn, Entity, type GameContext } from './World';
 
-export type BossEvent = 'start' | 'hit' | 'defeated' | 'done';
+export type BossEvent = 'start' | 'hit' | 'phase' | 'defeated' | 'done';
 
 /** What GameScene needs from any chapter finale. */
 export interface Boss extends Entity {

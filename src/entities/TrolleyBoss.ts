@@ -43,7 +43,7 @@ export class TrolleyBoss extends Entity implements Boss {
   private catcherFall = { x: 0, y: 0, vx: 0, vy: 0, rot: 0 };
   private parts: { obj: Phaser.GameObjects.Image; vx: number; vy: number; spin: number }[] = [];
   /** Notifies the scene of milestones (hint display, victory). */
-  onEvent?: (e: 'start' | 'hit' | 'defeated' | 'done') => void;
+  onEvent?: (e: 'start' | 'hit' | 'phase' | 'defeated' | 'done') => void;
 
   constructor(private scene: Phaser.Scene) {
     super();

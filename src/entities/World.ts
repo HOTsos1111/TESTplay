@@ -1010,3 +1010,38 @@ export class Parcel extends Entity {
     this.img.destroy();
   }
 }
+
+/** A sausage link dropped in a boss fight: restores one link of health. */
+export class HeartPickup extends Entity {
+  private img: Phaser.GameObjects.Image;
+  private glow: Phaser.GameObjects.Image;
+  private t = 0;
+  constructor(scene: Phaser.Scene, private x: number, private y: number, private onTake: () => void) {
+    super();
+    this.tag = 'heart';
+    this.glow = scene.add.image(x, y, 'shadow').setDepth(DEPTH.bone - 1).setTint(0xffe27a).setAlpha(0.5).setScale(1.4);
+    this.img = scene.add.image(x, y, 'hp_link_full').setDepth(DEPTH.bone).setScale(ART_SCALE * 1.6);
+  }
+  get right(): number {
+    return this.x + 40;
+  }
+  pickup(): Rect {
+    return { x: this.x - 30, y: this.y - 26, w: 60, h: 52 };
+  }
+  onPickup(ctx: GameContext): void {
+    this.alive = false;
+    ctx.fx.sparkle(this.x, this.y, 8);
+    Audio.play('powerup');
+    this.onTake();
+  }
+  update(dt: number): void {
+    this.t += dt;
+    const y = this.y + Math.sin(this.t * 3) * 6;
+    this.img.setY(y).setRotation(Math.sin(this.t * 2) * 0.15);
+    this.glow.setY(y).setAlpha(0.35 + 0.2 * Math.sin(this.t * 6));
+  }
+  destroy(): void {
+    this.img.destroy();
+    this.glow.destroy();
+  }
+}

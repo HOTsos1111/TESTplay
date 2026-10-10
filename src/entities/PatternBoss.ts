@@ -143,7 +143,7 @@ class Sweeper extends Entity {
   }
   hazard(): Rect {
     const L = LANE[this.lane];
-    return { x: this.x - 55, y: L.top, w: 110, h: L.bottom - L.top };
+    return { x: this.x - 45, y: L.top + 4, w: 90, h: L.bottom - L.top - 8 };
   }
   update(dt: number, ctx: GameContext): void {
     this.x -= this.speed * dt;
@@ -1056,6 +1056,7 @@ export class PatternBoss extends Entity implements Boss {
             this.tierSeen = this.tierIndex;
             this.queue = [];
             this.go('roar');
+            this.onEvent?.('phase');
             this.label.setText(this.enraged ? 'IT’S ANGRY!' : 'ROUND 2!').setPosition(wx, G - this.img.displayHeight - 50).setVisible(true);
             Audio.play('squirrel_angry');
             this.scene.cameras.main.shake(500, 0.008);

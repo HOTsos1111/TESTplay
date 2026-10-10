@@ -10,7 +10,7 @@ import { SquirrelSwarm, type Boss } from '../entities/SquirrelSwarm';
 import { PigeonBoss } from '../entities/PigeonBoss';
 import { PatternBoss } from '../entities/PatternBoss';
 import {
-  Acorn, Barrel, Bone, LowBar, BurstMarker, Cardboard, LiftPlatform, PowerUp, Crate, Entity, Gate, GroundPiece, Platform, Scent, Squirrel, Tyre, type GameContext,
+  Acorn, Barrel, Bone, HeartPickup, LowBar, BurstMarker, Cardboard, LiftPlatform, PowerUp, Crate, Entity, Gate, GroundPiece, Platform, Scent, Squirrel, Tyre, type GameContext,
 } from '../entities/World';
 import { ART_SCALE } from '../systems/AssetRegistry';
 import { Audio } from '../systems/AudioManager';
@@ -523,6 +523,12 @@ export class GameScene extends Phaser.Scene {
     this.boss.onEvent = (e) => {
       if (e === 'start' && pattern) this.hud.showHint(pattern.def.hint, 4.2);
       else if (e === 'start') this.showHint(id === 'pigeon' ? 'encounter_pigeon' : 'encounter', true);
+      // Each new phase drops a sausage link (+1 health) on the middle of the arena floor.
+      if (e === 'phase' && pattern) {
+        this.entities.push(new HeartPickup(this, this.camX + 640, WORLD.groundY - 50, () => {
+          this.hearts = Math.min(TUNING.maxHearts, this.hearts + 1);
+        }));
+      }
       if (e === 'defeated') {
         Audio.play('boss_clear');
         Audio.stopMusic();
