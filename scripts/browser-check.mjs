@@ -640,7 +640,11 @@ try {
           }
         }
         if (a && a.height === 'high') duck = true;
-        const glider = duck || s.hazardsAhead.find((h) => h.bottom > 18 && h.bottom < 70 && h.dx > -40 && h.dx < 200);
+        // Duck-height things from either side (the boss can be on the left or right).
+        const near = (h, r) => (h.dx > -40 && h.dx < r) || (h.dx + h.w < 40 && h.dx + h.w > -r);
+        const glider = duck || s.hazardsAhead.find((h) => h.bottom > 18 && h.bottom < 70 && near(h, 200));
+        // Something in the air lane: stay on the ground.
+        const airNear = s.hazardsAhead.some((h) => h.bottom > 100 && h.bottom < 190 && near(h, 260));
         if (glider && s.grounded && holdUntil === 0) {
           input.setStick(0, 0.95, true);
           w.__duck = true;
@@ -648,7 +652,7 @@ try {
           input.setStick(mx, 0, mx !== 0);
           w.__duck = false;
         }
-        if (closing(s, now) && s.grounded && holdUntil === 0 && !w.__duck) {
+        if (closing(s, now) && s.grounded && holdUntil === 0 && !w.__duck && !airNear) {
           input.touchDown('jump', 77);
           holdUntil = now + 380;
           w.__bot.jumps++;
