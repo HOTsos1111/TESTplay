@@ -84,7 +84,7 @@ export const BOSSES: Record<number, BossDef> = {
   3: {
     level: 3,
     name: 'CAPTAIN GULL',
-    hp: 12,
+    hp: 10,
     height: 165,
     flying: true,
     facesRight: false,

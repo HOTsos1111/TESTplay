@@ -536,7 +536,9 @@ export class PatternBoss extends Entity implements Boss {
       if (shot) {
         if (i === 0) list.push({ kind: 'bounce', shot, n: 1 });
         if (i === 1) list.push({ kind: 'barrage', shot, lanes: ['low', 'high', 'low'] }, { kind: 'bounce', shot, n: 2 });
-        if (i === 2) list.push({ kind: 'barrage', shot, lanes: ['high', 'air', 'low', 'high'] }, { kind: 'barrage', shot, lanes: ['low', 'air', 'low'] });
+        // Flyers keep to jump/duck barrages (their dives already cover the air).
+        if (i === 2 && this.def.flying) list.push({ kind: 'barrage', shot, lanes: ['high', 'low', 'high'] });
+        else if (i === 2) list.push({ kind: 'barrage', shot, lanes: ['high', 'air', 'low', 'high'] }, { kind: 'barrage', shot, lanes: ['low', 'air', 'low'] });
       }
       return list;
     });
