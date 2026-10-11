@@ -128,6 +128,7 @@ export class TitleScene extends Phaser.Scene {
     // Footer: credit with a paw, and the key controls on a soft pill.
     this.add.image(1080, 690, 'ui_paw').setScale(0.42).setDepth(D);
     this.add.text(1262, 690, COPY.credit, textStyle(22, CSS.cream)).setOrigin(1, 0.5).setDepth(D);
+    this.add.text(1262, 664, `Build ${__BUILD__}`, textStyle(15, CSS.cream, 3)).setOrigin(1, 0.5).setDepth(D).setAlpha(0.75);
     const pill = this.add.graphics().setDepth(D);
     pill.fillStyle(COLOR.outline, 0.55);
     pill.fillRoundedRect(14, 674, 640, 32, 16);
