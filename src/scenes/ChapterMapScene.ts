@@ -59,7 +59,7 @@ export class ChapterMapScene extends Phaser.Scene {
     return l.standIn === null ? 'soon' : 'open';
   }
 
-  create(): void {
+  create(data: { open?: number } = {}): void {
     this.t = 0;
     this.plaques = [];
     this.faces = [];
@@ -152,13 +152,111 @@ export class ChapterMapScene extends Phaser.Scene {
     kb?.on('keydown-TAB', () => step(1));
     kb?.on('keydown-LEFT', () => step(-1));
     kb?.on('keydown-UP', () => step(-1));
-    kb?.on('keydown-ENTER', () => !this.popup && this.choose(this.selected));
-    kb?.on('keydown-SPACE', () => !this.popup && this.choose(this.selected));
+    kb?.on('keydown-ENTER', () => (this.tutorial ? this.goShop() : !this.popup && this.choose(this.selected)));
+    kb?.on('keydown-SPACE', () => (this.tutorial ? this.goShop() : !this.popup && this.choose(this.selected)));
     kb?.on('keydown-ESC', () => {
-      if (this.popup) this.closePopup();
+      if (this.tutorial) this.endTutorial();
+      else if (this.popup) this.closePopup();
       else this.scene.start('Title');
     });
     this.select(this.selected, true);
+
+    // First time back after a round: freeze the map and point at the shop.
+    const played = p.boneBalance > 0 || p.completedChapters.length > 0 || Object.keys(p.bestRunByChapter).length > 0;
+    this.reopen = data.open ?? null;
+    if (played && !p.hintsSeen.includes('shop_tutorial')) {
+      // Let the map finish appearing, then freeze it for the tip (see update).
+      this.popup = this.add.container(0, 0);
+      this.tutDelay = 0.9;
+    }
+    else if (this.reopen) this.choose(this.reopen);
+  }
+
+  private tutorial: Phaser.GameObjects.Container | null = null;
+  private tutArrow: Phaser.GameObjects.Image | Phaser.GameObjects.Graphics | null = null;
+  private reopen: number | null = null;
+  private tutT = 0;
+  private tutDelay = 0;
+
+  /** Spotlight on the UPGRADES button: everything else dims and freezes until dismissed. */
+  private startTutorial(): void {
+    const D = DEPTH.hud + 20;
+    const hole = { x: 845 - 118, y: 628 - 56, w: 236, h: 112 };
+    const c = this.add.container(0, 0).setDepth(D);
+    const dim = this.add.graphics();
+    dim.fillStyle(0x1b1420, 0.78);
+    dim.fillRect(0, 0, 1280, hole.y);
+    dim.fillRect(0, hole.y + hole.h, 1280, 720 - hole.y - hole.h);
+    dim.fillRect(0, hole.y, hole.x, hole.h);
+    dim.fillRect(hole.x + hole.w, hole.y, 1280 - hole.x - hole.w, hole.h);
+    c.add(dim);
+    // Glowing frame round the spotlit button.
+    const ring = this.add.graphics();
+    ring.lineStyle(6, COLOR.butter, 1).strokeRoundedRect(hole.x, hole.y, hole.w, hole.h, 30);
+    c.add(ring);
+    // Instructions card.
+    const card = this.add.graphics();
+    card.fillStyle(COLOR.outline, 1).fillRoundedRect(150 - 6, 120 - 6, 700 + 12, 330 + 12, 34);
+    card.fillStyle(PAPER, 1).fillRoundedRect(150, 120, 700, 330, 30);
+    card.lineStyle(3, COLOR.teal, 0.8).strokeRoundedRect(162, 132, 676, 306, 22);
+    c.add(card);
+    if (this.textures.exists('hero_s_toy')) c.add(this.add.image(232, 210, 'hero_s_toy').setScale(0.42));
+    const ink = (x: number, y: number, t: string, size: number, color: string, wrap = 0) =>
+      c.add(this.add.text(x, y, t, { fontFamily: FONT, fontSize: `${size}px`, fontStyle: 'bold', color, wordWrap: wrap ? { width: wrap } : undefined, lineSpacing: 4 }));
+    ink(310, 150, 'Level up your pup!', 36, CSS.outline);
+    ink(310, 200, `You have ${progress.state.boneBalance} bones to spend.`, 22, '#2E8B86');
+    ink(185, 255, 'Cash in bones at the UPGRADES shop: jump higher, add sausage links of health, unlock Double Jump, the Speed Burst, Double Bark and your Boomerang Bone. Tougher levels and bosses need a tougher pup!', 20, '#5C4560', 630);
+    ink(185, 392, 'Tap UPGRADES to go shopping  ·  tap anywhere else to explore', 18, '#C0573E');
+    // A bouncing arrow from the card down to the button.
+    const arrow = this.add.graphics();
+    arrow.fillStyle(COLOR.butter, 1).lineStyle(5, COLOR.outline, 1);
+    arrow.beginPath();
+    arrow.moveTo(0, 0);
+    arrow.lineTo(-30, -40);
+    arrow.lineTo(-12, -40);
+    arrow.lineTo(-12, -90);
+    arrow.lineTo(12, -90);
+    arrow.lineTo(12, -40);
+    arrow.lineTo(30, -40);
+    arrow.closePath();
+    arrow.fillPath();
+    arrow.strokePath();
+    arrow.setPosition(845, 560).setRotation(-0.35);
+    c.add(arrow);
+    this.tutArrow = arrow;
+    // One full-screen catcher: the spotlit button goes shopping, anywhere else closes.
+    const hit = this.add.zone(640, 360, 1280, 720).setInteractive();
+    hit.on('pointerup', (ptr: Phaser.Input.Pointer) => {
+      const inHole = ptr.x >= hole.x && ptr.x <= hole.x + hole.w && ptr.y >= hole.y && ptr.y <= hole.y + hole.h;
+      if (inHole) this.goShop();
+      else this.endTutorial();
+    });
+    c.add(hit);
+    c.setAlpha(0);
+    this.tweens.add({ targets: c, alpha: 1, duration: 260 });
+    // Freeze frame: the rest of the map stops moving while the tip is up.
+    this.tweens.getTweens().forEach((tw) => tw.targets.includes(c) || tw.pause());
+    this.tutorial = c;
+    this.popup = c;
+    Audio.play('ui_confirm');
+  }
+
+  private endTutorial(): void {
+    if (!this.tutorial) return;
+    progress.markHint('shop_tutorial');
+    this.tutorial.destroy();
+    this.tutorial = null;
+    this.tutArrow = null;
+    this.popup = null;
+    this.tweens.resumeAll();
+    Audio.play('ui_back');
+    if (this.reopen) this.choose(this.reopen);
+  }
+
+  private goShop(): void {
+    if (!this.tutorial) return;
+    progress.markHint('shop_tutorial');
+    this.scene.start('Upgrade', { from: 'ChapterMap' });
   }
 
   /** The district's painted tile button, sitting over its blank sign on the map. */
@@ -293,16 +391,10 @@ export class ChapterMapScene extends Phaser.Scene {
       this.popupButtons.push(shop);
     } else {
       const ch = l.standIn;
-      const cp = progress.state.checkpoint;
-      const start = (at: 'start' | 'encounter') => this.scene.start('Game', { chapter: ch, startAt: at });
-      if (cp && cp.chapter === ch) {
-        this.popupButtons.push(new Button(this, 640 + 110, 380 + by, COPY.continue, () => start('encounter'), { width: 230, height: 62, fontSize: 24, color: COLOR.coral, icon: 'ui_play', iconScale: 0.36 }));
-        this.popupButtons.push(new Button(this, 640 - 130, 380 + by, 'Restart', () => start('start'), { width: 190, height: 56, fontSize: 22 }));
-      } else {
-        const go = new Button(this, 640, 380 + by, COPY.start, () => start('start'), { width: 280, height: 72, fontSize: 32, color: COLOR.coral, icon: 'ui_play', iconScale: 0.44 });
-        this.tweens.add({ targets: go, scale: 1.05, yoyo: true, repeat: -1, duration: 650, ease: 'Sine.InOut' });
-        this.popupButtons.push(go);
-      }
+      // Every attempt plays the whole level (no skipping to the boss).
+      const go = new Button(this, 640, 380 + by, COPY.start, () => this.scene.start('Game', { chapter: ch, startAt: 'start' }), { width: 280, height: 72, fontSize: 32, color: COLOR.coral, icon: 'ui_play', iconScale: 0.44 });
+      this.tweens.add({ targets: go, scale: 1.05, yoyo: true, repeat: -1, duration: 650, ease: 'Sine.InOut' });
+      this.popupButtons.push(go);
     }
     const close = new Button(this, 640 + W / 2 - 18, 380 - H / 2 + 14, '✕', () => this.closePopup(), { width: 54, height: 50, fontSize: 24, color: 0x6f86a8 });
     this.popupButtons.push(close);
@@ -332,6 +424,19 @@ export class ChapterMapScene extends Phaser.Scene {
 
   update(_t: number, dms: number): void {
     const dt = Math.min(dms / 1000, 0.1);
+    if (this.tutDelay > 0) {
+      this.tutDelay -= dt;
+      if (this.tutDelay <= 0) {
+        this.popup?.destroy();
+        this.startTutorial();
+      }
+    }
+    if (this.tutorial) {
+      // Frozen map; only the arrow bobs.
+      this.tutT += dt;
+      this.tutArrow?.setY(560 + Math.sin(this.tutT * 6) * 8);
+      return;
+    }
     this.t += dt;
     // Upgrades call-out: a soft glow, a gentle bob and a red "!" when affordable.
     {

@@ -56,10 +56,9 @@ export class PauseScene extends Phaser.Scene {
   }
 
   private restart(): void {
-    const cp = progress.state.checkpoint;
     this.scene.stop('Game');
     Audio.resumeMusic();
-    this.scene.start('Game', { chapter: this.chapter, startAt: cp?.chapter === this.chapter ? 'encounter' : 'start' });
+    this.scene.start('Game', { chapter: this.chapter, startAt: 'start' });
   }
 
   private quit(): void {

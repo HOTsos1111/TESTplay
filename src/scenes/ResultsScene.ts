@@ -50,8 +50,9 @@ export class ResultsScene extends Phaser.Scene {
       buttons.push(new Button(this, 330, y, COPY.tryAgain, () => this.scene.start('Game', { chapter: d.chapter, startAt: 'start' }), { width: 260, height: 64, fontSize: 26 }));
       buttons.push(new Button(this, 950, y, COPY.headHome, () => this.scene.start('Title'), { width: 260, height: 64, fontSize: 26, color: 0x6f86a8 }));
     } else {
-      const label = d.checkpoint ? `${COPY.tryAgain} (checkpoint)` : COPY.tryAgain;
-      buttons.push(new Button(this, 640, y, label, () => this.scene.start('Game', { chapter: d.chapter, startAt: d.checkpoint ? 'encounter' : 'start' }), { width: 340, color: COLOR.coral }));
+      // Back to the level select (with this level's card open) so there is a
+      // chance to spend bones on upgrades before the next attempt.
+      buttons.push(new Button(this, 640, y, COPY.tryAgain, () => this.scene.start('ChapterMap', { open: d.chapter }), { width: 340, color: COLOR.coral }));
       buttons.push(new Button(this, 290, y, COPY.shop, () => this.scene.start('Upgrade', { from: 'ChapterMap' }), { width: 300, height: 64, fontSize: 22 }));
       buttons.push(new Button(this, 990, y, COPY.headHome, () => this.scene.start('Title'), { width: 260, height: 64, fontSize: 26, color: 0x6f86a8 }));
     }

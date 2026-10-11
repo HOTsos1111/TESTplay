@@ -513,7 +513,8 @@ export class GameScene extends Phaser.Scene {
   private startEncounter(): void {
     this.phase = 'encounter';
     this.phaseT = 0;
-    progress.setCheckpoint({ chapter: this.chapter.id, at: 'encounter' });
+    // No boss checkpoints: every attempt plays the whole level through.
+    progress.setCheckpoint(null);
     // The level's own song, a notch faster, for the boss fight.
     Audio.setTempo(this.chapter.art ? 1.12 : 1);
     Audio.playMusic(this.chapter.art ? this.chapter.music : 'chase');
