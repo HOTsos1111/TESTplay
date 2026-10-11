@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { CHAPTERS } from '../data/chapters';
+import { missingSkills } from '../systems/Skills';
 import { LEVELS, type LevelDef } from '../data/campaign';
 import { DEPTH } from '../data/config';
 import { COPY } from '../data/copy';
@@ -264,6 +266,13 @@ export class ChapterMapScene extends Phaser.Scene {
     if (st === 'soon' || l.standIn === null) {
       const t = this.add.text(0, by - 8, `${COPY.comingSoon}! This part of the route home is being built.`, { fontFamily: FONT, fontSize: '19px', fontStyle: 'bold', color: '#C0573E', align: 'center', wordWrap: { width: W - 80 } }).setOrigin(0.5);
       box.add(t);
+    } else if (missingSkills(CHAPTERS.find((c) => c.id === l.standIn)!).length) {
+      // The route needs a skill from the bone shop first.
+      const need = missingSkills(CHAPTERS.find((c) => c.id === l.standIn)!).join(' and ');
+      const t = this.add.text(0, by - 50, `Needs ${need}! Unlock it in the bone shop.`, { fontFamily: FONT, fontSize: '19px', fontStyle: 'bold', color: '#C0573E', align: 'center', wordWrap: { width: W - 80 } }).setOrigin(0.5);
+      box.add(t);
+      const shop = new Button(this, 640, 380 + by + 4, 'Bone Shop', () => this.scene.start('Upgrade', { from: 'ChapterMap' }), { width: 260, height: 62, fontSize: 26, color: COLOR.coral, icon: 'bone', iconScale: 0.32 });
+      this.popupButtons.push(shop);
     } else {
       const ch = l.standIn;
       const cp = progress.state.checkpoint;

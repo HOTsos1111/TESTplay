@@ -1,6 +1,6 @@
-import { UPGRADE_MAX_LEVEL } from '../data/config';
+import { maxLevel, UPGRADE_KEYS, type UpgradeKey } from '../data/upgrades';
 
-export type UpgradeKey = 'tail' | 'recharge' | 'bark';
+export type { UpgradeKey };
 
 export interface Checkpoint {
   chapter: number;
@@ -41,7 +41,7 @@ export function defaultProgress(): Progress {
     completedChapters: [],
     checkpoint: null,
     boneBalance: 0,
-    upgrades: { tail: 0, recharge: 0, bark: 0 },
+    upgrades: Object.fromEntries(UPGRADE_KEYS.map((k) => [k, 0])) as Record<UpgradeKey, number>,
     endlessBestByChapter: {},
     bestRunByChapter: {},
     claimedRewards: [],
@@ -96,11 +96,7 @@ export function sanitizeProgress(input: unknown): Progress {
     completedChapters: completed,
     checkpoint,
     boneBalance: int(raw.boneBalance, 0, 1_000_000, 0),
-    upgrades: {
-      tail: int(up.tail, 0, UPGRADE_MAX_LEVEL, 0),
-      recharge: int(up.recharge, 0, UPGRADE_MAX_LEVEL, 0),
-      bark: int(up.bark, 0, UPGRADE_MAX_LEVEL, 0),
-    },
+    upgrades: Object.fromEntries(UPGRADE_KEYS.map((k) => [k, int(up[k], 0, maxLevel(k), 0)])) as Record<UpgradeKey, number>,
     endlessBestByChapter: numberRecord(raw.endlessBestByChapter),
     bestRunByChapter: numberRecord(raw.bestRunByChapter),
     claimedRewards: stringList(raw.claimedRewards),
@@ -203,7 +199,7 @@ export class ProgressStore {
 
   buyUpgrade(key: UpgradeKey, price: number): boolean {
     const lvl = this.data.upgrades[key];
-    if (lvl >= UPGRADE_MAX_LEVEL || this.data.boneBalance < price) return false;
+    if (lvl >= maxLevel(key) || this.data.boneBalance < price) return false;
     this.update((p) => {
       p.boneBalance -= price;
       p.upgrades[key] = lvl + 1;

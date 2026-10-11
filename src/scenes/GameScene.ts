@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { chapterById, type ChapterDef } from '../data/chapters';
-import { DEPTH, HERO_BOX, SCORING, TUNING, UPGRADE_EFFECTS, VIEW, WORLD } from '../data/config';
+import { DEPTH, HERO_BOX, SCORING, TUNING, VIEW, WORLD } from '../data/config';
 import { HINTS } from '../data/copy';
 import { POWERUP_TUNING, POWERUPS, type PowerUpKind } from '../data/powerups';
 import { HeroView } from '../entities/HeroView';
@@ -17,12 +17,15 @@ import { Audio } from '../systems/AudioManager';
 import { Fx } from '../systems/Fx';
 import { Scenery } from '../systems/Scenery';
 import { LevelScenery } from '../systems/LevelScenery';
+import { maxHearts, statsFromUpgrades, upgradeLevels } from '../systems/Skills';
+import { Boomerang } from '../entities/Boomerang';
+import { UPGRADE_TUNING } from '../data/upgrades';
 import { buildLevelTheme } from '../systems/LevelSkins';
 import { setGroundPalette } from '../systems/Ground3D';
 import { LEVEL_ART, pieceKey } from '../data/levelArt';
 import { InputManager } from '../systems/InputManager';
 import { buildLevel, type LevelLayout, type Spawnable } from '../systems/LevelBuilder';
-import { PlayerController, type FrameInput, type PlayerStats, type Rect, type Solid } from '../systems/PlayerController';
+import { PlayerController, type FrameInput, type Rect, type Solid } from '../systems/PlayerController';
 import { progress } from '../systems/ProgressStore';
 import { debugFlags, registerTestHook } from '../systems/debug';
 import { Hud } from '../ui/Hud';
@@ -47,14 +50,6 @@ type Phase = 'run' | 'encounter' | 'victory' | 'defeat';
 
 const overlaps = (a: Rect, b: Rect): boolean => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 
-export function statsFromUpgrades(): PlayerStats {
-  const u = progress.state.upgrades;
-  return {
-    wagCapacity: TUNING.wagCapacity + UPGRADE_EFFECTS.tail * u.tail,
-    rechargeRate: TUNING.groundRecharge * (1 + UPGRADE_EFFECTS.recharge * u.recharge),
-    barkRange: TUNING.barkRange + UPGRADE_EFFECTS.bark * u.bark,
-  };
-}
 
 /** Boss arenas: the camera stops and the dog moves freely inside this band of the screen. */
 const ARENA = { minX: 70, maxX: 1210, speed: 300 } as const;
@@ -73,10 +68,13 @@ export class GameScene extends Phaser.Scene {
   private solids: Solid[] = [];
   private phase: Phase = 'run';
   private phaseT = 0;
-  private hearts: number = TUNING.maxHearts;
+  private hearts: number = maxHearts();
   private bones = 0;
   private pulseId = 0;
   private pulseT = 0;
+  /** Double Bark: seconds until the echo pulse (-1 = none pending). */
+  private echoT = -1;
+  private boomerang: Boomerang | null = null;
   private boss: Boss | null = null;
   private startAt: 'start' | 'encounter' = 'start';
   private debugG: Phaser.GameObjects.Graphics | null = null;
@@ -185,7 +183,7 @@ export class GameScene extends Phaser.Scene {
     this.solids = [];
     this.phase = 'run';
     this.phaseT = 0;
-    this.hearts = TUNING.maxHearts;
+    this.hearts = maxHearts();
     this.bones = 0;
     this.pulseId = 0;
     this.pulseT = 0;
@@ -200,12 +198,14 @@ export class GameScene extends Phaser.Scene {
     this.scrollSpeed = 0;
     this.paceInput = 0;
     this.dashT = 0;
+    this.echoT = -1;
+    this.boomerang = null;
     this.hitstop = 0;
     this.power = {};
     this.burstWasReady = true;
 
     const startX = this.startAt === 'encounter' ? this.layout.encounterX + 160 : this.layout.startX;
-    this.pc = new PlayerController(startX, WORLD.groundY, { ...statsFromUpgrades(), doubleJump: this.chapter.doubleJump });
+    this.pc = new PlayerController(startX, WORLD.groundY, statsFromUpgrades(this.chapter));
     this.pc.speed = this.chapter.speedStart;
     this.camX = startX - VIEW.width * VIEW.heroScreenX;
 
@@ -237,7 +237,10 @@ export class GameScene extends Phaser.Scene {
       const burstMarks = this.layout.items.filter((i) => i.type === 'burstMarker').map((i) => (i.x - this.layout.startX) / span);
       this.hud.setMinimap(zoneMarks, burstMarks);
     }
-    this.touch = new TouchControls(this, this.input2, (p) => p.x > this.scale.width - 100 && p.y < 100);
+    this.touch = new TouchControls(this, this.input2, (p) => p.x > this.scale.width - 100 && p.y < 100, {
+      burst: this.pc.stats.burst !== false,
+      toss: upgradeLevels().boomerang >= 1,
+    });
     this.scale.on(Phaser.Scale.Events.RESIZE, this.onResize, this);
 
     this.ctx = {
@@ -526,7 +529,7 @@ export class GameScene extends Phaser.Scene {
       // Each new phase drops a sausage link (+1 health) on the middle of the arena floor.
       if (e === 'phase' && pattern) {
         this.entities.push(new HeartPickup(this, this.camX + 640, WORLD.groundY - 50, () => {
-          this.hearts = Math.min(TUNING.maxHearts, this.hearts + 1);
+          this.hearts = Math.min(maxHearts(), this.hearts + 1);
         }));
       }
       if (e === 'defeated') {
@@ -536,6 +539,41 @@ export class GameScene extends Phaser.Scene {
       if (e === 'done') this.victory();
     };
     this.entities.push(this.boss);
+  }
+
+  /** Boomerang Bone (bone shop): thrown the way he faces, comes back to him. */
+  private throwBoomerang(): void {
+    const lvl = upgradeLevels().boomerang;
+    if (lvl < 1 || this.boomerang || (this.phase !== 'run' && this.phase !== 'encounter')) return;
+    const dir = this.pc.facing;
+    const b = new Boomerang(
+      this,
+      this.pc.x + dir * 40,
+      this.pc.y - 40,
+      dir,
+      UPGRADE_TUNING.boomerangRange[lvl],
+      // It must outrun the scrolling street to come back.
+      UPGRADE_TUNING.boomerangSpeed[lvl] + (this.arena ? 0 : this.scrollSpeed * 0.6),
+      lvl >= 3,
+      () => ({ x: this.pc.x, y: this.pc.y }),
+      (r, hit, self) => {
+        for (const e of this.entities) {
+          if (e === self || !e.alive || hit.has(e)) continue;
+          const t = e.barkTarget();
+          if (t && overlaps(r, t)) {
+            hit.add(e);
+            e.onBark(this.ctx);
+            this.fx.puff(r.x + r.w / 2, r.y + r.h / 2, 2, 0.6);
+          }
+          const p = e.pickup();
+          if (p && overlaps(r, p)) e.onPickup(this.ctx);
+        }
+      },
+      () => (this.boomerang = null),
+    );
+    this.boomerang = b;
+    this.entities.push(b);
+    this.hero.bark();
   }
 
   private showHint(id: string, force = false): void {
@@ -647,6 +685,8 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     this.paceInput = frame.pace;
+    if (this.boomerang && !this.boomerang.alive) this.boomerang = null;
+    if (frame.tossPressed) this.throwBoomerang();
     const steps = Math.max(1, Math.ceil(dt / TUNING.maxStep));
     const h = dt / steps;
     for (let i = 0; i < steps; i++) {
@@ -780,6 +820,8 @@ export class GameScene extends Phaser.Scene {
             const r = this.pc.barkRect();
             return { x: r.x, y: r.y + r.h / 2 };
           });
+          // Double Bark: an echo a split second later hits everything again.
+          if (upgradeLevels().doubleBark >= 1) this.echoT = 0.16;
           break;
         case 'bonk':
           this.damage();
@@ -823,6 +865,20 @@ export class GameScene extends Phaser.Scene {
     if (this.boss instanceof PatternBoss) {
       const t = this.boss.barkTarget();
       this.boss.inRange = !!t && this.arena && overlaps(this.pc.barkRect(), t);
+    }
+
+    if (this.echoT > 0) {
+      this.echoT -= dt;
+      if (this.echoT <= 0) {
+        this.echoT = -1;
+        this.pulseId++;
+        this.pulseT = TUNING.barkLifetime;
+        Audio.play('bark');
+        this.fx.barkRing(this.pc.stats.barkRange, () => {
+          const r = this.pc.barkRect();
+          return { x: r.x, y: r.y + r.h / 2 };
+        });
+      }
     }
 
     // Bark pulse: each target at most once per pulse.
@@ -936,7 +992,8 @@ export class GameScene extends Phaser.Scene {
       charge: this.pc.charge === null ? null : this.pc.chargeLevel,
       ducking: this.pc.ducking,
     });
-    this.touch.update(dt, 1 - this.pc.barkCooldown / TUNING.barkCooldown, this.pc.bursting ? 0 : this.pc.burstMeter);
+    this.touch.update(dt, 1 - this.pc.barkCooldown / (TUNING.barkCooldown * (this.pc.stats.barkCooldownMul ?? 1)), this.pc.bursting ? 0 : this.pc.burstMeter, this.boomerang ? 0 : 1);
+    this.hero.setSidearm(upgradeLevels().boomerang >= 1 && !this.boomerang);
     const shieldLeft = this.power.shield ?? 0;
     this.shieldImg
       .setVisible(shieldLeft > 0 && (shieldLeft > 2 || Math.floor(shieldLeft * 8) % 2 === 0))

@@ -4,7 +4,7 @@ import { ART_SCALE } from '../systems/AssetRegistry';
 import { InputManager } from '../systems/InputManager';
 import { COLOR, CSS, textStyle } from './theme';
 
-type Action = 'bark' | 'burst';
+type Action = 'bark' | 'burst' | 'toss';
 
 const STICK_RADIUS = 72;
 const HOME = { x: 160, y: 560 };
@@ -21,6 +21,9 @@ const HOME = { x: 160, y: 560 };
 export class TouchControls {
   private barkBtn: Phaser.GameObjects.Image;
   private burstBtn: Phaser.GameObjects.Image;
+  private tossBtn: Phaser.GameObjects.Image;
+  private tossIcon: Phaser.GameObjects.Image;
+  private tossFrac = 1;
   private fill: Phaser.GameObjects.Graphics;
   private stickG: Phaser.GameObjects.Graphics;
   private labels: Phaser.GameObjects.Text[] = [];
@@ -34,18 +37,31 @@ export class TouchControls {
   private burstFrac = 1;
   private wasBarkReady = true;
   private wasBurstReady = true;
-  private flash = { bark: 0, burst: 0 };
+  private flash = { bark: 0, burst: 0, toss: 0 };
+  private wasTossReady = true;
   static readonly BUTTON_RADIUS = 78;
 
-  constructor(private scene: Phaser.Scene, private input: InputManager, private isBlocked: (p: Phaser.Input.Pointer) => boolean) {
+  constructor(
+    private scene: Phaser.Scene,
+    private input: InputManager,
+    private isBlocked: (p: Phaser.Input.Pointer) => boolean,
+    /** Which skill buttons the pup has bought. */
+    private has: { burst: boolean; toss: boolean } = { burst: true, toss: false },
+  ) {
     scene.input.addPointer(3);
     this.touch = scene.sys.game.device.input.touch || InputManager.touchMode;
     const btn = (key: string) => scene.add.image(0, 0, key).setScale(ART_SCALE * 1.1).setScrollFactor(0).setDepth(DEPTH.touch);
     this.barkBtn = btn('btn_bark');
     this.burstBtn = btn('btn_burst');
+    // Boomerang Bone: a blue bark-style button with a bone on it.
+    this.tossBtn = btn('btn_bark').setTint(0x8fd4ff);
+    this.tossIcon = scene.add.image(0, 0, 'bone').setScrollFactor(0).setDepth(DEPTH.touch + 2).setAngle(-30);
+    this.burstBtn.setVisible(this.has.burst);
+    this.tossBtn.setVisible(this.has.toss);
+    this.tossIcon.setVisible(this.has.toss);
     this.fill = scene.add.graphics().setScrollFactor(0).setDepth(DEPTH.touch + 1);
     this.stickG = scene.add.graphics().setScrollFactor(0).setDepth(DEPTH.touch);
-    for (const t of ['BARK', 'SPEED']) this.labels.push(scene.add.text(0, 0, t, textStyle(16, CSS.cream, 4)).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH.touch + 2));
+    for (const t of ['BARK', 'SPEED', 'TOSS']) this.labels.push(scene.add.text(0, 0, t, textStyle(16, CSS.cream, 4)).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH.touch + 2));
     this.layout(scene.scale.width);
     this.applyMode();
 
@@ -66,7 +82,10 @@ export class TouchControls {
     this.barkBtn.setPosition(bx, this.small ? 650 : 600).setScale(ART_SCALE * 1.1 * s);
     this.burstBtn.setPosition(bx - (this.small ? 130 : 0), this.small ? 650 : 448).setScale(ART_SCALE * 1.1 * s);
     this.labels[0].setPosition(this.barkBtn.x, this.barkBtn.y + 56 * s + 6).setText(this.small ? 'BARK · X' : 'BARK');
-    this.labels[1].setPosition(this.burstBtn.x, this.burstBtn.y + 56 * s + 6).setText(this.small ? 'SPEED · Shift' : 'SPEED');
+    this.labels[1].setPosition(this.burstBtn.x, this.burstBtn.y + 56 * s + 6).setText(this.small ? 'SPEED · Shift' : 'SPEED').setVisible(this.has.burst);
+    this.tossBtn.setPosition(this.small ? bx - 260 : bx - 160, this.small ? 650 : 600).setScale(ART_SCALE * 1.1 * s);
+    this.tossIcon.setPosition(this.tossBtn.x, this.tossBtn.y).setScale(ART_SCALE * 1.5 * s);
+    this.labels[2].setPosition(this.tossBtn.x, this.tossBtn.y + 56 * s + 6).setText(this.small ? 'TOSS · V' : 'TOSS').setVisible(this.has.toss);
   }
 
   private applyMode(): void {
@@ -79,18 +98,24 @@ export class TouchControls {
   }
 
   /** Recharge readouts: 0..1 for bark and burst. */
-  update(dt: number, barkFrac: number, burstFrac: number): void {
+  update(dt: number, barkFrac: number, burstFrac: number, tossFrac = 1): void {
     this.t += dt;
     this.barkFrac = barkFrac;
     this.burstFrac = burstFrac;
+    this.tossFrac = tossFrac;
     const g = this.fill;
     g.clear();
-    for (const [btn, frac, key] of [[this.barkBtn, barkFrac, 'bark'], [this.burstBtn, burstFrac, 'burst']] as const) {
+    const list: [Phaser.GameObjects.Image, number, 'bark' | 'burst' | 'toss'][] = [[this.barkBtn, barkFrac, 'bark']];
+    if (this.has.burst) list.push([this.burstBtn, burstFrac, 'burst']);
+    if (this.has.toss) list.push([this.tossBtn, tossFrac, 'toss']);
+    this.tossIcon.setAlpha(tossFrac >= 1 ? 1 : 0.35);
+    for (const [btn, frac, key] of list) {
       const ready = frac >= 1;
-      const was = key === 'bark' ? this.wasBarkReady : this.wasBurstReady;
+      const was = key === 'bark' ? this.wasBarkReady : key === 'burst' ? this.wasBurstReady : this.wasTossReady;
       if (ready && !was) this.flash[key] = 0.45;
       if (key === 'bark') this.wasBarkReady = ready;
-      else this.wasBurstReady = ready;
+      else if (key === 'burst') this.wasBurstReady = ready;
+      else this.wasTossReady = ready;
       this.flash[key] = Math.max(0, this.flash[key] - dt);
       const r = this.radius(btn);
       btn.setAlpha(ready ? 1 : 0.75);
@@ -144,7 +169,10 @@ export class TouchControls {
   }
 
   private actionAt(p: Phaser.Input.Pointer): Action | 'stick' {
-    for (const [btn, a] of [[this.burstBtn, 'burst'], [this.barkBtn, 'bark']] as const) {
+    const btns: [Phaser.GameObjects.Image, Action][] = [[this.barkBtn, 'bark']];
+    if (this.has.burst) btns.push([this.burstBtn, 'burst']);
+    if (this.has.toss) btns.push([this.tossBtn, 'toss']);
+    for (const [btn, a] of btns) {
       if (Phaser.Math.Distance.Between(p.x, p.y, btn.x, btn.y) < TouchControls.BUTTON_RADIUS * (btn.scaleX / (ART_SCALE * 1.1))) return a;
     }
     if (p.x < this.scene.scale.width * 0.5) return 'stick';
@@ -168,7 +196,7 @@ export class TouchControls {
     }
     this.pointerAction.set(p.id, action);
     this.input.touchDown(action, p.id);
-    const btn = action === 'bark' ? this.barkBtn : this.burstBtn;
+    const btn = action === 'bark' ? this.barkBtn : action === 'burst' ? this.burstBtn : this.tossBtn;
     btn.setScale(btn.scaleX * 0.92);
   }
 
@@ -206,7 +234,7 @@ export class TouchControls {
   }
 
   /** Test/debug: current recharge readouts. */
-  get readouts(): { bark: number; burst: number } {
-    return { bark: this.barkFrac, burst: this.burstFrac };
+  get readouts(): { bark: number; burst: number; toss: number } {
+    return { bark: this.barkFrac, burst: this.burstFrac, toss: this.tossFrac };
   }
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TUNING } from '../src/data/config';
-import { PlayerController, type FrameInput, type Solid } from '../src/systems/PlayerController';
+import { baseStats, PlayerController, type FrameInput, type Solid } from '../src/systems/PlayerController';
 
 const G = 600;
 const floor: Solid[] = [{ x: -100_000, y: G, w: 200_000, h: 400, oneWay: false, kind: 'ground' }];
@@ -253,5 +253,32 @@ describe('slingshot burst', () => {
       ev.push(...pc.step(dt, { ...none, burstPressed: i === 0, burstHeld: true }, floor).map((e) => e.type));
     }
     expect(ev).toContain('burstStart');
+  });
+});
+
+describe('bone shop upgrades', () => {
+  it('Springy Paws jumps higher, triple jump allows a third jump', () => {
+    const apex = (stats: Partial<ReturnType<typeof baseStats>>) => {
+      const pc = new PlayerController(0, G, { ...baseStats(), ...stats });
+      let best = 0;
+      for (let i = 0; i < 200; i++) {
+        pc.step(dt, { jumpPressed: i === 0, jumpHeld: true, barkPressed: false }, floor);
+        best = Math.max(best, G - pc.y);
+      }
+      return best;
+    };
+    expect(apex({ jumpMul: 1.18 })).toBeGreaterThan(apex({}) * 1.3);
+    const pc = new PlayerController(0, G, { ...baseStats(), airJumps: 2 });
+    let air = 0;
+    for (let i = 0; i < 300; i++) {
+      const press = i === 0 || i === 20 || i === 40 || i === 60;
+      air += pc.step(dt, { jumpPressed: press, jumpHeld: true, barkPressed: false }, floor).filter((e) => e.type === 'doubleJump').length;
+    }
+    expect(air).toBe(2);
+  });
+
+  it('a locked Speed Burst does nothing', () => {
+    const pc = new PlayerController(0, G, { ...baseStats(), burst: false });
+    expect(run(pc, 0.1, { burstPressed: true })).not.toContain('burstCharge');
   });
 });

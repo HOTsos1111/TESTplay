@@ -489,6 +489,9 @@ export class PatternBoss extends Entity implements Boss {
   /** A shot it lobs mid-hop once angry. */
   private hopShot: Piece | null = null;
   private hopThrown = false;
+  /** Pacing direction and clock while roaming between attacks. */
+  private strafe: 1 | -1 = -1;
+  private roamT = 0;
   private clangT = 0;
   private popT = 0;
   private slamMark: Phaser.GameObjects.Ellipse | null = null;
@@ -1089,6 +1092,34 @@ export class PatternBoss extends Entity implements Boss {
         break;
       case 'done':
         break;
+    }
+    // Always on the move: walkers pace their street or ledge while they wind up
+    // and throw (turning back short of the dog); flyers weave back and forth.
+    const a = this.attack;
+    const roaming = this.phase === 'idle' || ((this.phase === 'warn' || this.phase === 'act') && !!a && !PatternBoss.finishes(a));
+    if (roaming) {
+      this.roamT += dt;
+      const hero = ctx.heroX - ctx.cameraLeft;
+      if (this.def.flying) {
+        this.sx = Phaser.Math.Clamp(this.sx + Math.cos(this.roamT * 1.3) * 130 * dt, 150, 1130);
+      } else {
+        let lo = 150;
+        let hi = 1130;
+        if (this.perch > 0) {
+          const deck = ARENA_DECKS.find((d) => Math.abs(G - d.h - (G - this.perch)) < 4 && this.sx >= d.x - 20 && this.sx <= d.x + d.w + 20);
+          if (deck) {
+            lo = deck.x + 50;
+            hi = deck.x + deck.w - 50;
+          }
+        }
+        const v = this.enraged ? 170 : 125;
+        const next = this.sx + this.strafe * v * dt;
+        const towardDog = Math.sign(hero - this.sx) === this.strafe && Math.abs(hero - next) < 250;
+        if (next < lo || next > hi || towardDog) this.strafe = -this.strafe as 1 | -1;
+        else this.sx = next;
+        if (this.side !== 0 && Math.abs(this.sx - HOME[this.side]) > 80) this.side = 0;
+        if (Math.random() < dt * 4) ctx.fx.dust(this.worldX(ctx) - this.strafe * 40, G - this.perch, 1);
+      }
     }
     // Flyers come back up to their perch after a daze.
     if (this.def.flying && this.phase === 'idle' && this.sy < this.perch - 1) this.sy = Phaser.Math.Linear(this.sy, this.perch, Math.min(1, dt * 4));

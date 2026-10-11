@@ -105,6 +105,7 @@ export class HeroView {
   /** Burst animation clock (-1 when idle) and whether the rear has snapped yet. */
   private burstAnimT = -1;
   private holdStretch = false;
+  private sidearm!: Phaser.GameObjects.Image;
   private charge = 0;
   private flipT = -1;
   private snapped = false;
@@ -160,6 +161,9 @@ export class HeroView {
     this.propeller = scene.add.image(-37, -110, 'hero_propeller').setScale(ART_SCALE * 1.5, ART_SCALE * 0.5).setAlpha(0.7).setVisible(false);
     this.spr = scene.add.image(0, 2, 'hero_s_run').setOrigin(POSE_ORIGIN_X.run, 1).setScale(HeroView.SPRITE_SCALE);
     this.rig.add([this.spr, this.propeller]);
+    // The Boomerang Bone, slung at his side like a sidearm (once it is unlocked).
+    this.sidearm = scene.add.image(-14, -40, 'bone').setScale(ART_SCALE * 0.95).setAngle(-24).setVisible(false);
+    this.rig.add(this.sidearm);
     this.rig.setScale(HeroView.BASE_SCALE);
   }
 
@@ -289,6 +293,11 @@ export class HeroView {
       this.mode = mode;
       this.modeT = 0;
     }
+  }
+
+  /** Shows the Boomerang Bone at his side (hidden while it is out being thrown). */
+  setSidearm(on: boolean): void {
+    if (this.sidearm.visible !== on) this.sidearm.setVisible(on);
   }
 
   /** Front stretches forward like an elastic band, then the rear snaps after it. */

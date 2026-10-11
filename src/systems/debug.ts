@@ -19,6 +19,8 @@ export const debugFlags = {
    * (headless browser checks run at a few frames a second).
    */
   realtime: params.get('realtime') === '1',
+  /** ?upgrades=max owns every bone-shop upgrade at its top level (playtesting). */
+  maxUpgrades: params.get('upgrades') === 'max',
 };
 
 type Hook = () => unknown;

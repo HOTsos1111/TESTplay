@@ -10,6 +10,7 @@ export class InputManager {
   private jumpLatch = false;
   private barkLatch = false;
   private burstLatch = false;
+  private tossLatch = false;
   private pauseLatch = false;
   private keyJumpHeld = new Set<string>();
   private touchJump = new Set<number>();
@@ -37,6 +38,8 @@ export class InputManager {
       this.bindKey(K.SHIFT, 'burst');
       this.bindKey(K.C, 'burst');
       this.bindKey(K.L, 'burst');
+      this.bindKey(K.V, 'toss');
+      this.bindKey(K.E, 'toss');
       const dir = (code: number) => kb.addKey(code, true, false);
       this.dirKeys = {
         left: [dir(K.LEFT), dir(K.A)],
@@ -49,7 +52,7 @@ export class InputManager {
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.destroy());
   }
 
-  private bindKey(code: number, action: 'jump' | 'bark' | 'burst' | 'pause'): void {
+  private bindKey(code: number, action: 'jump' | 'bark' | 'burst' | 'toss' | 'pause'): void {
     const key = this.scene.input.keyboard!.addKey(code, true, false);
     const id = `k${code}`;
     key.on('down', () => {
@@ -59,6 +62,7 @@ export class InputManager {
         this.jumpLatch = true;
       } else if (action === 'bark') this.barkLatch = true;
       else if (action === 'burst') this.burstLatch = true;
+      else if (action === 'toss') this.tossLatch = true;
       else this.pauseLatch = true;
     });
     key.on('up', () => {
@@ -69,10 +73,12 @@ export class InputManager {
   }
 
   /** Touch buttons forward pointer presses here. */
-  touchDown(action: 'jump' | 'bark' | 'burst', pointerId: number): void {
+  touchDown(action: 'jump' | 'bark' | 'burst' | 'toss', pointerId: number): void {
     InputManager.touchMode = true;
     if (!this.enabled) return;
-    if (action === 'burst') {
+    if (action === 'toss') {
+      this.tossLatch = true;
+    } else if (action === 'burst') {
       this.touchBurst.add(pointerId);
       this.burstLatch = true;
     } else if (action === 'jump') {
@@ -132,7 +138,7 @@ export class InputManager {
   }
 
   /** Consumes latched presses. Call once per rendered frame. */
-  consume(): FrameInput & { burstPressed: boolean; burstHeld: boolean; pausePressed: boolean; pace: number } {
+  consume(): FrameInput & { burstPressed: boolean; burstHeld: boolean; tossPressed: boolean; pausePressed: boolean; pace: number } {
     const out = {
       jumpPressed: this.jumpLatch,
       jumpHeld: this.jumpHeld,
@@ -141,11 +147,13 @@ export class InputManager {
       barkPressed: this.barkLatch,
       burstPressed: this.burstLatch,
       burstHeld: this.burstHeld,
+      tossPressed: this.tossLatch,
       pausePressed: this.pauseLatch,
     };
     this.jumpLatch = false;
     this.barkLatch = false;
     this.burstLatch = false;
+    this.tossLatch = false;
     this.pauseLatch = false;
     return out;
   }
@@ -155,6 +163,7 @@ export class InputManager {
     this.jumpLatch = false;
     this.barkLatch = false;
     this.burstLatch = false;
+    this.tossLatch = false;
     this.pauseLatch = false;
     this.keyJumpHeld.clear();
     this.touchJump.clear();

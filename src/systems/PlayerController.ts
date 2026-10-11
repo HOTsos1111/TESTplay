@@ -52,6 +52,20 @@ export interface PlayerStats {
   barkRange: number;
   /** Learned in Level 6 (default on, for tests and the old chapters). */
   doubleJump?: boolean;
+  /** Mid-air jumps allowed (2 = triple jump). Default 1. */
+  airJumps?: number;
+  /** Jump and air-jump strength multipliers. Default 1. */
+  jumpMul?: number;
+  airJumpMul?: number;
+  /** Speed Burst learned (default on, for tests and the old chapters). */
+  burst?: boolean;
+  /** Extra burst speed fraction, burst duration and meter recharge multipliers. */
+  burstBonus?: number;
+  burstDurMul?: number;
+  burstRechargeMul?: number;
+  /** Bark reload multiplier and bark height. */
+  barkCooldownMul?: number;
+  barkHeight?: number;
 }
 
 export function baseStats(): PlayerStats {
@@ -94,6 +108,8 @@ export class PlayerController {
   burstPower = 0;
   /** Second jump already used this time in the air. */
   doubleUsed = false;
+  /** Mid-air jumps used since leaving the ground. */
+  private airJumpsUsed = 0;
   ducking = false;
   /** Time spent airborne since leaving the ground. */
   airTime = 0;
@@ -132,7 +148,7 @@ export class PlayerController {
 
   barkRect(): Rect {
     const o = HERO_BOX.barkOrigin;
-    const h = TUNING.barkHeight;
+    const h = this.stats.barkHeight ?? TUNING.barkHeight;
     const x = this.facing > 0 ? this.x + o.x : this.x - o.x - this.stats.barkRange;
     return { x, y: this.y + o.y - h / 2, w: this.stats.barkRange, h };
   }
@@ -149,7 +165,7 @@ export class PlayerController {
   /** Current horizontal speed including any burst. */
   get effectiveSpeed(): number {
     // Tap: about 1.65x; a full wind-up: about 2x.
-    const bonus = TUNING.burstSpeedBonus * (1 + 0.55 * this.burstPower);
+    const bonus = (TUNING.burstSpeedBonus + (this.stats.burstBonus ?? 0)) * (1 + 0.55 * this.burstPower);
     if (this.burstCarry) return this.speed * (1 + bonus);
     if (this.burstT <= 0) return this.speed;
     // Ease off over the final 0.2 s on the ground.
@@ -183,7 +199,7 @@ export class PlayerController {
     this.invulnerable = Math.max(0, this.invulnerable - dt);
 
     if (input.barkPressed && this.barkCooldown <= 0) {
-      this.barkCooldown = TUNING.barkCooldown;
+      this.barkCooldown = TUNING.barkCooldown * (this.stats.barkCooldownMul ?? 1);
       events.push({ type: 'bark' });
     }
 
@@ -191,7 +207,7 @@ export class PlayerController {
     // Slingshot: pressing SPEED winds up (he stretches out long); releasing it
     // snaps him forward. The longer the wind-up, the faster and longer the shot;
     // a quick tap is the standard burst.
-    if (input.burstPressed && this.burstMeter >= 1 && !this.bursting && this.charge === null) {
+    if (input.burstPressed && this.stats.burst !== false && this.burstMeter >= 1 && !this.bursting && this.charge === null) {
       this.charge = 0;
       events.push({ type: 'burstCharge' });
     }
@@ -202,23 +218,24 @@ export class PlayerController {
         this.charge = null;
         this.burstMeter = 0;
         this.burstPower = power;
-        this.burstT = TUNING.burstDuration * (1 + 0.3 * power);
+        this.burstT = TUNING.burstDuration * (1 + 0.3 * power) * (this.stats.burstDurMul ?? 1);
         events.push({ type: 'burstStart', power });
       }
     } else if (this.bursting) {
       if (this.burstT > 0) this.burstT = Math.max(0, this.burstT - dt);
       if (!this.bursting) events.push({ type: 'burstEnd' });
     } else {
-      this.burstMeter = Math.min(1, this.burstMeter + dt / TUNING.burstChargeTime);
+      this.burstMeter = Math.min(1, this.burstMeter + (dt * (this.stats.burstRechargeMul ?? 1)) / TUNING.burstChargeTime);
     }
 
     // --- Jump: fresh presses only (held jump never re-triggers on landing).
     if (!this.grounded) this.coyote = Math.max(0, this.coyote - dt);
     const airborne = !this.grounded && this.coyote <= 0;
-    if (input.jumpPressed && airborne && !this.doubleUsed && this.stats.doubleJump !== false) {
+    if (input.jumpPressed && airborne && !this.doubleUsed && this.airJumpsUsed < (this.stats.airJumps ?? 1) && this.stats.doubleJump !== false) {
       // Double jump: a fresh press in mid-air.
-      this.doubleUsed = true;
-      this.vy = TUNING.doubleJumpVelocity;
+      this.airJumpsUsed++;
+      this.doubleUsed = this.airJumpsUsed >= (this.stats.airJumps ?? 1);
+      this.vy = TUNING.doubleJumpVelocity * (this.stats.airJumpMul ?? 1);
       this.jumpRising = true;
       this.buffer = 0;
       if (this.hovering) {
@@ -230,7 +247,7 @@ export class PlayerController {
     else this.buffer = Math.max(0, this.buffer - dt);
 
     if (this.buffer > 0 && (this.grounded || this.coyote > 0)) {
-      this.vy = TUNING.jumpVelocity;
+      this.vy = TUNING.jumpVelocity * (this.stats.jumpMul ?? 1);
       this.grounded = false;
       this.coyote = 0;
       this.buffer = 0;
@@ -238,6 +255,7 @@ export class PlayerController {
       this.jumpRising = true;
       this.supportTop = null;
       this.doubleUsed = false;
+      this.airJumpsUsed = 0;
       if (this.burstT > 0) this.burstCarry = true;
       events.push({ type: 'jump' });
     }
@@ -371,6 +389,7 @@ export class PlayerController {
 
     if (this.grounded) {
       this.doubleUsed = false;
+      this.airJumpsUsed = 0;
       this.airTime = 0;
       this.wag = Math.min(this.stats.wagCapacity, this.wag + this.stats.rechargeRate * dt);
     }

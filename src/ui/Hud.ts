@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { DEPTH, TUNING } from '../data/config';
+import { maxHearts } from '../systems/Skills';
+import { DEPTH } from '../data/config';
 import { ART_SCALE } from '../systems/AssetRegistry';
 import { COLOR, CSS, textStyle } from './theme';
 
@@ -62,7 +63,7 @@ export class Hud {
       o.setDepth(DEPTH.hud);
       return o;
     };
-    for (let i = 0; i < TUNING.maxHearts; i++) {
+    for (let i = 0; i < maxHearts(); i++) {
       this.hearts.push(fixed(scene.add.image(40 + i * 42, 42, 'hp_link_full').setScale(ART_SCALE * 1.15)));
     }
     fixed(scene.add.image(48, 94, 'bone').setScale(ART_SCALE * 1.05));
