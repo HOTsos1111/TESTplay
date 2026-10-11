@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { UPGRADES } from '../data/upgrades';
 import { CHAPTERS } from '../data/chapters';
 import { missingSkills } from '../systems/Skills';
 import { LEVELS, type LevelDef } from '../data/campaign';
@@ -32,6 +33,11 @@ export class ChapterMapScene extends Phaser.Scene {
   private popupButtons: Button[] = [];
   private popupNav: MenuNav | null = null;
   private fixedButtons: Button[] = [];
+  private shopBig!: Button;
+  private shopGlow!: Phaser.GameObjects.Graphics;
+  private shopBadge!: Phaser.GameObjects.Graphics;
+  private shopNote!: Phaser.GameObjects.Text;
+  private canAfford = false;
   private marker: Phaser.GameObjects.Image | null = null;
   private t = 0;
 
@@ -110,11 +116,23 @@ export class ChapterMapScene extends Phaser.Scene {
     this.add.image(1132, 38, 'bone').setScale(ART_SCALE * 0.95).setDepth(D + 3);
     this.add.text(1246, 38, String(progress.state.boneBalance), { fontFamily: FONT, fontSize: '26px', fontStyle: 'bold', color: CSS.outline }).setOrigin(1, 0.5).setDepth(D + 3);
 
+    const shop = () => this.scene.start('Upgrade', { from: 'ChapterMap' });
+    // The bone shop: a big button in the open corner of the map, plus a top-bar
+    // shortcut. Both wave a red "!" while there is something you can afford.
+    this.shopBig = new Button(this, 845, 628, 'UPGRADES', shop, { width: 188, height: 68, fontSize: 24, color: COLOR.coral, icon: 'bone', iconScale: 0.3 });
     this.fixedButtons = [
       new Button(this, 84, 38, '◀ Menu', () => this.scene.start('Title'), { width: 140, height: 48, fontSize: 20, color: 0x6f86a8 }),
-      new Button(this, 1030, 38, 'Gear', () => this.scene.start('Upgrade', { from: 'ChapterMap' }), { width: 116, height: 48, fontSize: 20, icon: 'bone', iconScale: 0.28 }),
+      new Button(this, 1012, 38, 'Upgrades', shop, { width: 150, height: 48, fontSize: 19, icon: 'bone', iconScale: 0.26 }),
+      this.shopBig,
     ];
     for (const b of this.fixedButtons) b.setDepth(D + 3);
+    this.canAfford = UPGRADES.some((u) => {
+      const lvl = progress.state.upgrades[u.key];
+      return lvl < u.prices.length && progress.state.boneBalance >= u.prices[lvl];
+    });
+    this.shopGlow = this.add.graphics().setDepth(D + 2);
+    this.shopBadge = this.add.graphics().setDepth(D + 4);
+    this.shopNote = this.add.text(845, 580, this.canAfford ? 'You can afford an upgrade!' : 'Spend bones on new skills', { fontFamily: FONT, fontSize: '15px', fontStyle: 'bold', color: '#FFFFFF', stroke: '#302331', strokeThickness: 5 }).setOrigin(0.5).setDepth(D + 4);
 
     // The hero waits on the furthest reachable level.
     const p = progress.state;
@@ -315,6 +333,26 @@ export class ChapterMapScene extends Phaser.Scene {
   update(_t: number, dms: number): void {
     const dt = Math.min(dms / 1000, 0.1);
     this.t += dt;
+    // Upgrades call-out: a soft glow, a gentle bob and a red "!" when affordable.
+    {
+      const pulse = 0.5 + 0.5 * Math.sin(this.t * 5);
+      const g = this.shopGlow;
+      g.clear();
+      if (this.canAfford) {
+        g.fillStyle(COLOR.butter, 0.25 + 0.25 * pulse).fillRoundedRect(845 - 108 - pulse * 4, 628 - 44 - pulse * 4, 216 + pulse * 8, 88 + pulse * 8, 36);
+        this.shopBig.setScale(1 + 0.04 * pulse);
+      }
+      const b = this.shopBadge;
+      b.clear();
+      if (this.canAfford) {
+        for (const [x, y, r] of [[845 + 88, 628 - 30, 16], [1012 + 70, 38 - 20, 13]] as const) {
+          b.fillStyle(0x302331, 1).fillCircle(x, y, r + 3);
+          b.fillStyle(0xe5533d, 1).fillCircle(x, y, r);
+          b.fillStyle(0xffffff, 1).fillRect(x - 2.5, y - r * 0.55, 5, r * 0.65).fillCircle(x, y + r * 0.45, 2.8);
+        }
+      }
+      this.shopNote.setY(580 - (this.canAfford ? pulse * 3 : 0));
+    }
     // Pulsing ring on the selected plaque.
     const pulse = 0.55 + Math.sin(this.t * 5) * 0.45;
     this.faces.forEach((g, i) => {
