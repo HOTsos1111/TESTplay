@@ -184,12 +184,12 @@ try {
   check('hero rig is visible with sane scale', vis.visible && vis.alpha > 0.3 && vis.scaleX > 0.4 && vis.scaleX < 1.6 && vis.scaleY > 0.4 && vis.scaleY < 1.6, JSON.stringify(vis));
   await page.screenshot({ path: 'screenshots/03b-before-pause.png' });
 
-  // Burst: stretch, speed boost, meter empties.
+  // Speed Burst is a bone-shop unlock: on a fresh save SHIFT does nothing.
   await page.keyboard.press('Shift');
   await sleep(60);
   await page.screenshot({ path: 'screenshots/03c-burst-stretch.png' });
   const bs = await state(page);
-  check('burst boosts speed and empties the meter', bs.bursting && bs.effectiveSpeed > bs.speed * 1.3 && bs.burstMeter < 0.2, `speed=${bs.speed} eff=${Math.round(bs.effectiveSpeed)} meter=${bs.burstMeter.toFixed(2)}`);
+  check('a locked Speed Burst does nothing on a fresh save', !bs.bursting && bs.burstMeter >= 0.99, `bursting=${bs.bursting} meter=${bs.burstMeter.toFixed(2)}`);
   await sleep(250);
   await page.screenshot({ path: 'screenshots/03d-burst-run.png' });
 
@@ -644,7 +644,11 @@ try {
         const near = (h, r) => (h.dx > -40 && h.dx < r) || (h.dx + h.w < 40 && h.dx + h.w > -r);
         const glider = duck || s.hazardsAhead.find((h) => h.bottom > 18 && h.bottom < 70 && near(h, 200));
         // Something in the air lane: stay on the ground.
-        const airNear = s.hazardsAhead.some((h) => h.bottom > 100 && h.bottom < 190 && near(h, 260));
+        // Something in the air lane closer than the next low threat: stay on the ground.
+        const gapTo = (h) => (h.dx > -20 ? h.dx : -(h.dx + h.w));
+        const air = s.hazardsAhead.filter((h) => h.bottom > 100 && h.bottom < 190 && near(h, 260)).map(gapTo).filter((g) => g > -60);
+        const low = s.hazardsAhead.filter((h) => h.bottom < 18 && near(h, 400)).map(gapTo).filter((g) => g > -20);
+        const airNear = air.length > 0 && (!low.length || Math.min(...air) < Math.min(...low));
         if (glider && s.grounded && holdUntil === 0) {
           input.setStick(0, 0.95, true);
           w.__duck = true;
