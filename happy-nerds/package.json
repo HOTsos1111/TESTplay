@@ -1,0 +1,19 @@
+{
+  "name": "happy-nerds",
+  "private": true,
+  "version": "0.1.0",
+  "description": "HAPPY NERDS — flap the pipes, not the balloon. A maths twist on Flappy Bird.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3",
+    "vite": "^8.3.2",
+    "vitest": "^5.0.3"
+  }
+}
