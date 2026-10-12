@@ -68,6 +68,17 @@ async function newPage(query = '') {
   await page.bringToFront();
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
   page.on('console', (m) => m.type() === 'error' && errors.push(`console: ${m.text()}`));
+  // The level select's first-visit upgrades tip would catch the scripted Enter presses.
+  await page.addInitScript(() => {
+    try {
+      const k = 'homeward-hound.progress';
+      const p = JSON.parse(localStorage.getItem(k) ?? 'null');
+      if (p && !(p.hintsSeen ?? []).includes('shop_tutorial')) {
+        p.hintsSeen = [...(p.hintsSeen ?? []), 'shop_tutorial'];
+        localStorage.setItem(k, JSON.stringify(p));
+      }
+    } catch {}
+  });
   await page.goto(BASE + withIntroOff(query));
   await page.waitForFunction(() => window.__HH__?.scenes?.().includes('Title'), null, { timeout: 20000 });
   await new Promise((r) => setTimeout(r, 500));
