@@ -1,4 +1,4 @@
-import { BALLOON, VIEW } from './config';
+import { BRAIN, VIEW } from './config';
 import { flap, newGame, step, type GameEvent } from './game';
 import { COLORS, render, type Popup } from './render';
 
@@ -30,12 +30,13 @@ function saveBest() {
 }
 
 function onEvent(e: GameEvent) {
-  const at = { x: BALLOON.x + 70, y: state.balloon.y - 50 };
+  const at = { x: BRAIN.x + 80, y: state.brain.y - 50 };
   if (e.type === 'correct') {
     popups.push({ text: '+1', color: COLORS.good, ...at, ttl: 0.8 });
   } else if (e.type === 'wrong') {
-    const right = e.pipe.questions[e.pipe.correctGap].text;
-    popups.push({ text: `Oops! ${right} = ${e.pipe.answer}`, color: COLORS.bad, x: VIEW.width / 2, y: 140, ttl: 1.8 });
+    const g = e.gate;
+    const q = g.question.replace(' = ?', '');
+    popups.push({ text: `Oops! ${q} = ${g.answers[g.correct]}`, color: COLORS.bad, x: VIEW.width / 2, y: 150, ttl: 1.8 });
   } else if (e.type === 'crash') {
     popups.push({ text: 'Bonk!', color: COLORS.bad, ...at, ttl: 0.8 });
   } else if (e.type === 'over' && state.score > best) {
@@ -63,6 +64,7 @@ window.addEventListener('keydown', (e) => {
     if (!e.repeat) flap(state);
   }
 });
+// Mouse, pen and touch all arrive as pointer events.
 window.addEventListener('pointerdown', (e) => {
   e.preventDefault();
   flap(state);

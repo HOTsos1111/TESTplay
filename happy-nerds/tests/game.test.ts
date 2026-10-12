@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { BALLOON, LIVES, PIPE, PIPE_OFFSET, RESTART_DELAY } from '../src/config';
-import { activePipe, flap, gapAt, gapCenters, newGame, step, type GameState, type Pipe } from '../src/game';
+import { BRAIN, GATE, LIVES, RESTART_DELAY, VIEW } from '../src/config';
+import { flap, FIRST_GATE_X, newGame, nextGate, openingAt, openingCenter, openings, step, type Gate, type GameState } from '../src/game';
 import { mulberry32 } from '../src/questions';
 
 const DT = 1 / 120;
@@ -11,109 +11,163 @@ function started(seed = 1): GameState {
   return s;
 }
 
-/** Run until the given pipe is judged, holding the balloon still and the pipe's chosen gap on it. */
-function flyThrough(s: GameState, pipe: Pipe, gap: 0 | 1 | 'wall') {
-  const y = 360;
-  for (let i = 0; i < 120 * 20 && pipe.result === null; i++) {
-    s.balloon.y = y;
-    s.balloon.vy = 0;
-    pipe.vy = 0;
-    const half = PIPE.gapSpacing / 2;
-    // Centre the chosen gap on the balloon, or put solid wall in front of it.
-    pipe.offset = gap === 0 ? y + half : gap === 1 ? y - half : y;
+/** Hold the brain at a fixed height until the gate is judged. */
+function holdAt(s: GameState, gate: Gate, y: number) {
+  for (let i = 0; i < 120 * 30 && gate.result === null && s.phase === 'playing'; i++) {
+    s.brain.y = y;
+    s.brain.vy = 0;
     step(s, DT);
   }
 }
 
-describe('balloon', () => {
-  it('drifts on its own but stays on screen', () => {
-    const s = started(4);
-    let moved = 0;
-    for (let i = 0; i < 120 * 60; i++) {
-      const before = s.balloon.y;
-      step(s, DT);
-      s.balloon.invuln = 99; // ignore pipes, just watch the drift
-      moved += Math.abs(s.balloon.y - before);
-      expect(s.balloon.y).toBeGreaterThanOrEqual(BALLOON.minY);
-      expect(s.balloon.y).toBeLessThanOrEqual(BALLOON.maxY);
-    }
-    expect(moved).toBeGreaterThan(1000);
+/**
+ * Plays like a careful player: steers for the right opening of the nearest gate it hasn't
+ * cleared yet (staying lined up until fully out of it), flapping whenever it sinks below.
+ */
+function autopilot(s: GameState) {
+  const g = s.gates.find((gate) => gate.x + GATE.width / 2 + BRAIN.hitRadius > BRAIN.x);
+  const target = g ? openingCenter(g, g.correct) : VIEW.height / 2;
+  if (s.brain.y > target + 12 && s.brain.vy > -60) flap(s);
+}
+
+describe('tutorial screen', () => {
+  it('shows a real first gate and keeps the brain hovering until the first flap', () => {
+    const s = newGame(mulberry32(1));
+    expect(s.gates).toHaveLength(1);
+    expect(s.gates[0].x).toBe(FIRST_GATE_X);
+    for (let i = 0; i < 120 * 5; i++) step(s, DT);
+    expect(s.phase).toBe('ready');
+    expect(s.gates[0].x).toBe(FIRST_GATE_X);
+    expect(Math.abs(s.brain.y - VIEW.height / 2)).toBeLessThanOrEqual(10);
+    expect(s.lives).toBe(LIVES);
   });
 });
 
-describe('pipes', () => {
-  it('only the active pipe flaps and falls; the others hold still', () => {
+describe('flight', () => {
+  it('flap pushes the brain up, then gravity pulls it down', () => {
     const s = started();
-    for (let i = 0; i < 120 * 4; i++) step(s, DT);
-    expect(s.pipes.length).toBeGreaterThan(1);
-    const [first, second] = s.pipes;
-    expect(activePipe(s)).toBe(first);
-    const secondOffset = second.offset;
-    const before = first.offset;
-    flap(s);
-    for (let i = 0; i < 10; i++) step(s, DT);
-    expect(first.offset).toBeLessThan(before);
-    expect(second.offset).toBe(secondOffset);
+    const y0 = s.brain.y;
+    for (let i = 0; i < 12; i++) step(s, DT);
+    expect(s.brain.y).toBeLessThan(y0);
+    for (let i = 0; i < 120; i++) step(s, DT);
+    expect(s.brain.vy).toBeGreaterThan(0);
   });
 
-  it('never leaves the offset range', () => {
+  it('the brain keeps its horizontal position; gates only move sideways', () => {
     const s = started();
-    const p = activePipe(s)!;
-    for (let i = 0; i < 120 * 2; i++) step(s, DT);
-    expect(p.offset).toBe(PIPE_OFFSET.max);
-    for (let i = 0; i < 400; i++) {
+    const g = s.gates[0];
+    const centerY = g.centerY;
+    const x0 = g.x;
+    for (let i = 0; i < 60; i++) {
+      if (i % 20 === 0) flap(s);
+      step(s, DT);
+    }
+    expect(g.x).toBeLessThan(x0);
+    expect(g.centerY).toBe(centerY);
+  });
+
+  it('the ceiling stops the climb without a penalty', () => {
+    const s = started();
+    for (let i = 0; i < 120 * 2; i++) {
       flap(s);
       step(s, DT);
+      s.brain.invuln = 0;
     }
-    expect(p.offset).toBe(PIPE_OFFSET.min);
+    expect(s.brain.y).toBe(BRAIN.ceiling + BRAIN.hitRadius);
+    expect(s.lives).toBe(LIVES);
   });
 
-  it('either gap can reach the balloon at both extremes', () => {
+  it('dropping to the floor costs a life', () => {
     const s = started();
-    const p = activePipe(s)!;
-    p.offset = PIPE_OFFSET.min;
-    expect(gapAt(p, BALLOON.minY)).toBe(1);
-    p.offset = PIPE_OFFSET.max;
-    expect(gapAt(p, BALLOON.maxY)).toBe(0);
-    expect(gapCenters(p)[0]).toBe(BALLOON.maxY);
+    for (let i = 0; i < 120 * 3 && s.lives === LIVES; i++) step(s, DT);
+    expect(s.lives).toBe(LIVES - 1);
+  });
+
+  it('the hit circle stays inside the drawn body, so wing tips never collide', () => {
+    expect(BRAIN.hitRadius).toBeLessThan(BRAIN.bodyRadius);
   });
 });
 
-describe('answers', () => {
-  it('the right gap scores and keeps lives', () => {
+describe('gates', () => {
+  it('the brain fits through each opening with room to spare', () => {
+    const s = newGame(mulberry32(1));
+    const g = s.gates[0];
+    for (const i of [0, 1] as const) {
+      const [top, bottom] = openings(g)[i];
+      expect(bottom - top).toBeGreaterThanOrEqual(BRAIN.hitRadius * 2 * 3);
+      expect(openingAt(g, openingCenter(g, i))).toBe(i);
+      expect(top).toBeGreaterThan(BRAIN.ceiling);
+      expect(bottom).toBeLessThan(BRAIN.floor);
+    }
+  });
+
+  it('the right answer moves between the upper and lower opening', () => {
+    const seen = new Set<number>();
+    const t = started(5);
+    for (let i = 0; i < 120 * 60; i++) {
+      t.brain.invuln = 99;
+      t.brain.y = VIEW.height / 2;
+      step(t, DT);
+      for (const g of t.gates) seen.add(g.correct);
+    }
+    expect(seen).toEqual(new Set([0, 1]));
+  });
+
+  it('the right opening scores once', () => {
     const s = started();
-    const p = activePipe(s)!;
-    flyThrough(s, p, p.correctGap);
-    expect(p.result).toBe('correct');
+    const g = s.gates[0];
+    holdAt(s, g, openingCenter(g, g.correct));
+    expect(g.result).toBe('correct');
     expect(s.score).toBe(1);
     expect(s.lives).toBe(LIVES);
-    expect(activePipe(s)).not.toBe(p);
+    // Keep flying through the rest of the gate: no second reward.
+    for (let i = 0; i < 120; i++) {
+      s.brain.y = openingCenter(g, g.correct);
+      step(s, DT);
+    }
+    expect(s.score).toBe(1);
   });
 
-  it('the wrong gap pops a life', () => {
+  it('the wrong opening costs one life, once', () => {
     const s = started();
-    const p = activePipe(s)!;
-    flyThrough(s, p, p.correctGap === 0 ? 1 : 0);
-    expect(p.result).toBe('wrong');
+    const g = s.gates[0];
+    const wrong = g.correct === 0 ? 1 : 0;
+    holdAt(s, g, openingCenter(g, wrong));
+    for (let i = 0; i < 120; i++) {
+      s.brain.y = openingCenter(g, wrong);
+      step(s, DT);
+    }
+    expect(g.result).toBe('wrong');
     expect(s.score).toBe(0);
     expect(s.lives).toBe(LIVES - 1);
-    expect(s.balloon.invuln).toBeGreaterThan(0);
   });
 
-  it('hitting the wall pops a life', () => {
+  it('hitting a solid part costs one life and the gate is not judged again', () => {
     const s = started();
-    const p = activePipe(s)!;
-    flyThrough(s, p, 'wall');
-    expect(p.result).toBe('crash');
+    const g = s.gates[0];
+    holdAt(s, g, g.centerY); // the middle section with the question
+    expect(g.result).toBe('crash');
+    for (let i = 0; i < 120 * 2; i++) {
+      s.brain.y = g.centerY;
+      step(s, DT);
+    }
     expect(s.lives).toBe(LIVES - 1);
   });
 
+  it('there is time to read each gate before it arrives', () => {
+    // From appearing at the right edge to reaching the brain, even at top speed.
+    const seconds = (VIEW.width - BRAIN.x) / GATE.maxSpeed;
+    expect(seconds).toBeGreaterThanOrEqual(3.5);
+  });
+});
+
+describe('game over', () => {
   it('losing every life ends the game, and a tap after the delay restarts', () => {
     const s = started();
     while (s.phase === 'playing') {
-      const p = activePipe(s)!;
-      s.balloon.invuln = 0;
-      flyThrough(s, p, 'wall');
+      const g = nextGate(s)!;
+      s.brain.invuln = 0;
+      holdAt(s, g, g.centerY);
     }
     expect(s.phase).toBe('over');
     expect(s.lives).toBe(0);
@@ -127,14 +181,6 @@ describe('answers', () => {
   });
 });
 
-/** Plays like a careful player: waits for the pipe to start falling, then flaps while the right gap is below the balloon. */
-function autopilot(s: GameState) {
-  const p = activePipe(s);
-  if (!p) return;
-  const gapY = gapCenters(p)[p.correctGap];
-  if (gapY > s.balloon.y + 4 && p.vy >= 0) flap(s);
-}
-
 describe('fairness', () => {
   it('a careful player can keep scoring', () => {
     for (const seed of [1, 2, 3, 4, 5]) {
@@ -144,6 +190,7 @@ describe('fairness', () => {
         step(s, DT);
       }
       expect(s.score, `seed ${seed}`).toBeGreaterThanOrEqual(15);
+      expect(s.lives, `seed ${seed}`).toBe(LIVES);
     }
   });
 });

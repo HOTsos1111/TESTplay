@@ -1,12 +1,14 @@
 # Happy Nerds
 
-A Flappy Bird knockoff with a twist: **you flap the pipes, not the bird.**
+Flappy Bird with a maths twist. You flap a **winged brain** through gates. Each gate shows **one question and two answers**, one beside each opening. Read the question, pick the right answer, and fly through that answer's opening.
 
-A balloon floats across the screen, puffing up and down at random on its own and carrying a number. Each pipe has **two gaps**, each labelled with a maths question. Work out which question equals the balloon's number, then flap the pipe so that gap lines up with the drifting balloon. Two moving things have to meet, and the gap has to be the right one.
-
-This is the **mechanics prototype**. Everything is drawn with flat placeholder shapes. Real art goes in [`assets/`](assets/) once the design is ready.
+This is the **mechanics prototype**. Everything is drawn with flat placeholder shapes in code. Real art goes in [`assets/`](assets/) once the design is ready.
 
 Happy Nerds is a standalone project. It shares nothing with the Homeward Hound game in the repo root.
+
+![Gameplay](docs/previews/gameplay.png)
+
+More previews: [tutorial](docs/previews/tutorial.png), [flap](docs/previews/flap.png), [wrong answer](docs/previews/wrong-answer.png), [phone](docs/previews/phone-tutorial.png).
 
 ## Run it
 
@@ -20,34 +22,54 @@ npm run build      # typecheck + static build into happy-nerds/dist/
 
 ## How to play
 
-| Action | Keyboard | Touch / mouse |
-|---|---|---|
-| Flap the active pipe up | Space, ↑ or W | Tap / click anywhere |
-| Start / try again | same | same |
+| Action | Keyboard | Mouse | Touch |
+|---|---|---|---|
+| Flap up | Space, ↑ or W | Click anywhere | Tap anywhere |
+| Start / try again | same | same | same |
 
-- Only the **active pipe** (yellow outline) moves. It falls under gravity, and each tap kicks it up a little. The other pipes wait their turn.
-- The balloon shows the answer for the active pipe.
-- Right gap: **+1** score. Wrong gap or wall: the balloon pops and you lose one of 3 lives. You get a short blink of safety, and the next pipe becomes active.
-- The game shows the right answer when you get one wrong, so it doubles as practice.
-- The pipes speed up a little with every correct answer. Your best score is saved in the browser.
+- The brain keeps the same spot across the screen. Each flap pushes it up, and gravity pulls it down between flaps. Touching the top of the screen just stops the climb. Dropping to the bottom costs a brain and bounces you back up.
+- Gates move toward you and never move up or down. Each gate has:
+  - an **upper opening** with its answer on the wall just above it,
+  - the **question** on the solid section between the openings,
+  - a **lower opening** with its answer on the wall just below it.
+
+  All three sit together, so you can compare both answers without looking back at the brain. The labels are on solid wall, never in the flight path.
+- **Right opening:** +1 point. **Wrong opening:** lose a brain, and the game shows the right answer. **Hitting a solid part:** lose a brain. Each gate is judged only once.
+- You have 3 brains. After losing one, you get a short blink of safety.
+- Gates speed up slightly with every correct answer. Your best score is saved in the browser.
+- The start screen is the tutorial. The first real gate waits on screen with its question and answers labelled, and the brain hovers until your first flap.
 
 ## Level 1: adding and taking away
 
 - Answers are 1–12. Numbers in questions are 0–20, and subtraction never goes below zero.
-- The wrong gap is always a near miss (±1 to 3), so you have to actually calculate it.
-- Levels are data (`MathLevel` in `src/questions.ts`), so new levels can raise the numbers or add operators.
+- The wrong answer is always a near miss (±1 to 3), so you have to actually work it out.
+- The right answer is randomly placed in the upper or lower opening.
+- Levels are data (`MathLevel` in `src/questions.ts`). Longer questions wrap onto several lines on the gate.
+
+## Collision and timing
+
+| Setting | Value | Why |
+|---|---|---|
+| Brain hit circle | radius 23 px | Inside the 30 px body drawing. Wings and wing tips never collide. |
+| Opening height | 170 px | More than 3× the hit circle, so there's room to be a bit off. |
+| Question section | 150 px | Fits a wrapped question of up to 3 lines. |
+| Gate speed | 170 → 250 px/s | At top speed, a gate still takes over 3.5 s from the right edge to the brain, enough time to read and steer. |
+| Gate spacing | 640 px | Enough time to cross from one opening to the other between gates. |
+| Flap / gravity | 430 px/s up, 1250 px/s² | Each tap gives a short, controllable hop. |
+
+All tuning is in `src/config.ts`.
 
 ## Code map
 
 | File | What it does |
 |---|---|
-| `src/config.ts` | All tuning: balloon drift, pipe gravity/flap, gap sizes, speed, lives |
-| `src/questions.ts` | Question and near-miss generator, level definitions, seeded RNG |
+| `src/config.ts` | All tuning: brain flight, gate layout, speed, lives |
+| `src/questions.ts` | Question and near-miss answer generator, level definitions, seeded RNG |
 | `src/game.ts` | Pure game state and fixed-step simulation (no DOM), so it's easy to test |
-| `src/render.ts` | Canvas drawing (placeholder shapes) |
-| `src/main.ts` | Loop, input, screen fit, best-score storage |
-| `tests/` | Question correctness, pipe/balloon rules, and a fairness check: an autopilot that plays like a careful player must keep scoring |
+| `src/render.ts` | Canvas drawing: winged brain (flap animation, idle flutter, tilt), gates, tutorial, HUD |
+| `src/main.ts` | Loop, keyboard/mouse/touch input, screen fit, best-score storage |
+| `tests/` | Question correctness, flight and gate rules, judged-once checks, and a fairness check: an autopilot that flies like a careful player must keep scoring without losing a brain |
 
-## Tuning notes
+## Not built yet
 
-The pipe flap was tuned against the autopilot. With big flaps (one tap lifting the pipe ~60–90 px), the pipe overshoots the gap even with perfect timing. At the current setting each tap lifts it about 36 px against roughly ±70 px of leeway in the gap. A careful player can clear nearly every pipe, and sloppy timing costs balloons. To make it harder, shrink `PIPE.gapHeight` or raise `BALLOON.puffStrength` in `src/config.ts`.
+The design brief mentions combo/XP rewards, categories, level progression, an IQ Meter, achievements and category completion bonuses. None of these exist in this prototype yet. Score and lives are the only progress so far.

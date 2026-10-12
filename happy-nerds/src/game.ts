@@ -1,202 +1,217 @@
-import { BALLOON, INVULN, LIVES, PIPE, PIPE_OFFSET, RESTART_DELAY, VIEW } from './config';
-import { LEVEL_1, makePair, type MathLevel, type Question, type Rng } from './questions';
+import { BRAIN, GATE, INVULN, LIVES, RESTART_DELAY, VIEW } from './config';
+import { LEVEL_1, makeProblem, type MathLevel, type Rng } from './questions';
 
 export type Phase = 'ready' | 'playing' | 'over';
-export type PipeResult = 'correct' | 'wrong' | 'crash' | 'skipped';
+export type GateResult = 'correct' | 'wrong' | 'crash' | 'skipped';
 
-export interface Pipe {
+/** A gate with two fixed openings. It only moves sideways. */
+export interface Gate {
   x: number;
-  /** Midpoint between the two gaps. Only the active pipe moves. */
-  offset: number;
-  vy: number;
-  /** questions[0] is the upper gap, questions[1] the lower. */
-  questions: [Question, Question];
-  correctGap: 0 | 1;
-  answer: number;
-  result: PipeResult | null;
+  /** Middle of the solid section that carries the question. */
+  centerY: number;
+  question: string;
+  /** answers[0] belongs to the upper opening, answers[1] to the lower. */
+  answers: [number, number];
+  correct: 0 | 1;
+  /** Set once, the first time the gate is judged; it is never judged again. */
+  result: GateResult | null;
 }
 
-export interface Balloon {
+export interface Brain {
   y: number;
   vy: number;
-  puffTimer: number;
   invuln: number;
+  /** Seconds since the last flap, for the wing animation. */
+  sinceFlap: number;
 }
 
 export type GameEvent =
-  | { type: 'correct'; pipe: Pipe }
-  | { type: 'wrong'; pipe: Pipe }
-  | { type: 'crash'; pipe: Pipe }
+  | { type: 'flap' }
+  | { type: 'correct'; gate: Gate }
+  | { type: 'wrong'; gate: Gate }
+  | { type: 'crash'; gate?: Gate }
   | { type: 'over' };
 
 export interface GameState {
   phase: Phase;
   level: MathLevel;
   rng: Rng;
-  balloon: Balloon;
-  pipes: Pipe[];
+  brain: Brain;
+  gates: Gate[];
   score: number;
   lives: number;
   speed: number;
-  /** Scroll distance left before the next pipe spawns. */
+  /** Scroll distance left before the next gate spawns. */
   untilSpawn: number;
-  /** Time spent on the game-over screen. */
-  overTime: number;
-  /** Things that happened this step, for sounds and pop-ups. Drained by the caller. */
+  /** Time spent on the current screen (ready bob, game-over delay). */
+  phaseTime: number;
+  /** Things that happened since the caller last drained this, for sounds and pop-ups. */
   events: GameEvent[];
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
+/** Where the first gate waits on the tutorial screen. */
+export const FIRST_GATE_X = 900;
+
 export function newGame(rng: Rng = Math.random, level: MathLevel = LEVEL_1): GameState {
-  return {
+  const s: GameState = {
     phase: 'ready',
     level,
     rng,
-    balloon: { y: VIEW.height / 2, vy: 0, puffTimer: 0.6, invuln: 0 },
-    pipes: [],
+    brain: { y: VIEW.height / 2, vy: 0, invuln: 0, sinceFlap: 9 },
+    gates: [],
     score: 0,
     lives: LIVES,
-    speed: PIPE.startSpeed,
+    speed: GATE.startSpeed,
     untilSpawn: 0,
-    overTime: 0,
+    phaseTime: 0,
     events: [],
   };
+  // The first gate is on screen from the start, so the tutorial can point at a real one.
+  spawnGate(s, FIRST_GATE_X);
+  s.untilSpawn = GATE.spacing - (VIEW.width + GATE.width - FIRST_GATE_X);
+  return s;
 }
 
-export function spawnPipe(s: GameState, x = VIEW.width + PIPE.width): Pipe {
-  const pair = makePair(s.rng, s.level);
-  const correctGap: 0 | 1 = s.rng() < 0.5 ? 0 : 1;
-  const pipe: Pipe = {
+export function spawnGate(s: GameState, x = VIEW.width + GATE.width): Gate {
+  const p = makeProblem(s.rng, s.level);
+  const correct: 0 | 1 = s.rng() < 0.5 ? 0 : 1;
+  const gate: Gate = {
     x,
-    offset: VIEW.height / 2 + (s.rng() * 2 - 1) * 150,
-    vy: 0,
-    questions: correctGap === 0 ? [pair.correct, pair.wrong] : [pair.wrong, pair.correct],
-    correctGap,
-    answer: pair.answer,
+    centerY: GATE.centerY + (s.rng() * 2 - 1) * GATE.centerJitter,
+    question: p.question,
+    answers: correct === 0 ? [p.answer, p.wrong] : [p.wrong, p.answer],
+    correct,
     result: null,
   };
-  s.pipes.push(pipe);
-  return pipe;
+  s.gates.push(gate);
+  return gate;
 }
 
-/** The pipe the player is steering: the nearest one the balloon hasn't reached yet. */
-export function activePipe(s: GameState): Pipe | undefined {
-  return s.pipes.find((p) => p.result === null);
+/** Top and bottom of each opening: [upper, lower]. */
+export function openings(gate: Gate): [[number, number], [number, number]] {
+  const half = GATE.middleHeight / 2;
+  const h = GATE.openingHeight;
+  return [
+    [gate.centerY - half - h, gate.centerY - half],
+    [gate.centerY + half, gate.centerY + half + h],
+  ];
 }
 
-export function gapCenters(pipe: Pipe): [number, number] {
-  const half = PIPE.gapSpacing / 2;
-  return [pipe.offset - half, pipe.offset + half];
+export function openingCenter(gate: Gate, i: 0 | 1): number {
+  const [top, bottom] = openings(gate)[i];
+  return (top + bottom) / 2;
 }
 
-/** Which gap the balloon's hitbox fits inside at height `y`, or -1 for neither. */
-export function gapAt(pipe: Pipe, y: number): 0 | 1 | -1 {
-  const r = BALLOON.radius * BALLOON.hitScale;
-  const half = PIPE.gapHeight / 2;
-  const [a, b] = gapCenters(pipe);
-  if (y - r >= a - half && y + r <= a + half) return 0;
-  if (y - r >= b - half && y + r <= b + half) return 1;
+/** Which opening the brain's hit circle fits inside at height `y`, or -1 for neither. */
+export function openingAt(gate: Gate, y: number): 0 | 1 | -1 {
+  const r = BRAIN.hitRadius;
+  const o = openings(gate);
+  for (const i of [0, 1] as const) if (y - r >= o[i][0] && y + r <= o[i][1]) return i;
   return -1;
 }
 
-export function overlapsPipe(pipe: Pipe): boolean {
-  return Math.abs(pipe.x - BALLOON.x) < PIPE.width / 2 + BALLOON.radius * BALLOON.hitScale;
+export function overlapsGate(gate: Gate): boolean {
+  return Math.abs(gate.x - BRAIN.x) < GATE.width / 2 + BRAIN.hitRadius;
 }
 
-/** Tap / space. Starts, flaps the active pipe, or restarts. */
+/** The next gate the brain hasn't been judged at yet. */
+export function nextGate(s: GameState): Gate | undefined {
+  return s.gates.find((g) => g.result === null);
+}
+
+/** Tap / click / space: starts, flaps the brain, or restarts. */
 export function flap(s: GameState): void {
   if (s.phase === 'over') {
-    if (s.overTime < RESTART_DELAY) return;
+    if (s.phaseTime < RESTART_DELAY) return;
     Object.assign(s, newGame(s.rng, s.level));
   }
   if (s.phase === 'ready') {
     s.phase = 'playing';
-    spawnPipe(s);
-    s.untilSpawn = PIPE.spacing;
+    s.phaseTime = 0;
   }
-  const pipe = activePipe(s);
-  if (pipe) pipe.vy = -PIPE.flapSpeed;
+  s.brain.vy = -BRAIN.flapSpeed;
+  s.brain.sinceFlap = 0;
+  s.events.push({ type: 'flap' });
 }
 
-function loseLife(s: GameState, pipe: Pipe, type: 'wrong' | 'crash') {
-  if (pipe.result === null) pipe.result = type;
+function penalize(s: GameState, type: 'wrong' | 'crash', gate?: Gate) {
+  if (gate && gate.result === null) gate.result = type;
   s.lives -= 1;
-  s.balloon.invuln = INVULN;
-  s.events.push({ type, pipe });
+  s.brain.invuln = INVULN;
+  s.events.push(type === 'wrong' ? { type, gate: gate! } : { type, gate });
   if (s.lives <= 0) {
     s.phase = 'over';
-    s.overTime = 0;
+    s.phaseTime = 0;
     s.events.push({ type: 'over' });
   }
 }
 
-function stepBalloon(s: GameState, dt: number) {
-  const b = s.balloon;
-  b.puffTimer -= dt;
-  if (b.puffTimer <= 0) {
-    b.vy += (s.rng() * 2 - 1) * BALLOON.puffStrength;
-    b.puffTimer = BALLOON.puffMin + s.rng() * (BALLOON.puffMax - BALLOON.puffMin);
-  }
-  b.vy += (VIEW.height / 2 - b.y) * BALLOON.centerPull * dt;
-  b.vy -= b.vy * BALLOON.damping * dt;
-  b.vy = clamp(b.vy, -BALLOON.maxSpeed, BALLOON.maxSpeed);
-  b.y += b.vy * dt;
-  if (b.y < BALLOON.minY || b.y > BALLOON.maxY) {
-    b.y = clamp(b.y, BALLOON.minY, BALLOON.maxY);
-    b.vy = -b.vy * 0.5;
-  }
+function stepBrain(s: GameState, dt: number) {
+  const b = s.brain;
+  b.sinceFlap += dt;
   b.invuln = Math.max(0, b.invuln - dt);
-}
-
-function stepPipe(pipe: Pipe, dt: number) {
-  pipe.vy = Math.min(pipe.vy + PIPE.gravity * dt, PIPE.maxFall);
-  pipe.offset += pipe.vy * dt;
-  if (pipe.offset < PIPE_OFFSET.min || pipe.offset > PIPE_OFFSET.max) {
-    pipe.offset = clamp(pipe.offset, PIPE_OFFSET.min, PIPE_OFFSET.max);
-    pipe.vy = 0;
+  if (s.phase === 'ready') {
+    // Hover gently in place until the first flap.
+    b.y = VIEW.height / 2 + Math.sin(s.phaseTime * 3) * 10;
+    b.vy = 0;
+    return;
+  }
+  b.vy = Math.min(b.vy + BRAIN.gravity * dt, BRAIN.maxFall);
+  b.y += b.vy * dt;
+  if (b.y - BRAIN.hitRadius < BRAIN.ceiling) {
+    b.y = BRAIN.ceiling + BRAIN.hitRadius;
+    b.vy = Math.max(0, b.vy);
+  }
+  if (b.y + BRAIN.hitRadius > BRAIN.floor) {
+    b.y = BRAIN.floor - BRAIN.hitRadius;
+    if (b.invuln <= 0) penalize(s, 'crash');
+    // Bounce back up so a dropped brain gets another go.
+    b.vy = -BRAIN.flapSpeed;
+    b.sinceFlap = 0;
   }
 }
 
 export function step(s: GameState, dt: number): void {
-  if (s.phase === 'over') {
-    s.overTime += dt;
-    return;
-  }
-  stepBalloon(s, dt);
-  if (s.phase === 'ready') return;
-
-  const active = activePipe(s);
-  if (active) stepPipe(active, dt);
+  s.phaseTime += dt;
+  if (s.phase === 'over') return;
+  stepBrain(s, dt);
+  if (s.phase !== 'playing') return;
 
   const dx = s.speed * dt;
-  for (const p of s.pipes) p.x -= dx;
+  for (const g of s.gates) g.x -= dx;
   s.untilSpawn -= dx;
   if (s.untilSpawn <= 0) {
-    spawnPipe(s);
-    s.untilSpawn += PIPE.spacing;
+    spawnGate(s);
+    s.untilSpawn += GATE.spacing;
   }
 
-  const by = s.balloon.y;
-  for (const p of s.pipes) {
+  const y = s.brain.y;
+  for (const g of s.gates) {
     if (s.phase !== 'playing') break;
-    // The moment the balloon's centre reaches the pipe's centre decides the answer.
-    if (p.result === null && p.x <= BALLOON.x) {
-      const gap = gapAt(p, by);
-      if (gap === p.correctGap) {
-        p.result = 'correct';
+    const inside = openingAt(g, y);
+    // Solid parts of the gate.
+    if (overlapsGate(g) && inside === -1 && s.brain.invuln <= 0) penalize(s, 'crash', g);
+    // The answer is decided once, as the brain's centre reaches the gate's centre.
+    if (g.result === null && g.x <= BRAIN.x) {
+      if (s.brain.invuln > 0) {
+        g.result = 'skipped';
+      } else if (inside === g.correct) {
+        g.result = 'correct';
         s.score += 1;
-        s.speed = Math.min(PIPE.maxSpeed, PIPE.startSpeed + s.score * PIPE.speedPerPoint);
-        s.events.push({ type: 'correct', pipe: p });
-      } else if (gap !== -1 && s.balloon.invuln <= 0) {
-        loseLife(s, p, 'wrong');
-      } else if (s.balloon.invuln > 0) {
-        // Still recovering from a pop: let this pipe go by without judging it.
-        p.result = 'skipped';
+        s.speed = Math.min(GATE.maxSpeed, GATE.startSpeed + s.score * GATE.speedPerPoint);
+        s.events.push({ type: 'correct', gate: g });
+      } else {
+        penalize(s, 'wrong', g);
       }
     }
-    if (s.balloon.invuln <= 0 && overlapsPipe(p) && gapAt(p, by) === -1) loseLife(s, p, 'crash');
   }
 
-  s.pipes = s.pipes.filter((p) => p.x > -PIPE.width);
+  s.gates = s.gates.filter((g) => g.x > -GATE.width);
+}
+
+/** Lean into the climb or dive: radians, nose-down positive. */
+export function brainTilt(b: Brain): number {
+  return clamp(b.vy / 900, -0.35, 0.55);
 }

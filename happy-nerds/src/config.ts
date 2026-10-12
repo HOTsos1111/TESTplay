@@ -1,45 +1,36 @@
 /** Logical play area. The canvas is scaled to fit the window. */
 export const VIEW = { width: 1280, height: 720 };
 
-export const BALLOON = {
-  /** The balloon holds this x; the pipes scroll past it. */
+/** The winged brain. The player flaps it; gravity pulls it down between flaps. */
+export const BRAIN = {
+  /** The brain holds this x; the gates scroll toward it. */
   x: 360,
-  radius: 30,
-  /** Hitbox is a little smaller than the drawing so grazes feel fair. */
-  hitScale: 0.85,
-  minY: 110,
-  maxY: 610,
-  /** Seconds between the balloon's own random puffs. */
-  puffMin: 0.45,
-  puffMax: 1.3,
-  /** Largest vertical kick (px/s) a single puff gives. */
-  puffStrength: 160,
-  damping: 1.4,
-  /** Weak spring back toward the middle so it never camps at an edge. */
-  centerPull: 0.6,
-  maxSpeed: 160,
+  /** Size of the drawn body (the wings stick out beyond it). */
+  bodyRadius: 30,
+  /** Collision circle around the main body only. Smaller than the drawing so grazes are forgiven. */
+  hitRadius: 23,
+  gravity: 1250,
+  flapSpeed: 430,
+  maxFall: 620,
+  /** Touching the ceiling just stops the climb; touching the floor costs a life. */
+  ceiling: 40,
+  floor: VIEW.height - 30,
 };
 
-export const PIPE = {
+export const GATE = {
   width: 120,
-  gapHeight: 190,
-  /** Distance between the two gap centres in one pipe. */
-  gapSpacing: 300,
-  /** The active pipe falls under gravity; each tap flaps it upward. */
-  gravity: 1100,
-  flapSpeed: 280,
-  maxFall: 600,
-  /** Horizontal distance between pipes. */
-  spacing: 560,
-  startSpeed: 190,
-  speedPerPoint: 4,
-  maxSpeed: 300,
-};
-
-/** Pipe offset limits: either gap can line up with anywhere the balloon can go. */
-export const PIPE_OFFSET = {
-  min: BALLOON.minY - PIPE.gapSpacing / 2,
-  max: BALLOON.maxY + PIPE.gapSpacing / 2,
+  /** Height of each answer opening. */
+  openingHeight: 170,
+  /** Solid section between the openings that carries the question. */
+  middleHeight: 150,
+  /** Gate centres vary a little so every gate isn't flown at the same height. */
+  centerY: VIEW.height / 2 + 5,
+  centerJitter: 30,
+  /** Horizontal distance between gates. */
+  spacing: 640,
+  startSpeed: 170,
+  speedPerPoint: 3,
+  maxSpeed: 250,
 };
 
 export const LIVES = 3;

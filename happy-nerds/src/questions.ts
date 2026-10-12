@@ -1,15 +1,11 @@
 export type Rng = () => number;
 
-export interface Question {
-  text: string;
-  value: number;
-}
-
-/** One pipe's maths: the balloon carries `answer`; one gap is right, one is a near miss. */
-export interface QuestionPair {
+/** One gate's maths: a question and two answers, exactly one of them right. */
+export interface Problem {
+  question: string;
   answer: number;
-  correct: Question;
-  wrong: Question;
+  /** A near miss, never equal to the answer and never negative. */
+  wrong: number;
 }
 
 export interface MathLevel {
@@ -44,24 +40,24 @@ export function mulberry32(seed: number): Rng {
   };
 }
 
-/** An addition or subtraction question that equals `value`, never going below zero. */
-export function makeQuestion(value: number, rng: Rng, level: MathLevel = LEVEL_1): Question {
+/** An addition or subtraction sum that equals `value`, never going below zero. */
+export function makeSum(value: number, rng: Rng, level: MathLevel = LEVEL_1): string {
   const canSubtract = value + 1 <= level.maxOperand;
   if (canSubtract && rng() < 0.5) {
     const b = randInt(rng, 1, Math.min(10, level.maxOperand - value));
-    return { text: `${value + b} − ${b}`, value };
+    return `${value + b} − ${b}`;
   }
   // Keep both addends at least 1 when possible ("0 + 5" is too easy to spot).
   const a = value >= 2 ? randInt(rng, 1, value - 1) : 0;
-  return { text: `${a} + ${value - a}`, value };
+  return `${a} + ${value - a}`;
 }
 
-export function makePair(rng: Rng, level: MathLevel = LEVEL_1): QuestionPair {
+export function makeProblem(rng: Rng, level: MathLevel = LEVEL_1): Problem {
   const answer = randInt(rng, level.minAnswer, level.maxAnswer);
-  let wrongValue = answer;
-  while (wrongValue === answer || wrongValue < 0) {
+  let wrong = answer;
+  while (wrong === answer || wrong < 0) {
     const miss = randInt(rng, 1, level.maxMiss);
-    wrongValue = answer + (rng() < 0.5 ? -miss : miss);
+    wrong = answer + (rng() < 0.5 ? -miss : miss);
   }
-  return { answer, correct: makeQuestion(answer, rng, level), wrong: makeQuestion(wrongValue, rng, level) };
+  return { question: `${makeSum(answer, rng, level)} = ?`, answer, wrong };
 }

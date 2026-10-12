@@ -7,7 +7,7 @@ Suggested layout:
 ```
 assets/
   reference/   design docs, mock-ups, mood boards (not shipped)
-  sprites/     balloon, pipes, backgrounds, UI
+  sprites/     winged brain, gates, backgrounds, UI
   audio/       sound effects and music
 ```
 
