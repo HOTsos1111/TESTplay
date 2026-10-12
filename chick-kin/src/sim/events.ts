@@ -41,6 +41,7 @@ export type SimEvent =
   | { type: 'roundEnd'; round: number; order: number[] }
   | { type: 'tiebreak' }
   | { type: 'timerLow'; seconds: number }
+  | { type: 'spawn'; item: 'crumb'; x: number; y: number }
   | { type: 'finish' };
 
 export class EventLog {

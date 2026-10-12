@@ -54,7 +54,7 @@ export function stepTop(a: Actor, inp: ActorInput, ar: ArenaRuntime, others: Act
     startAbility(a, ctx);
     const hx = Math.cos(a.heading), hy = Math.sin(a.heading);
     if (a.cls === 'mighty') {
-      a.vx += hx * 3.5; a.vy += hy * 3.5;
+      a.vx += hx * 2.8; a.vy += hy * 2.8;
       fluffBumpTop(a, ar, others, ctx);
     } else if (a.cls === 'nimble') {
       if (a.z <= 0.01) a.vz = hopVelocity(a) * 1.15;
@@ -70,8 +70,8 @@ export function stepTop(a: Actor, inp: ActorInput, ar: ArenaRuntime, others: Act
     const hx = Math.cos(a.heading), hy = Math.sin(a.heading);
     tx = hx * base * sm; ty = hy * base * sm;
   }
-  let acc = a.g.top.accel;
-  if (a.onSeed) acc *= a.hasPower('PU-06') ? 0.7 : 0.22;
+  let acc = a.g.top.accel * a.tuning.agility;
+  if (a.onSeed) acc *= a.hasPower('PU-06') ? 0.7 : Math.min(0.5, 0.22 * a.tuning.agility);
   if (!control) { tx = 0; ty = 0; acc = 7; }
   if (a.z > 0.01) acc *= 0.6;
   const dx = tx - a.vx, dy = ty - a.vy;
@@ -123,8 +123,8 @@ export function stepTop(a: Actor, inp: ActorInput, ar: ArenaRuntime, others: Act
     const d = Math.hypot(ddx, ddy);
     const minD = a.r + o.r;
     if (d < minD && d > 1e-6 && Math.abs(a.z - o.z) < 0.4) {
-      const wa = 1 / (a.tuning.bumpRes * (a.bracing ? 2.5 : 1));
-      const wo = 1 / (o.tuning.bumpRes * (o.bracing ? 2.5 : 1));
+      const wa = 1 / (a.tuning.bumpRes * (a.bracing ? 2 : 1));
+      const wo = 1 / (o.tuning.bumpRes * (o.bracing ? 2 : 1));
       const k = (minD - d) * (wa / (wa + wo));
       a.x += (ddx / d) * k; a.y += (ddy / d) * k;
       // Zoomies passes nudge siblings aside without stunning.
@@ -206,7 +206,7 @@ function fluffBumpTop(a: Actor, ar: ArenaRuntime, others: Actor[], ctx: RuleCtx)
   const cx = a.x + hx * (a.r + 0.5), cy = a.y + hy * (a.r + 0.5);
   for (const o of others) {
     if (o === a) continue;
-    if (Math.hypot(o.x - cx, o.y - cy) < 0.75 + o.r) bump(o, hx, hy, 7 * a.pushForce, a.id, ctx);
+    if (Math.hypot(o.x - cx, o.y - cy) < 0.75 + o.r) bump(o, hx, hy, 5.2 * a.pushForce, a.id, ctx);
   }
   for (const e of ar.ents) {
     if (!e.alive) continue;

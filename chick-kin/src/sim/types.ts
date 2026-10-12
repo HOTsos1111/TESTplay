@@ -75,6 +75,11 @@ export interface ArenaDef {
   fallRecovery?: number;
   /** Seconds before a collected crumb spot respawns (limited symmetric replenishment). */
   crumbRespawn?: number;
+  /**
+   * Random crumb field: keeps `active` crumbs on the floor, each new one at a random candidate point
+   * away from every chick (no camping a fixed spawn). `respawn` is the [min, max] delay in seconds.
+   */
+  crumbField?: { points: [number, number][]; active: number; respawn: [number, number] };
   /** Camera framing hint. */
   camera?: 'close' | 'overhead' | 'three-quarter' | 'follow' | 'vertical';
 }

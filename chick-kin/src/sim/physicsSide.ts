@@ -83,7 +83,7 @@ export function stepSide(a: Actor, inp: ActorInput, ar: ArenaRuntime, others: Ac
       // Zoomies: ground dash; in the air from stage 3 it is a running flap launch (small lift).
       if (!a.grounded && a.stage >= 3) a.vy = Math.max(a.vy, 4);
     } else if (a.cls === 'mighty') {
-      a.vx += a.facing * 3;
+      a.vx += a.facing * 2.4;
       fluffBumpSide(a, ar, others, ctx);
     } else {
       // Fancy Feathers: evasive hop on the ground, extra hop in the air from stage 2.
@@ -98,12 +98,12 @@ export function stepSide(a: Actor, inp: ActorInput, ar: ArenaRuntime, others: Ac
   let target = mx * base * speedMult(a, a.onMud);
   if (a.cls === 'speedy' && a.abilityT > 0 && a.grounded) target = a.facing * base * speedMult(a, a.onMud);
   if (a.ducking) target *= a.bracing && a.cls === 'mighty' ? 0.6 : 0.5;
-  let acc = a.grounded ? g.accel : g.airAccel;
-  let dec = a.grounded ? g.accel * 1.25 : g.airAccel;
+  let acc = (a.grounded ? g.accel : g.airAccel) * a.tuning.agility;
+  let dec = (a.grounded ? g.accel * 1.25 : g.airAccel) * a.tuning.agility;
   if (a.onSeed) {
     const sticky = a.hasPower('PU-06');
-    acc *= sticky ? 0.75 : 0.3;
-    dec *= sticky ? 0.6 : 0.12;
+    acc *= sticky ? 0.75 : Math.min(0.6, 0.3 * a.tuning.agility);
+    dec *= sticky ? 0.6 : Math.min(0.5, 0.12 * a.tuning.agility);
   }
   if (!control) { target = 0; dec = a.grounded ? 8 : 2; }
   const accelerating = target !== 0 && (sign(target) === sign(a.vx) || a.vx === 0) && Math.abs(target) > Math.abs(a.vx);
@@ -341,7 +341,7 @@ function fluffBumpSide(a: Actor, ar: ArenaRuntime, others: Actor[], ctx: RuleCtx
   const reach = { x: a.facing > 0 ? a.x : a.x - a.w / 2 - 1.0, y: a.y, w: a.w / 2 + 1.0, h: a.colH };
   for (const o of others) {
     if (o === a) continue;
-    if (rectOverlap(reach, { x: o.x - o.w / 2, y: o.y, w: o.w, h: o.colH })) bump(o, a.facing, 0.4, 7 * a.pushForce, a.id, ctx);
+    if (rectOverlap(reach, { x: o.x - o.w / 2, y: o.y, w: o.w, h: o.colH })) bump(o, a.facing, 0.1, 2.6 * a.pushForce, a.id, ctx); // a stagger, not a launch off the platform
   }
   for (const e of ar.ents) {
     if (!e.alive || !rectOverlap(reach, e)) continue;
@@ -357,7 +357,7 @@ export function peckSide(a: Actor, ar: ArenaRuntime, ctx: RuleCtx) {
   const reach = { x: a.facing > 0 ? a.x : a.x - a.w / 2 - 0.45, y: a.y, w: a.w / 2 + 0.45, h: a.colH };
   for (const e of ar.ents) {
     if (e.t === 'straw' && e.alive && rectOverlap(reach, e)) {
-      e.hp -= 1;
+      e.hp -= a.cls === 'mighty' ? 3 : 1; // strong beak: one peck
       if (e.hp <= 0) { e.alive = false; ctx.ev.emit({ type: 'break', x: e.x + e.w / 2, y: e.y + e.h / 2 }); }
       return true;
     }

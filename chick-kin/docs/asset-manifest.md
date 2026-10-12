@@ -107,9 +107,9 @@ Environment IDs are chapter-namespaced (ENV-0C-NNN) per the brief.
 
 | ID | Name | Class | Cooldown | Duration | Stage evolution | Audio |
 |---|---|---|---|---|---|---|
-| AB-01 | Zoomies | Speedy | 6 s | 0.65 s | Quick scuttle → Dash → Running flap launch → Dash and snatch → Full Zoomies | ab.zoomies |
-| AB-02 | Fluff Bump | Mighty | 7 s | 0.3 s | Sturdy nudge → Shove → Perch brace → Heavy shove → Full Fluff Bump | ab.fluffbump |
-| AB-03 | Fancy Feathers | Nimble | 6 s | 0.4 s | Springy hop → Double hop → Controlled glide → Vault and dodge → Full Fancy Feathers | ab.fancy |
+| AB-01 | Zoomies | Speedy | 7 s | 0.65 s | Quick scuttle → Dash → Running flap launch → Dash and snatch → Full Zoomies | ab.zoomies |
+| AB-02 | Fluff Bump | Mighty | 8.5 s | 0.3 s | Sturdy nudge → Shove → Perch brace → Heavy shove → Full Fluff Bump | ab.fluffbump |
+| AB-03 | Fancy Feathers | Nimble | 4.5 s | 0.4 s | Springy hop → Double hop → Controlled glide → Vault and dodge → Full Fancy Feathers | ab.fancy |
 
 ## UI
 

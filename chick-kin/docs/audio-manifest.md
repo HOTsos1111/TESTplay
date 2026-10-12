@@ -32,6 +32,7 @@ Every sound in this build is **TEMP**: synthesized in code (`src/audio/synth.ts`
 | haz.spring | boing | 4 | hazards | 5 | 0.03s | 4 | 4% | 0.55 |  | TEMP |  |
 | haz.creak | creak | 4 | hazards | 2 | 0.6s | 4 | 4% | 0.4 |  | TEMP |  |
 | pick.crumb | crumb | 1 | pickups | 5 | 0.02s | 3 | 1% | 0.55 |  | TEMP | ascending pitch for rapid sequences (bounded +7 semitones) |
+| pick.spawn | crumb | 1 | pickups | 2 | 0.15s | 2 | 2% | 0.22 |  | TEMP | a crumb pops up somewhere (positional) |
 | pick.worm | worm | 4 | pickups | 6 | 0.03s | 4 | 4% | 0.6 |  | TEMP |  |
 | pick.feather | feather | 1 | pickups | 8 | 0.03s | 4 | 4% | 0.7 | yes | TEMP |  |
 | pick.bundle | husk | 5 | pickups | 5 | 0.03s | 4 | 4% | 0.6 |  | TEMP |  |

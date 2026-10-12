@@ -39,6 +39,14 @@ Issues found and fixed during review:
 - "Victory" eyes read as sunglasses.
 - Basket ownership shown by colour only (now name-tagged).
 
+## Level 1 rebuild and class balance (2026-10-12)
+
+- **1-1 First Crumbs** is now a braided straw maze, 25 × 18 m. Its layout is generated once from a fixed seed, with loops, low hop-over shortcuts and a central clearing.
+- **Random crumbs:** 1-1, 1-2, 1-4 and the 5-5 tie-break spawn crumbs at random open spots. A new crumb is never near a chick and never in the spot just emptied, so spawns can't be camped.
+- **Crumb visibility:** crumbs now glow, with a light beam and a pulsing ground ring, against a darker nest floor. A gold arrow at the player's feet points to the nearest crumb.
+- **Class rebalance:** see design-canonical.md §Balance pass.
+- **Tests:** all 198 pass after these changes, so every class still completes every level and every generation-3 variant.
+
 ## Known issues / not verified
 
 - **Balance** has not been playtested by humans (see design-canonical.md §Known balance questions). The biggest risks are Mighty in finish-first races and four-way perch stand-offs.

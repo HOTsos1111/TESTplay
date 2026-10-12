@@ -231,6 +231,7 @@ export class AudioDirector {
           else this.play('pick.treat', { x, gain: mine ? 1 : 0.4 });
           break;
         }
+        case 'spawn': this.play('pick.spawn', { x, pitch: 1.5 }); break;
         case 'power': this.play('pu.get', { x, gain: mine ? 1 : 0.5 }); break;
         case 'shield': this.play('pu.shield.break', { x }); break;
         case 'powerEnd': if (mine) this.play('pu.expire'); break;

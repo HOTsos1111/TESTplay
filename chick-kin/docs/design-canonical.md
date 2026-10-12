@@ -4,11 +4,15 @@ Values here are mirrored from code (`src/data/*.ts`, `src/sim/*.ts`). They are *
 
 ## Classes (brief §6)
 
-| Class | Run speed | Push force | Jump height | Flap endurance | Bump resistance | Signature ability | Optional route |
-|---|---:|---:|---:|---:|---:|---|---|
-| Speedy | 1.20 | 0.75 | 0.95 | 0.90 | 0.85 | AB-01 Zoomies — 0.65 s ground dash ×1.9, 6 s cooldown | Gold sprint |
-| Mighty | 0.85 | 1.30 | 0.85 | 0.85 | 1.30 | AB-02 Fluff Bump — forward nudge: staggers a sibling, shoves props, breaks straw; 7 s cooldown | Red shove |
-| Nimble | 1.00 | 0.75 | 1.20 | 1.25 | 0.75 | AB-03 Fancy Feathers — evasive hop / air hop + 0.45 s sibling-dodge window; 6 s cooldown | Teal aerial |
+| Class | Run speed | Push force | Jump height | Flap endurance | Bump resistance | Agility | Signature ability | Optional route |
+|---|---:|---:|---:|---:|---:|---:|---|---|
+| Speedy | 1.06 | 0.82 | 1.00 | 0.95 | 0.92 | 1.00 | AB-01 Zoomies — 0.65 s dash ×1.6, 7 s cooldown | Gold sprint |
+| Mighty | 0.97 | 1.18 | 0.90 | 0.90 | 1.12 | 0.85 | AB-02 Fluff Bump — forward nudge (a stagger in side views, a shove top-down), shoves props, breaks straw; 8.5 s cooldown | Red shove |
+| Nimble | 1.07 | 0.80 | 1.18 | 1.30 | 0.95 | 1.35 | AB-03 Fancy Feathers — evasive hop / air hop + 0.6 s sibling-dodge window; 4.5 s cooldown | Teal aerial |
+
+**Agility** scales acceleration, braking, air control and footing on seed spills (and softens mud). Class passives: Mighty has *sturdy legs* (mud slows it half as much) and a *strong beak* (straw breaks in one peck). Bracing doubles bump resistance for every class (no Mighty-only bonus).
+
+These values come from the 2026-10-12 balance pass (below); the brief's original table (Speedy 1.20 run, Mighty 1.30 push / 1.30 bump resistance, Nimble 0.75 bump resistance) produced lopsided results.
 
 Ability evolution by stage: Zoomies (quick scuttle → dash → running flap launch → dash-and-snatch → full), Fluff Bump (sturdy nudge → shove → perch brace → heavy shove → full), Fancy Feathers (springy hop → double hop → controlled glide → vault & dodge → full).
 
@@ -65,8 +69,30 @@ Personalities (independent of class): **bossy & confident**, **scrappy & competi
 - Variants: gen 1 none, gen 2 one, gen 3+ two seeded variants per level from that level's authored pool (extra telegraphed eggs, gusts, mud, seed). Variants never shrink platforms or widen gaps; tests confirm every gen-3 variant is completable by the weakest jumper.
 - Family perk: one modest perk chosen at the new brood (≤5%: Quick Feet +4% run, Strong Shoulders +5% push, Light Wings +5% flap, Springy Legs +4% jump, Sturdy Fluff +5% bump resistance). Never cumulative; any class may be chosen.
 
+## Balance pass (2026-10-12)
+
+Measured with `scripts/tournament.ts`: four AI chicks of equal skill per match, rotating line-ups and personalities, 6 matches × 25 levels. A perfectly even result is a 25% win share and an average place of 2.5 for each class.
+
+| Class | Wins before | Wins after | Avg place before | Avg place after |
+|---|---:|---:|---:|---:|
+| Speedy | 42% | 30% | 1.99 | 2.33 |
+| Mighty | 28% | 28% | 2.48 | 2.47 |
+| Nimble | 6% | 18% | 3.02 | 2.69 |
+
+What changed:
+- Speed spread narrowed (1.20/0.85/1.00 → 1.06/0.97/1.07).
+- Mighty's push and bump resistance were lowered; its brace no longer beats everyone else's.
+- Fluff Bump: weaker and on a longer cooldown, and only a stagger in side views.
+- Zoomies: ×1.9 → ×1.6, with a 7 s cooldown.
+- Fancy Feathers: shorter cooldown and a longer dodge window.
+- Agility added (acceleration, air control, footing).
+- Mighty gained sturdy legs (mud) and a strong beak (straw).
+- The AI no longer wastes time gliding.
+
+Per-level results still vary (each figure is 8 entries per class, so ±15% is noise). The clearest remaining leans are Mighty on perch levels (1-5, 4-2) and Speedy on straight races (2-5, 5-4). Human playtests should confirm before the next pass.
+
 ## Known balance questions (need human playtests)
 
-1. **Mighty in finish-first races** is the hardest matchup against Speedy rivals (base run 0.85 vs 1.20). Red shortcuts, Fluff Bump and straw smashing help, but the gap may still be too large at standard difficulty.
+1. **Perch levels** still lean toward Mighty and **straight races** toward Speedy (see the balance pass above).
 2. **Perch levels with four contenders** (1-5, 3-5, 5-2) resolve in roughly 1.5–4 min of AI-vs-AI time; human players who nudge and brace should finish faster.
 3. Speedy rivals sometimes beat the no-ability autopilot in 2-x races; human use of abilities and class routes is expected to win.

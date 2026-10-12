@@ -132,6 +132,7 @@ export class Match {
       for (const e of ar.ents) if (e.t === 'egg' && e.timer === -1) { e.timer = 0; this.ev.emit({ type: 'eggRelease', x: e.x, y: e.y }); }
       for (const e of ar.ents) if (e.t === 'wind' && e.warn && e.timer === 0) { e.timer = 1; this.ev.emit({ type: 'windWarn', x: e.x + e.w / 2, y: e.y + e.h / 2 }); }
     }
+    for (const ar of this.arenas) this.updateCrumbField(ar, dt);
     const parts = this.participants();
     for (const a of parts) {
       const ar = this.arenaOf(a);
@@ -247,7 +248,7 @@ export class Match {
           this.ev.emit({ type: 'gate', open: true, x: e.x + e.w / 2, y: e.y + e.h / 2 });
         } else if (e.t === 'straw') {
           a.peckT = 0.22;
-          e.hp -= 1;
+          e.hp -= a.cls === 'mighty' ? 3 : 1;
           this.ev.emit({ type: 'peck', a: a.id, x: e.x + e.w / 2, y: e.y + e.h / 2 });
           if (e.hp <= 0) { e.alive = false; this.ev.emit({ type: 'break', x: e.x + e.w / 2, y: e.y + e.h / 2 }); }
         } else if (e.t === 'scratch' || e.t === 'tugworm') {
@@ -329,6 +330,49 @@ export class Match {
       ar.addLoose('treat', a.x, a.y, Math.cos(ang) * 2.5, Math.sin(ang) * 2.5);
     }
     if (bundle) ar.addLoose('bundle', a.x, a.y, a.vx * 0.3, a.vy * 0.3);
+  }
+
+  // ------------------------------------------------------------------ random crumb field
+  private updateCrumbField(ar: ArenaRuntime, dt: number) {
+    const f = ar.def.crumbField;
+    if (!f) return;
+    if (!ar.crumbFieldReady) {
+      ar.crumbFieldReady = true;
+      for (let i = 0; i < f.active; i++) this.spawnFieldCrumb(ar, true);
+      return;
+    }
+    const alive = ar.loose.filter((l) => l.alive && l.kind === 'crumb').length;
+    const missing = f.active - alive - ar.crumbQueue.length;
+    for (let i = 0; i < missing; i++) ar.crumbQueue.push(this.rng.range(f.respawn[0], f.respawn[1]));
+    for (let i = ar.crumbQueue.length - 1; i >= 0; i--) {
+      ar.crumbQueue[i] -= dt;
+      if (ar.crumbQueue[i] <= 0) { ar.crumbQueue.splice(i, 1); this.spawnFieldCrumb(ar, false); }
+    }
+  }
+
+  /** Pick a random free candidate point away from chicks, other crumbs and the last spot used. */
+  private spawnFieldCrumb(ar: ArenaRuntime, initial: boolean) {
+    const f = ar.def.crumbField!;
+    const actors = this.participants().filter((a) => this.arenaOf(a) === ar);
+    const crumbs = ar.loose.filter((l) => l.alive && l.kind === 'crumb');
+    const ok = (i: number, minChick: number) => {
+      const [x, y] = f.points[i];
+      if (i === ar.lastCrumbSpot) return false;
+      if (crumbs.some((c) => Math.hypot(c.x - x, c.y - y) < 2.2)) return false;
+      if (!initial && actors.some((a) => Math.hypot(a.x - x, a.y - y) < minChick)) return false;
+      return true;
+    };
+    let pick = -1;
+    for (const minChick of [3.5, 2.0, 0]) {
+      const cands = f.points.map((_, i) => i).filter((i) => ok(i, minChick));
+      if (cands.length) { pick = this.rng.pick(cands); break; }
+    }
+    if (pick < 0) pick = this.rng.int(0, f.points.length - 1);
+    ar.lastCrumbSpot = pick;
+    const [x, y] = f.points[pick];
+    const l = ar.addLoose('crumb', x, y);
+    l.t = initial ? 1 : 0;
+    this.ev.emit({ type: 'spawn', item: 'crumb', x, y });
   }
 
   // ------------------------------------------------------------------ perch / tug / gates

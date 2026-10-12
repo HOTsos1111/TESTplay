@@ -77,7 +77,7 @@ export class ArenaView {
           o.position.set(cx, 0, cz);
         } else if (s.kind === 'straw') {
           const along = s.w >= s.h;
-          o = P.nestRim(Math.max(s.w, s.h), Math.min(s.w, s.h), Math.max(0.3, hgt));
+          o = P.nestRim(Math.max(s.w, s.h), Math.min(s.w, s.h), Math.max(0.3, Math.min(0.75, hgt)));
           o.rotation.y = along ? 0 : Math.PI / 2;
           o.position.set(cx, 0, cz);
         } else if (s.kind === 'fence') {
@@ -114,7 +114,7 @@ export class ArenaView {
     }
     // top-down floor inside the arena
     if (!this.side) {
-      const floorMat = d.theme === 'nest' ? P.M.straw() : d.theme === 'farmyard' || d.theme === 'championship' ? P.M.dirt() : P.M.plank();
+      const floorMat = d.theme === 'nest' ? P.M.nestFloor() : d.theme === 'farmyard' || d.theme === 'championship' ? P.M.dirt() : P.M.plank();
       const f = new THREE.Mesh(new THREE.PlaneGeometry(d.w, d.h), floorMat.clone());
       const fm = (f.material as THREE.MeshStandardMaterial);
       if (fm.map) { fm.map = fm.map.clone(); fm.map.needsUpdate = true; fm.map.repeat.set(d.w / 3, d.h / 3); }
@@ -134,7 +134,7 @@ export class ArenaView {
     const d = e.def as EntityDef;
     let o: THREE.Object3D | null = null;
     switch (d.t) {
-      case 'crumb': o = P.crumb(this.side ? 1.2 : 1.1); break;
+      case 'crumb': o = this.side ? P.crumb(1.2) : P.crumbBeacon(); break;
       case 'feather': o = P.goldenFeather(); o.scale.setScalar(0.7); break;
       case 'power': o = P.powerUp(d.pu); break;
       case 'egg': o = P.egg((d.r ?? 0.35) * 2.4); break;
@@ -238,7 +238,8 @@ export class ArenaView {
           const bx = (d as { x: number }).x, by = (d as { y: number }).y;
           const base = this.side ? this.pos(bx, by - 0.15) : this.pos(bx, by, 0);
           o.position.set(base.x, base.y + (e.t === 'crumb' ? 0.08 : 0.35) + Math.sin(t * 3 + e.i) * 0.06, base.z);
-          o.rotation.y = t * (e.t === 'feather' ? 1.6 : 1.2) + e.i;
+          if (e.t === 'crumb' && !this.side) this.animateBeacon(o, t + e.i, 1);
+          else o.rotation.y = t * (e.t === 'feather' ? 1.6 : 1.2) + e.i;
           const glow = o.getObjectByName('glow');
           if (glow) glow.quaternion.copy(this.cameraQuat);
           break;
@@ -345,13 +346,14 @@ export class ArenaView {
       seen.add(l.id);
       let o = this.loose.get(l.id);
       if (!o) {
-        o = l.kind === 'bundle' ? P.cornBundle() : l.kind === 'crumb' ? P.crumb(1.1) : P.treat();
+        o = l.kind === 'bundle' ? P.cornBundle() : l.kind === 'crumb' ? (this.side ? P.crumb(1.2) : P.crumbBeacon()) : P.treat();
         this.loose.set(l.id, o);
         this.group.add(o);
       }
       const hop = l.t < 0.35 ? Math.sin((l.t / 0.35) * Math.PI) * 0.5 : Math.sin(t * 3 + l.id) * 0.03;
       o.position.copy(this.pos(l.x, l.y, hop));
-      o.rotation.y = t + l.id;
+      if (l.kind === 'crumb') this.animateBeacon(o, t + l.id, Math.min(1, l.t / 0.35));
+      else o.rotation.y = t + l.id;
     }
     for (const [id, o] of this.loose) if (!seen.has(id)) { this.group.remove(o); this.loose.delete(id); }
     for (const r of this.rotors) r.rotation.z = t * 0.6;
@@ -359,6 +361,17 @@ export class ArenaView {
   }
 
   cameraQuat = new THREE.Quaternion();
+
+  /** Crumb beacon: spin, halo breathing, ring pulse; scales in when it pops up. */
+  private animateBeacon(o: THREE.Object3D, t: number, grow: number) {
+    const c = o.getObjectByName('crumb');
+    if (c) c.rotation.y = t * 1.5;
+    const halo = o.getObjectByName('halo') as THREE.Sprite | undefined;
+    if (halo) { halo.material.opacity = 0.65 + Math.sin(t * 4) * 0.25; halo.scale.setScalar(1.4 + Math.sin(t * 4) * 0.15); }
+    const ring = o.getObjectByName('ring') as THREE.Mesh | undefined;
+    if (ring) { const k = (t * 0.8) % 1; ring.scale.setScalar(0.8 + k * 1.2); (ring.material as THREE.MeshBasicMaterial).opacity = 0.9 * (1 - k); }
+    o.scale.setScalar(0.2 + grow * 0.8);
+  }
 
   /** Owner colours for baskets / perch (class UI colours by actor id). */
   static colorsFor(actors: Actor[]) { return actors.map((a) => CLASS_INFO[a.cls].colors.ui); }

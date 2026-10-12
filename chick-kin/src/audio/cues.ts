@@ -44,6 +44,7 @@ export const CUES: Record<string, Cue> = {
   'haz.spring': c('boing', 'hazards', { variants: 4, priority: 5, gain: 0.55 }),
   'haz.creak': c('creak', 'hazards', { variants: 4, priority: 2, cooldown: 0.6, gain: 0.4 }),
   'pick.crumb': c('crumb', 'pickups', { variants: 1, priority: 5, cooldown: 0.02, max: 3, pitch: 0.01, gain: 0.55, note: 'ascending pitch for rapid sequences (bounded +7 semitones)' }),
+  'pick.spawn': c('crumb', 'pickups', { variants: 1, priority: 2, cooldown: 0.15, max: 2, pitch: 0.02, gain: 0.22, note: 'a crumb pops up somewhere (positional)' }),
   'pick.worm': c('worm', 'pickups', { variants: 4, priority: 6, gain: 0.6 }),
   'pick.feather': c('feather', 'pickups', { variants: 1, priority: 8, gain: 0.7, duck: true }),
   'pick.bundle': c('husk', 'pickups', { variants: 5, priority: 5, gain: 0.6 }),

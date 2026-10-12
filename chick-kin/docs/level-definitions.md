@@ -8,10 +8,10 @@ Format: Close-quarters nest arena. Camera: Close overhead. Learn: Move and hop, 
 
 | ID | Title | Format | Objective | Mode / arena | Mechanics | Routes | Medals | Variants |
 |---|---|---|---|---|---|---|---|---|
-| 1-1 | First Crumbs | single | Collect 10 crumbs | First Crumbs: top 18×12 m | crumb×18, power×1 | nav-grid AI | first place | Wandering egg, Second wandering egg |
-| 1-2 | Egg Dodge | single | Collect 15 crumbs | Egg Dodge: top 22×14 m | egg×3, crumb×21, power×1 | nav-grid AI | first place | Faster lane, Double top lane |
+| 1-1 | First Crumbs | single | Collect 10 crumbs | First Crumbs: top 25.2×18 m | power×1 | nav-grid AI | first place | Wandering egg, Second wandering egg |
+| 1-2 | Egg Dodge | single | Collect 15 crumbs | Egg Dodge: top 22×14 m | egg×3, power×1 | nav-grid AI | first place | Faster lane, Double top lane |
 | 1-3 | Worm Tug | single | Win 3 tug worms | Worm Tug: top 22×14 m | tugworm×3, crumb×6, power×1 | nav-grid AI | first place | Rolling interloper |
-| 1-4 | Nest Neighbours | single | Collect 20 crumbs | Nest Neighbours: top 24×15 m | straw×2, bale×1, crumb×18, power×2 | nav-grid AI | first place | Corridor egg, Upper egg |
+| 1-4 | Nest Neighbours | single | Collect 20 crumbs | Nest Neighbours: top 24×15 m | straw×2, bale×1, power×2 | nav-grid AI | first place | Corridor egg, Upper egg |
 | 1-5 | Nest Champion | single | 15 s of uncontested perch ownership | Nest Champion: top 20×15 m | mound×1, perch×1, power×2, crumb×4 | nav-grid AI | first place | Circling egg, Return egg |
 
 ## Stage 2 — Coop Dash (Fluffy Chick)

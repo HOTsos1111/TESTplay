@@ -176,12 +176,11 @@ const showRace: ArenaDef = {
 const showPerch = perchArena();
 const showHaul = haulArena(3);
 const tiebreakArena: ArenaDef = {
-  mode: 'top', theme: 'championship', w: 16, h: 12, camera: 'close', crumbRespawn: 4,
+  mode: 'top', theme: 'championship', w: 16, h: 12, camera: 'close',
   starts: topStarts(8, 6, 1.2),
   solids: [...border(16, 12)],
-  entities: [
-    ...[[3, 3], [8, 2.5], [13, 3], [3, 9], [8, 9.5], [13, 9], [5, 6], [11, 6], [2.5, 6], [13.5, 6]].map(([x, y]) => ({ t: 'crumb' as const, x, y })),
-  ],
+  crumbField: { points: [[3, 3], [8, 2.5], [13, 3], [3, 9], [8, 9.5], [13, 9], [5, 6], [11, 6], [2.5, 6], [13.5, 6], [5.5, 3.5], [10.5, 3.5], [5.5, 8.5], [10.5, 8.5]], active: 5, respawn: [0.8, 1.8] },
+  entities: [],
 };
 const showdownPhases: PhaseDef[] = [
   { name: 'Race', objective: { kind: 'race', requireFirst: false }, arena: showRace },

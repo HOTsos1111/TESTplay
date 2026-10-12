@@ -25,7 +25,7 @@ export function bump(a: Actor, dirX: number, dirY: number, strength: number, by:
     ctx.ev.emit({ type: 'shield', a: a.id, x: a.x, y: a.y });
     return false;
   }
-  const res = a.tuning.bumpRes * (a.bracing ? (a.cls === 'mighty' ? 3 : 2) : 1);
+  const res = a.tuning.bumpRes * (a.bracing ? 2 : 1);
   const k = strength / res;
   a.stunT = Math.min(0.7, 0.32 + 0.18 * k / 4);
   a.protectT = a.stunT + PROTECT_TIME;
@@ -121,7 +121,7 @@ export function startAbility(a: Actor, ctx: RuleCtx) {
   a.abilityCd = ab.cooldown * (ctx.assist && a.isPlayer ? 0.8 : 1);
   a.abilityReadyNotified = false;
   a.abilityT = ab.duration;
-  if (a.cls === 'nimble') a.dodgeT = 0.45;
+  if (a.cls === 'nimble') a.dodgeT = 0.6;
   ctx.ev.emit({ type: 'ability', a: a.id, ability: ab.id, x: a.x, y: a.y });
   return ab.id;
 }
@@ -130,8 +130,9 @@ export function startAbility(a: Actor, ctx: RuleCtx) {
 export function speedMult(a: Actor, onMud: boolean): number {
   let m = 1;
   if (a.hasPower('PU-01')) m *= POWER_TUNING.speedSeedMult;
-  if (a.cls === 'speedy' && a.abilityT > 0) m *= a.stage === 1 ? 1.6 : 1.9;
-  if (onMud) m *= a.hasPower('PU-06') ? 0.75 : 0.55;
+  if (a.cls === 'speedy' && a.abilityT > 0) m *= a.stage === 1 ? 1.45 : 1.6;
+  // sturdy legs: Mighty loses half as much speed in mud; light feet: agility also helps
+  if (onMud) m *= a.hasPower('PU-06') ? 0.75 : a.cls === 'mighty' ? 0.78 : Math.min(0.75, 0.55 * Math.sqrt(a.tuning.agility));
   if (a.carryBundle) m *= 0.8;
   if (a.carryTreats > 0) m *= 1 - 0.05 * a.carryTreats;
   return Math.min(m, 2.2);
@@ -146,7 +147,7 @@ export function nudge(a: Actor, o: Actor, dirX: number, dirY: number, ctx: RuleC
   a.nudgeCd = 0.9;
   a.peckT = 0.2;
   if (o.protectT > 0 || o.dodgeT > 0) return false;
-  const res = o.tuning.bumpRes * (o.bracing ? (o.cls === 'mighty' ? 3 : 2) : 1);
+  const res = o.tuning.bumpRes * (o.bracing ? 2 : 1);
   const k = (4.2 * Math.sqrt(a.pushForce)) / res;
   const n = Math.hypot(dirX, dirY) || 1;
   o.vx += (dirX / n) * k;

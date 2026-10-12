@@ -34,6 +34,10 @@ export class ArenaRuntime {
   readonly solids: Solid[];
   readonly ents: Ent[];
   loose: LooseItem[] = [];
+  /** Pending random-field crumb respawns (seconds remaining). */
+  crumbQueue: number[] = [];
+  crumbFieldReady = false;
+  lastCrumbSpot = -1;
   private looseId = 1;
   time = 0;
   hazardSpeed: number;

@@ -33,10 +33,11 @@ describe('level content', () => {
             }
             if (e.t === 'power') expect(POWERS[e.pu]).toBeTruthy();
           }
+          for (const [x, y] of a.crumbField?.points ?? []) expect(insideSolid(a, x, y), `crumb spawn ${x},${y}`).toBe(false);
         });
         it(`${name}: objective entities exist`, () => {
           const has = (t: string) => a.entities.some((e) => e.t === t);
-          if (o.kind === 'collect') expect(has('crumb')).toBe(true);
+          if (o.kind === 'collect') expect(has('crumb') || (a.crumbField?.points.length ?? 0) >= a.crumbField!.active * 2).toBe(true);
           if (o.kind === 'tug') expect(has('tugworm')).toBe(true);
           if (o.kind === 'perch') expect(has('perch')).toBe(true);
           if (o.kind === 'race' || o.kind === 'reach') expect(has('finish')).toBe(true);
@@ -52,6 +53,7 @@ describe('level content', () => {
             const g = new NavGrid(ar, 0.3, 0.3);
             g.refresh();
             const targets = a.entities.filter((e) => ['crumb', 'tugworm', 'scratch', 'basket', 'cornpile', 'perch'].includes(e.t)) as { x: number; y: number; w?: number; h?: number; t: string }[];
+            for (const [x, y] of a.crumbField?.points ?? []) targets.push({ x, y, t: 'crumb' });
             for (const [sx, sy] of a.starts) for (const t of targets) {
               const tx = t.t === 'perch' ? t.x + (t.w ?? 0) / 2 : t.x, ty = t.t === 'perch' ? t.y + (t.h ?? 0) / 2 : t.y;
               expect(g.path(sx, sy, tx, ty, { hop: true, gate: true, straw: true }), `${t.t} ${tx},${ty} from ${sx},${sy}`).not.toBeNull();

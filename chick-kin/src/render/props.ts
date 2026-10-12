@@ -17,6 +17,7 @@ export const M = {
   woodLight: () => mat('woodLight', () => new THREE.MeshStandardMaterial({ map: woodTex(0xcf9a5c, 5, 'wl'), roughness: 0.8 })),
   plank: () => mat('plank', () => new THREE.MeshStandardMaterial({ map: woodTex(0xc08850, 2, 'pl'), roughness: 0.8 })),
   straw: () => mat('straw', () => new THREE.MeshStandardMaterial({ map: strawTex(0xe8b94f), roughness: 0.95 })),
+  nestFloor: () => mat('nestFloor', () => new THREE.MeshStandardMaterial({ map: strawTex(0x8c5a2e, 'nestfloor'), roughness: 1 })),
   hay: () => mat('hay', () => new THREE.MeshStandardMaterial({ map: strawTex(0xd9a843, 'hay'), roughness: 0.95 })),
   dirt: () => mat('dirt', () => new THREE.MeshStandardMaterial({ map: dirtTex(0x8f6538), roughness: 1 })),
   grass: () => mat('grass', () => new THREE.MeshStandardMaterial({ map: grassTex(0x6fae4c), roughness: 1 })),
@@ -278,6 +279,47 @@ export function crumb(scale = 1) {
   c2.scale.setScalar(scale * 0.5);
   c2.position.set(0.15 * scale, 0.07 * scale, 0.06 * scale);
   g.add(c2);
+  return g;
+}
+
+/** A crumb dressed to be found: bright, glowing, with a light beam and a pulsing ground ring. */
+export function crumbBeacon() {
+  const g = new THREE.Group();
+  const c = crumb(1.7);
+  c.name = 'crumb';
+  g.add(c);
+  const halo = new THREE.Sprite(mat('crumbHalo', () => new THREE.SpriteMaterial({ map: radialTex('rgba(255,214,90,0.95)', 'rgba(255,190,40,0)', 'crumbHalo'), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })).clone() as THREE.SpriteMaterial);
+  halo.scale.setScalar(1.5);
+  halo.position.y = 0.32;
+  halo.name = 'halo';
+  g.add(halo);
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.2, 2.4, 12, 1, true), mat('crumbBeam', () => {
+    const cnv = document.createElement('canvas'); cnv.width = 4; cnv.height = 64;
+    const x = cnv.getContext('2d')!; const gr = x.createLinearGradient(0, 0, 0, 64);
+    gr.addColorStop(0, 'rgba(255,230,140,0)'); gr.addColorStop(1, 'rgba(255,220,110,0.55)');
+    x.fillStyle = gr; x.fillRect(0, 0, 4, 64);
+    const t = new THREE.CanvasTexture(cnv);
+    return new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+  }));
+  beam.position.y = 1.2;
+  beam.name = 'beam';
+  g.add(beam);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.55, 32), mat('crumbRing', () => new THREE.MeshBasicMaterial({ color: 0xffd23a, transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide })).clone() as THREE.MeshBasicMaterial);
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = 0.03;
+  ring.name = 'ring';
+  g.add(ring);
+  return g;
+}
+
+/** Flat arrow that points the player toward the nearest crumb. */
+export function guideArrow() {
+  const shape = new THREE.Shape();
+  shape.moveTo(0, 0.42); shape.lineTo(0.3, 0); shape.lineTo(0.12, 0); shape.lineTo(0.12, -0.28); shape.lineTo(-0.12, -0.28); shape.lineTo(-0.12, 0); shape.lineTo(-0.3, 0); shape.lineTo(0, 0.42);
+  const m = new THREE.Mesh(new THREE.ShapeGeometry(shape), new THREE.MeshBasicMaterial({ color: 0xffd23a, transparent: true, opacity: 0.95, depthWrite: false, side: THREE.DoubleSide }));
+  m.rotation.x = -Math.PI / 2;
+  const g = new THREE.Group();
+  g.add(m);
   return g;
 }
 

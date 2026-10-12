@@ -245,7 +245,8 @@ export class SiblingAI {
       // flap if falling short of the target
       if (a.g.canFlap && a.vy < 0.5 && a.y < n.y + 0.25 && this.flapCd <= 0 && a.stamina >= 1 && (need > -0.2 || Math.abs(dx) > 1.0)) {
         if (!this.out.jump) { out.jump = true; this.flapCd = 0.28; } // edge-triggered flap
-      } else if (a.g.canGlide && a.vy < 0 && (a.y > n.y + 0.2 || Math.abs(dx) > 1.2) && a.stamina > 0.2 && this.flapCd < 0.1) {
+      } else if (a.g.canGlide && a.vy < 0 && a.y > n.y + 0.2 && Math.abs(dx) > 1.4 && a.stamina > 0.2 && this.flapCd < 0.1) {
+        // glide only to stretch a jump that would otherwise fall short (a slow descent costs time)
         out.jump = true; // glide (held)
         if (!this.out.jump) out.jump = false; // need a fresh hold after release (prevents accidental flap)
       }
@@ -411,6 +412,7 @@ export class SiblingAI {
       if (a.cls === 'speedy' && d > 4 && this.path && this.clearLine(g, a.x, a.y, tgt.x, tgt.y)) out.ability = true;
       if (a.cls === 'mighty') {
         const victim = m.actors.find((o) => o !== a && m.arenaOf(o) === ar && Math.hypot(o.x - a.x, o.y - a.y) < 1.2 && (o.carryTreats > 0 || o.carryBundle || tgt.kind === 'perch'));
+        // (Fluff Bump is a counter, not a default: bumpy personalities use it more often)
         if (victim && this.rng.next() < this.personality.bumpy) { a.heading = Math.atan2(victim.y - a.y, victim.x - a.x); out.mx = Math.cos(a.heading); out.my = Math.sin(a.heading); out.ability = true; }
       }
     }

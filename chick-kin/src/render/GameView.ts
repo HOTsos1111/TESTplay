@@ -26,11 +26,14 @@ export class GameView {
   private activeArena: ArenaRuntime | null = null;
   private colors: string[];
   reducedMotion = false;
+  private arrow = P.guideArrow();
 
   constructor(private r: Renderer, private m: Match) {
     this.cam = new CameraDirector(r.camera);
     r.scene.add(this.root);
     this.root.add(this.fx.group);
+    this.root.add(this.arrow);
+    this.arrow.visible = false;
     this.colors = ArenaView.colorsFor(m.actors);
     m.actors.forEach((a) => {
       const cm = new ChickModel(a.cls, a.stage);
@@ -107,11 +110,32 @@ export class GameView {
     });
     const pl = this.m.player;
     const pc = this.curr[pl.id];
+    this.updateGuide(ar, dt);
     const others = this.m.actors.filter((a) => a !== pl && this.m.arenaOf(a) === ar).map((a) => ({ x: a.x, y: a.y }));
     this.cam.update(dt, ar.def, { x: pc.x, y: pc.y, facing: pl.facing, others });
     const f = this.cam.focusPoint;
     this.r.focusShadows(f.x, f.y, f.z, side ? 14 : Math.max(ar.def.w, ar.def.h) * 0.7);
     this.fx.update(dt);
+  }
+
+  /** Gold arrow at the player's feet pointing to the nearest crumb (collect objectives, top-down). */
+  private guideT = 0;
+  private updateGuide(ar: ArenaRuntime, dt: number) {
+    const p = this.m.player;
+    const obj = this.m.phaseOf(p).objective;
+    this.arrow.visible = false;
+    if (ar.mode !== 'top' || obj.kind !== 'collect' || p.finished || this.m.state !== 'play') return;
+    let best: { x: number; y: number } | null = null, bd = Infinity;
+    for (const e of ar.ents) if (e.t === 'crumb' && e.alive) { const d = Math.hypot(e.x - p.x, e.y - p.y); if (d < bd) { bd = d; best = e; } }
+    for (const l of ar.loose) if (l.alive && l.kind === 'crumb') { const d = Math.hypot(l.x - p.x, l.y - p.y); if (d < bd) { bd = d; best = l; } }
+    if (!best || bd < 1.4) return;
+    this.guideT += dt;
+    const c = this.curr[p.id];
+    const ang = Math.atan2(best.y - c.y, best.x - c.x);
+    const r = 0.95 + Math.sin(this.guideT * 6) * 0.08;
+    this.arrow.visible = true;
+    this.arrow.position.set(c.x + Math.cos(ang) * r, 0.06 + c.z, c.y + Math.sin(ang) * r);
+    this.arrow.rotation.y = -ang - Math.PI / 2;
   }
 
   private modelScale(a: Actor, side: boolean) {
@@ -134,6 +158,7 @@ export class GameView {
       if (own && this.m.arenaOf(own) !== this.activeArena) continue;
       const at = (x: number, y: number, up = 0.3) => this.world(x, y + (this.activeArena?.mode === 'side' ? up : 0), this.activeArena?.mode === 'side' ? 0.4 : up);
       switch (e.type) {
+        case 'spawn': this.fx.emit('sparkle', at(e.x, e.y, 0.3), 8, { speed: 1.4, up: 2.2, size: 0.3, life: 0.8 }); break;
         case 'pickup':
           if (e.item === 'feather') this.fx.emit('star', at(e.x, e.y), 14, { speed: 2.5, up: 2.5, size: 0.35 });
           else this.fx.emit('sparkle', at(e.x, e.y), e.value > 1 ? 10 : 6, { speed: 1.6, up: 1.8, size: 0.22 });

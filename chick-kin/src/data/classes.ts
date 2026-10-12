@@ -9,6 +9,7 @@ export interface ClassTuning {
   jump: number;     // jump HEIGHT multiplier
   flap: number;     // flap endurance multiplier
   bumpRes: number;  // bump resistance multiplier
+  agility: number;  // acceleration, turning, air control and footing on mud / seed
 }
 
 export interface ClassInfo {
@@ -36,8 +37,8 @@ export const CLASS_INFO: Record<ChickClass, ClassInfo> = {
     colors: { body: 0xf7c23c, belly: 0xffe49a, wing: 0xeeac2a, tuft: 0xff7a55, face: 0xffdb7a, accent: '#f5b82e', ui: '#f2b632', uiDark: '#b5761a' },
     look: 'Golden-yellow, slim oval body, swept-back coral tuft.',
     strengths: ['Great at speed', 'Quick moves'], weaknesses: ['Not as strong'],
-    tuning: { run: 1.2, push: 0.75, jump: 0.95, flap: 0.9, bumpRes: 0.85 },
-    bars: { speed: 0.95, strength: 0.35, agility: 0.6 },
+    tuning: { run: 1.06, push: 0.82, jump: 1.0, flap: 0.95, bumpRes: 0.92, agility: 1.0 },
+    bars: { speed: 0.9, strength: 0.45, agility: 0.6 },
     icon: '⚡',
   },
   mighty: {
@@ -45,9 +46,9 @@ export const CLASS_INFO: Record<ChickClass, ClassInfo> = {
     ability: 'AB-02',
     colors: { body: 0xd8473a, belly: 0xf08a72, wing: 0xb02a2a, tuft: 0xc0232b, face: 0xf3a088, accent: '#d8473a', ui: '#de4a3c', uiDark: '#8f2222' },
     look: 'Rich warm red, broad round body, crimson wings and tuft, salmon face and chest.',
-    strengths: ['Excellent strength', 'Hard to bump'], weaknesses: ['Slower than others', 'Lower jump'],
-    tuning: { run: 0.85, push: 1.3, jump: 0.85, flap: 0.85, bumpRes: 1.3 },
-    bars: { speed: 0.4, strength: 0.95, agility: 0.45 },
+    strengths: ['Excellent strength', 'Hard to bump', 'Ploughs through mud and straw'], weaknesses: ['Slower to get going', 'Lower jump'],
+    tuning: { run: 0.97, push: 1.18, jump: 0.9, flap: 0.9, bumpRes: 1.12, agility: 0.85 },
+    bars: { speed: 0.5, strength: 0.9, agility: 0.4 },
     icon: '✊',
   },
   nimble: {
@@ -55,9 +56,9 @@ export const CLASS_INFO: Record<ChickClass, ClassInfo> = {
     ability: 'AB-03',
     colors: { body: 0xc8b2ee, belly: 0xefe6ff, wing: 0xa98fe0, tuft: 0x22b5ad, face: 0xe4d8fb, accent: '#8f78d6', ui: '#3bb8b0', uiDark: '#1f7a75' },
     look: 'Pale lavender, petite light body, teal tuft.',
-    strengths: ['Great at agility', 'Tricky high paths'], weaknesses: ['Not as strong', 'Easy to bump'],
-    tuning: { run: 1.0, push: 0.75, jump: 1.2, flap: 1.25, bumpRes: 0.75 },
-    bars: { speed: 0.6, strength: 0.35, agility: 0.95 },
+    strengths: ['Great at agility', 'Quick turns, sure footing', 'Tricky high paths'], weaknesses: ['Not as strong'],
+    tuning: { run: 1.07, push: 0.8, jump: 1.18, flap: 1.3, bumpRes: 0.95, agility: 1.35 },
+    bars: { speed: 0.65, strength: 0.45, agility: 0.95 },
     icon: '❋',
   },
 };
@@ -66,17 +67,17 @@ export interface AbilityInfo { id: string; name: string; cls: ChickClass; cooldo
 
 export const ABILITIES: Record<ChickClass, AbilityInfo> = {
   speedy: {
-    id: 'AB-01', name: 'Zoomies', cls: 'speedy', cooldown: 6, duration: 0.65,
+    id: 'AB-01', name: 'Zoomies', cls: 'speedy', cooldown: 7, duration: 0.65,
     summary: 'Short ground dash. Walls stay solid.',
     byStage: ['Quick scuttle', 'Dash', 'Running flap launch', 'Dash and snatch', 'Full Zoomies'],
   },
   mighty: {
-    id: 'AB-02', name: 'Fluff Bump', cls: 'mighty', cooldown: 7, duration: 0.3,
+    id: 'AB-02', name: 'Fluff Bump', cls: 'mighty', cooldown: 8.5, duration: 0.3,
     summary: 'Forward nudge: moves props, breaks straw, staggers a sibling.',
     byStage: ['Sturdy nudge', 'Shove', 'Perch brace', 'Heavy shove', 'Full Fluff Bump'],
   },
   nimble: {
-    id: 'AB-03', name: 'Fancy Feathers', cls: 'nimble', cooldown: 6, duration: 0.4,
+    id: 'AB-03', name: 'Fancy Feathers', cls: 'nimble', cooldown: 4.5, duration: 0.4,
     summary: 'Quick evasive hop; dodges sibling bumps.',
     byStage: ['Springy hop', 'Double hop', 'Controlled glide', 'Vault and dodge', 'Full Fancy Feathers'],
   },

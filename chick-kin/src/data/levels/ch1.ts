@@ -1,38 +1,38 @@
 // Stage 1 — Nest Scramble (hatchlings). Close overhead nest arenas: wobble, hop, nudge, collect and tug.
 // One new mechanic per level. No glide or stamina yet.
 import type { LevelDef } from '../../sim/types';
-import { ovalRim, wall, crumbs, crumbRing, crumbLine, topStarts } from './kit';
+import { ovalRim, wall, crumbs, crumbLine, topStarts, braidedMaze, mazeFromAscii } from './kit';
+import type { EntityDef } from '../../sim/types';
 
+/** Turn authored crumb spots into a random spawn pool (crumbs no longer refill in the same place). */
+const pool = (ents: EntityDef[]) => ents.filter((e): e is Extract<EntityDef, { t: 'crumb' }> => e.t === 'crumb').map((e) => [e.x, e.y] as [number, number]);
+
+// A braided straw maze (fixed layout, generated once from seed 3). Crumbs pop up at random open tiles,
+// never next to a chick and never in the spot just emptied, so there is no camping a spawn point.
+const MAZE11 = braidedMaze(10, 7, 3, { braid: 0.8, extraOpen: 4, lowWalls: 0.14, clearing: [8, 5, 12, 7], startRow: true });
+const M11 = mazeFromAscii(MAZE11, 1.2);
 const L11: LevelDef = {
   id: '1-1', chapter: 1, index: 1, title: 'First Crumbs',
-  brief: 'Collect 10 crumbs.', tip: 'Move with WASD / left stick. Tap Space to hop the low straw.',
+  brief: 'Find and collect 10 crumbs in the straw maze.', tip: 'Crumbs glow and pop up in random spots — follow the gold arrow at your feet. Hop the low straw (Space) for shortcuts.',
   format: 'single', timeLimit: 600, music: 'nest',
   phases: [{
     name: 'First Crumbs',
     objective: { kind: 'collect', count: 10 },
     arena: {
-      mode: 'top', theme: 'nest', w: 18, h: 12, camera: 'close', crumbRespawn: 7,
-      starts: topStarts(9, 9.3),
-      solids: [
-        ...ovalRim(9, 6, 7.9, 5.1, 30, 0.8, 1.2),
-        wall(5.6, 4.6, 0.5, 2.2, 0.32, 'straw'),   // safe hop
-        wall(12.0, 4.6, 0.5, 2.2, 0.32, 'straw'),  // safe hop
-      ],
+      mode: 'top', theme: 'nest', w: M11.w, h: M11.h, camera: 'close',
+      starts: M11.starts.slice(0, 4),
+      solids: M11.solids,
+      crumbField: { points: M11.floor.filter(([, y]) => y < M11.h - 3), active: 7, respawn: [1.0, 2.6] },
       entities: [
-        ...crumbs([[3.2, 6], [4.2, 4.2], [4.3, 7.8], [7.4, 2.4], [10.6, 2.4], [14.8, 6], [13.8, 4.2], [13.8, 7.8], [9, 4.3], [9, 7.2], [7, 6], [11, 6]]),
-        ...crumbRing(9, 6, 5.0, 3.0, 6, 0.5),
-        { t: 'power', x: 9, y: 2.2, pu: 'PU-01' },
-        { t: 'deco', kind: 'egg', x: 3.6, y: 3.3, s: 1 },
-        { t: 'deco', kind: 'egg', x: 15.3, y: 8.6, s: 0.9 },
-        { t: 'deco', kind: 'flower', x: 1.2, y: 1.0 },
-        { t: 'deco', kind: 'flower', x: 16.8, y: 11.0 },
-        { t: 'deco', kind: 'mound', x: 15.2, y: 3.0, s: 0.8 },
+        { t: 'power', x: M11.power[0][0], y: M11.power[0][1], pu: 'PU-01', respawn: 16 },
+        { t: 'deco', kind: 'egg', x: 1.2, y: -1.4, s: 1.4 },
+        { t: 'deco', kind: 'flower', x: M11.w + 1, y: 2 },
       ],
     },
   }],
   variants: [
-    { name: 'Wandering egg', add: [{ t: 'egg', path: [[3, 2.6], [15, 2.6]], speed: 2.4, period: 6 }] },
-    { name: 'Second wandering egg', add: [{ t: 'egg', path: [[15, 9.4], [3, 9.4]], speed: 2.4, period: 7, phase: 0.5 }] },
+    { name: 'Wandering egg', add: [{ t: 'egg', path: [[1.8, 1.8], [M11.w - 1.8, 1.8]], speed: 2.4, period: 7 }] },
+    { name: 'Second wandering egg', add: [{ t: 'egg', path: [[M11.w - 1.8, 15.6], [1.8, 15.6]], speed: 2.4, period: 8, phase: 0.5 }] },
   ],
 };
 
@@ -45,8 +45,9 @@ const L12: LevelDef = {
     name: 'Egg Dodge',
     objective: { kind: 'collect', count: 15 },
     arena: {
-      mode: 'top', theme: 'nest', w: 22, h: 14, camera: 'close', crumbRespawn: 8,
+      mode: 'top', theme: 'nest', w: 22, h: 14, camera: 'close',
       starts: topStarts(10.5, 12.1),
+      crumbField: { points: pool([...crumbLine(5, 2.6, 17, 2.6, 6), ...crumbLine(5, 6.6, 17, 6.6, 6), ...crumbLine(7, 10.8, 17, 10.8, 5), ...crumbs([[19.5, 4.6], [2.6, 8.8], [19.8, 8.6], [20.0, 7.0], [11, 4.0], [8, 9.6], [14, 9.6]])]), active: 8, respawn: [1.0, 2.6] },
       solids: [
         ...ovalRim(11, 7, 10.8, 6.9, 36, 0.8, 1.2),
         wall(2.5, 4.6, 14.5, 0.7, 1.2, 'straw'),   // lane divider (open on the right)
@@ -56,8 +57,6 @@ const L12: LevelDef = {
         { t: 'egg', path: [[18.5, 2.6], [4.0, 2.6]], speed: 2.6, period: 7.5 },
         { t: 'egg', path: [[3.5, 6.6], [18.5, 6.6]], speed: 2.6, period: 7.5, phase: 0.33 },
         { t: 'egg', path: [[18.5, 10.8], [5.0, 10.8]], speed: 2.6, period: 7.5, phase: 0.66 },
-        ...crumbLine(5, 2.6, 17, 2.6, 6), ...crumbLine(5, 6.6, 17, 6.6, 6), ...crumbLine(7, 10.8, 17, 10.8, 5),
-        ...crumbs([[19.5, 4.6], [2.6, 8.8], [19.8, 8.6], [20.0, 7.0]]),
         { t: 'power', x: 17.4, y: 3.6, pu: 'PU-04' },
         { t: 'deco', kind: 'ramp', x: 19.2, y: 1.8, s: 0.9 },
         { t: 'deco', kind: 'ramp', x: 2.8, y: 5.8, s: 0.9 },
@@ -110,7 +109,8 @@ const L14: LevelDef = {
     name: 'Nest Neighbours',
     objective: { kind: 'collect', count: 20 },
     arena: {
-      mode: 'top', theme: 'nest', w: 24, h: 15, camera: 'close', crumbRespawn: 9,
+      mode: 'top', theme: 'nest', w: 24, h: 15, camera: 'close',
+      crumbField: { points: pool([...crumbs([[4.8, 3.8], [4.8, 11.2], [5.0, 5.6], [5.5, 9.4], [3.6, 7.5], [10.5, 2.4], [13.5, 2.4], [12, 6.0], [10.4, 7.6], [13.6, 7.6], [12, 9.2], [10.5, 12.4], [13.5, 12.4], [18.5, 2.6], [21.0, 4.4], [19.0, 9.6], [20.2, 10.6], [18.4, 11.8], [20.6, 6.0], [9.0, 5.6], [15.0, 9.4]])]), active: 9, respawn: [1.0, 2.6] },
       starts: topStarts(3.8, 7.5, 0.0).map(([x, y], i) => [x, y - 1.2 + i * 0.8] as [number, number]),
       solids: [
         ...ovalRim(12, 7.5, 11.8, 7.4, 40, 0.8, 1.2),
@@ -125,9 +125,6 @@ const L14: LevelDef = {
         { t: 'straw', x: 7.55, y: 5.6, w: 0.7, h: 1.6, hp: 3 },     // plug: left upper gap
         { t: 'straw', x: 15.95, y: 9.6, w: 0.7, h: 1.6, hp: 3 },    // plug: right lower gap
         { t: 'bale', x: 15.9, y: 4.0, w: 0.8, h: 1.6, mass: 1.0 },  // heavy plug (red route)
-        ...crumbs([[4.8, 3.8], [4.8, 11.2], [5.0, 5.6], [5.5, 9.4]]),
-        ...crumbs([[10.5, 2.4], [13.5, 2.4], [12, 6.0], [10.4, 7.6], [13.6, 7.6], [12, 9.2], [10.5, 12.4], [13.5, 12.4]]),
-        ...crumbs([[18.5, 2.6], [21.0, 4.4], [19.0, 9.6], [20.2, 10.6], [18.4, 11.8], [20.6, 6.0]]),
         { t: 'power', x: 12, y: 7.6, pu: 'PU-04' },
         { t: 'power', x: 20.4, y: 8.4, pu: 'PU-01' },
       ],
