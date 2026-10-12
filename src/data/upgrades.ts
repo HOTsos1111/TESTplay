@@ -30,7 +30,7 @@ export interface UpgradeDef {
 export const UPGRADE_TUNING = {
   /** Jump velocity multiplier per Springy Paws level. */
   jumpPerLevel: 0.06,
-  /** Second-jump velocity multiplier per Double Jump level above 1. */
+  /** Second-jump velocity bonus from Double Jump+ level 1. */
   doublePerLevel: 0.12,
   /** + seconds of tail spin per level. */
   tailPerLevel: 0.25,
@@ -64,19 +64,12 @@ export const UPGRADES: UpgradeDef[] = [
   },
   {
     key: 'double',
-    name: 'Double Jump',
+    name: 'Double Jump+',
     icon: 'hero_s_leap',
-    unlock: true,
-    prices: [80, 130, 220],
-    describe: (l) => ['Locked: jump again in mid-air', 'Double jump', `Double jump, ${pct(UPGRADE_TUNING.doublePerLevel)} higher`, 'TRIPLE jump!'][l],
+    prices: [100, 200],
+    describe: (l) => ['Double jump (built in)', `Double jump ${pct(UPGRADE_TUNING.doublePerLevel)} higher`, 'TRIPLE jump!'][l],
     intro: [
-      {
-        title: 'New skill: Double Jump!',
-        body: 'Press jump again while in the air for a second jump. Clear the tall crate stacks from Level 6 on.',
-        keys: 'SPACE / ↑ in mid-air',
-        touch: 'Push the stick UP again in mid-air',
-      },
-      { title: 'Bigger Double Jump!', body: `Your second jump goes ${pct(UPGRADE_TUNING.doublePerLevel)} higher.`, keys: 'SPACE / ↑ in mid-air', touch: 'Push UP again in mid-air' },
+      { title: 'Bigger Double Jump!', body: `Your second jump in mid-air goes ${pct(UPGRADE_TUNING.doublePerLevel)} higher.`, keys: 'SPACE / ↑ again in mid-air', touch: 'Push UP again in mid-air' },
       {
         title: 'New skill: TRIPLE Jump!',
         body: 'You can now jump a third time in mid-air. Reach the very top platforms and hop over a charging boss with room to spare.',
