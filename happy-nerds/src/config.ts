@@ -9,9 +9,10 @@ export const BRAIN = {
   bodyRadius: 30,
   /** Collision circle around the main body only. Smaller than the drawing so grazes are forgiven. */
   hitRadius: 23,
+  /** Small, steerable hops: each flap lifts the brain about 40 px. */
   gravity: 1250,
-  flapSpeed: 430,
-  maxFall: 620,
+  flapSpeed: 320,
+  maxFall: 520,
   /** Touching the ceiling just stops the climb; touching the floor costs a life. */
   ceiling: 40,
   floor: VIEW.height - 30,
@@ -28,9 +29,10 @@ export const GATE = {
   centerJitter: 30,
   /** Horizontal distance between gates. */
   spacing: 640,
-  startSpeed: 170,
-  speedPerPoint: 3,
-  maxSpeed: 250,
+  /** Starts slow so players can find the rhythm, then builds up with each correct answer. */
+  startSpeed: 115,
+  speedPerPoint: 4,
+  maxSpeed: 240,
 };
 
 export const LIVES = 3;

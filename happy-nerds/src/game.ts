@@ -15,6 +15,8 @@ export interface Gate {
   correct: 0 | 1;
   /** Set once, the first time the gate is judged; it is never judged again. */
   result: GateResult | null;
+  /** A gate can cost at most one life, however long the brain stays tangled in it. */
+  penalized: boolean;
 }
 
 export interface Brain {
@@ -84,6 +86,7 @@ export function spawnGate(s: GameState, x = VIEW.width + GATE.width): Gate {
     answers: correct === 0 ? [p.answer, p.wrong] : [p.wrong, p.answer],
     correct,
     result: null,
+    penalized: false,
   };
   s.gates.push(gate);
   return gate;
@@ -137,7 +140,11 @@ export function flap(s: GameState): void {
 }
 
 function penalize(s: GameState, type: 'wrong' | 'crash', gate?: Gate) {
-  if (gate && gate.result === null) gate.result = type;
+  if (gate) {
+    if (gate.penalized) return;
+    gate.penalized = true;
+    if (gate.result === null) gate.result = type;
+  }
   s.lives -= 1;
   s.brain.invuln = INVULN;
   s.events.push(type === 'wrong' ? { type, gate: gate! } : { type, gate });

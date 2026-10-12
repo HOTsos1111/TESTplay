@@ -53,6 +53,18 @@ describe('flight', () => {
     expect(s.brain.vy).toBeGreaterThan(0);
   });
 
+  it('each flap is a small, steerable hop', () => {
+    const s = started();
+    let top = s.brain.y;
+    const y0 = s.brain.y;
+    for (let i = 0; i < 60; i++) {
+      step(s, DT);
+      top = Math.min(top, s.brain.y);
+    }
+    expect(y0 - top).toBeGreaterThan(30);
+    expect(y0 - top).toBeLessThanOrEqual(45);
+  });
+
   it('the brain keeps its horizontal position; gates only move sideways', () => {
     const s = started();
     const g = s.gates[0];
@@ -152,6 +164,14 @@ describe('gates', () => {
       step(s, DT);
     }
     expect(s.lives).toBe(LIVES - 1);
+  });
+
+  it('starts slow and speeds up with correct answers', () => {
+    const s = started();
+    expect(s.speed).toBeLessThanOrEqual(120);
+    const g = s.gates[0];
+    holdAt(s, g, openingCenter(g, g.correct));
+    expect(s.speed).toBeGreaterThan(GATE.startSpeed);
   });
 
   it('there is time to read each gate before it arrives', () => {

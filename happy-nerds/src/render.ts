@@ -19,7 +19,7 @@ const COLORS = {
   answer: '#FFD84D',
   answerEdge: '#C99A00',
   panel: 'rgba(255,255,255,0.86)',
-  shade: 'rgba(31,42,68,0.82)',
+  shade: 'rgba(31,42,68,0.94)',
   good: '#2E9E44',
   bad: '#D63A3A',
 };
@@ -58,9 +58,9 @@ export function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxWidth:
 
 // ---------- Gate ----------
 
-const QUESTION_MAX_WIDTH = 230;
+const QUESTION_MAX_WIDTH = 300;
 
-function drawGate(ctx: CanvasRenderingContext2D, gate: Gate) {
+function drawGate(ctx: CanvasRenderingContext2D, gate: Gate, time: number) {
   const left = gate.x - GATE.width / 2;
   const [[aTop, aBottom], [bTop, bBottom]] = openings(gate);
   const solids: [number, number][] = [
@@ -86,9 +86,9 @@ function drawGate(ctx: CanvasRenderingContext2D, gate: Gate) {
   }
 
   // The question sits on the solid middle section, between its two answers.
-  ctx.font = `bold 30px ${FONT}`;
+  ctx.font = `bold 46px ${FONT}`;
   const lines = wrapLines(ctx, gate.question, QUESTION_MAX_WIDTH);
-  const lineH = 34;
+  const lineH = 50;
   const w = Math.min(QUESTION_MAX_WIDTH, Math.max(...lines.map((l) => ctx.measureText(l).width))) + 28;
   const h = lines.length * lineH + 20;
   const midY = (aBottom + bTop) / 2;
@@ -103,32 +103,23 @@ function drawGate(ctx: CanvasRenderingContext2D, gate: Gate) {
   ctx.textBaseline = 'middle';
   lines.forEach((l, i) => ctx.fillText(l, gate.x, midY - h / 2 + 10 + lineH * (i + 0.5)));
 
-  // Each answer hangs on the wall right at the outer edge of its own opening,
-  // with a pointer into the opening, so it never sits in the flight path.
-  drawAnswer(ctx, gate.x, aTop - 22 - 30, String(gate.answers[0]), 'down');
-  drawAnswer(ctx, gate.x, bBottom + 22 + 30, String(gate.answers[1]), 'up');
+  // Each answer floats in the middle of its own gap, so it's obvious which gap it belongs to.
+  const bob = (phase: number) => Math.sin(time * 2.2 + phase) * 5;
+  drawAnswer(ctx, gate.x, (aTop + aBottom) / 2 + bob(0), String(gate.answers[0]));
+  drawAnswer(ctx, gate.x, (bTop + bBottom) / 2 + bob(1.7), String(gate.answers[1]));
 }
 
-function drawAnswer(ctx: CanvasRenderingContext2D, x: number, y: number, text: string, point: 'up' | 'down') {
-  const w = 88;
-  const h = 52;
+function drawAnswer(ctx: CanvasRenderingContext2D, x: number, y: number, text: string) {
+  const r = 40;
   ctx.fillStyle = COLORS.answer;
   ctx.strokeStyle = COLORS.answerEdge;
-  ctx.lineWidth = 3;
-  roundRect(ctx, x - w / 2, y - h / 2, w, h, 14);
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
-  // Pointer toward the opening.
-  const tipY = point === 'down' ? y + h / 2 + 12 : y - h / 2 - 12;
-  const baseY = point === 'down' ? y + h / 2 - 1 : y - h / 2 + 1;
-  ctx.beginPath();
-  ctx.moveTo(x - 12, baseY);
-  ctx.lineTo(x + 12, baseY);
-  ctx.lineTo(x, tipY);
-  ctx.closePath();
-  ctx.fill();
   ctx.fillStyle = COLORS.ink;
-  ctx.font = `bold 38px ${FONT}`;
+  ctx.font = `bold 44px ${FONT}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(text, x, y + 2);
@@ -306,11 +297,11 @@ function callout(ctx: CanvasRenderingContext2D, text: string, x: number, y: numb
 function drawTutorial(ctx: CanvasRenderingContext2D, s: GameState, time: number) {
   const gate = s.gates[0];
   if (gate) {
-    const [[aTop], [, bBottom]] = openings(gate);
-    const cx = gate.x + GATE.width / 2 + 70;
-    callout(ctx, 'Answer', cx, aTop - 52, gate.x + 48, aTop - 52);
-    callout(ctx, 'Question', cx, gate.centerY, gate.x + 90, gate.centerY);
-    callout(ctx, 'Answer', cx, bBottom + 52, gate.x + 48, bBottom + 52);
+    const [[aTop, aBottom], [bTop, bBottom]] = openings(gate);
+    const cx = gate.x + GATE.width / 2 + 90;
+    callout(ctx, 'Answer', cx, (aTop + aBottom) / 2, gate.x + 44, (aTop + aBottom) / 2);
+    callout(ctx, 'Question', cx, gate.centerY, gate.x + 140, gate.centerY);
+    callout(ctx, 'Answer', cx, (bTop + bBottom) / 2, gate.x + 44, (bTop + bBottom) / 2);
   }
 
   ctx.fillStyle = COLORS.panel;
@@ -360,7 +351,7 @@ function drawGameOver(ctx: CanvasRenderingContext2D, s: GameState, best: number)
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.font = `bold 56px ${FONT}`;
-  ctx.fillText('Brain drain!', VIEW.width / 2, y + 62);
+  ctx.fillText('Brain dead', VIEW.width / 2, y + 62);
   ctx.font = `28px ${FONT}`;
   ctx.fillText(`You got ${s.score} right.`, VIEW.width / 2, y + 122);
   ctx.fillText(best > 0 && s.score >= best ? 'New best!' : `Best: ${best}`, VIEW.width / 2, y + 160);
@@ -375,7 +366,7 @@ export function render(ctx: CanvasRenderingContext2D, s: GameState, popups: Popu
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, VIEW.width, VIEW.height);
 
-  for (const g of s.gates) drawGate(ctx, g);
+  for (const g of s.gates) drawGate(ctx, g, time);
 
   const blink = s.brain.invuln > 0 && Math.floor(time * 12) % 2 === 0;
   if (!blink) drawBrain(ctx, BRAIN.x, s.brain.y, s.brain, time);

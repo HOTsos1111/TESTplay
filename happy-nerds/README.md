@@ -8,7 +8,7 @@ Happy Nerds is a standalone project. It shares nothing with the Homeward Hound g
 
 ![Gameplay](docs/previews/gameplay.png)
 
-More previews: [tutorial](docs/previews/tutorial.png), [flap](docs/previews/flap.png), [wrong answer](docs/previews/wrong-answer.png), [phone](docs/previews/phone-tutorial.png).
+More previews: [tutorial](docs/previews/tutorial.png), [flap](docs/previews/flap.png), [wrong answer](docs/previews/wrong-answer.png), [phone](docs/previews/phone-tutorial.png), [brain dead](docs/previews/brain-dead.png).
 
 ## Play the latest build
 
@@ -35,14 +35,14 @@ npm run build      # typecheck + static build into happy-nerds/dist/
 
 - The brain keeps the same spot across the screen. Each flap pushes it up, and gravity pulls it down between flaps. Touching the top of the screen just stops the climb. Dropping to the bottom costs a brain and bounces you back up.
 - Gates move toward you and never move up or down. Each gate has:
-  - an **upper opening** with its answer on the wall just above it,
-  - the **question** on the solid section between the openings,
-  - a **lower opening** with its answer on the wall just below it.
+  - an **upper gap** with its answer floating inside it,
+  - the **question**, in large type, on the solid section between the gaps,
+  - a **lower gap** with its answer floating inside it.
 
-  All three sit together, so you can compare both answers without looking back at the brain. The labels are on solid wall, never in the flight path.
+  All three sit together, so you can compare both answers without looking back at the brain. Each answer floats right in its own gap, so it's clear which gap it belongs to. The brain flies through the answer bubble; the bubble doesn't collide.
 - **Right opening:** +1 point. **Wrong opening:** lose a brain, and the game shows the right answer. **Hitting a solid part:** lose a brain. Each gate is judged only once.
-- You have 3 brains. After losing one, you get a short blink of safety.
-- Gates speed up slightly with every correct answer. Your best score is saved in the browser.
+- You have 3 brains. After losing one, you get a short blink of safety. Each gate can cost at most one brain. Losing the last one shows **Brain dead**.
+- Gates start slow so players can find the rhythm, then speed up slightly with every correct answer. Your best score is saved in the browser.
 - The start screen is the tutorial. The first real gate waits on screen with its question and answers labelled, and the brain hovers until your first flap.
 
 ## Level 1: adding and taking away
@@ -59,9 +59,9 @@ npm run build      # typecheck + static build into happy-nerds/dist/
 | Brain hit circle | radius 23 px | Inside the 30 px body drawing. Wings and wing tips never collide. |
 | Opening height | 170 px | More than 3× the hit circle, so there's room to be a bit off. |
 | Question section | 150 px | Fits a wrapped question of up to 3 lines. |
-| Gate speed | 170 → 250 px/s | At top speed, a gate still takes over 3.5 s from the right edge to the brain, enough time to read and steer. |
+| Gate speed | 115 px/s at the start, +4 per correct answer, up to 240 px/s | The slow start gives about 8 s from a gate appearing to reaching it. Even at top speed it takes over 3.5 s. |
 | Gate spacing | 640 px | Enough time to cross from one opening to the other between gates. |
-| Flap / gravity | 430 px/s up, 1250 px/s² | Each tap gives a short, controllable hop. |
+| Flap / gravity | 320 px/s up, 1250 px/s² | Each tap lifts the brain about 40 px, small enough to steer precisely into a gap. |
 
 All tuning is in `src/config.ts`.
 
