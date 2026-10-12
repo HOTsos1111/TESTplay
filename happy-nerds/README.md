@@ -1,6 +1,6 @@
 # Happy Nerds
 
-Flappy Bird with a maths twist. You flap a **winged brain** through gates. Each gate shows **one question and two answers**, one beside each opening. Read the question, pick the right answer, and fly through that answer's opening.
+Flappy Bird with a maths twist. You flap a **winged brain** (a wing on each side, big nerdy glasses) through gates. Each gate shows **one question and two answers**, one beside each opening. Read the question, pick the right answer, and fly through that answer's opening.
 
 This is the **mechanics prototype**. Everything is drawn with flat placeholder shapes in code. Real art goes in [`assets/`](assets/) once the design is ready.
 
@@ -8,7 +8,7 @@ Happy Nerds is a standalone project. It shares nothing with the Homeward Hound g
 
 ![Gameplay](docs/previews/gameplay.png)
 
-More previews: [tutorial](docs/previews/tutorial.png), [flap](docs/previews/flap.png), [wrong answer](docs/previews/wrong-answer.png), [phone](docs/previews/phone-tutorial.png), [brain dead](docs/previews/brain-dead.png).
+More previews: [tutorial](docs/previews/tutorial.png), [flap](docs/previews/flap.png), [wrong answer](docs/previews/wrong-answer.png), [phone](docs/previews/phone-tutorial.png), [strike](docs/previews/strike.png), [brain dead](docs/previews/brain-dead.png).
 
 ## Play the latest build
 
@@ -33,15 +33,15 @@ npm run build      # typecheck + static build into happy-nerds/dist/
 | Flap up | Space, ↑ or W | Click anywhere | Tap anywhere |
 | Start / try again | same | same | same |
 
-- The brain keeps the same spot across the screen. Each flap pushes it up, and gravity pulls it down between flaps. Touching the top of the screen just stops the climb. Dropping to the bottom costs a brain and bounces you back up.
+- The brain keeps the same spot across the screen. Each flap pushes it up, and gravity pulls it down between flaps. Touching the top of the screen just stops the climb, and the bottom is a free bounce.
 - Gates move toward you and never move up or down. Each gate has:
   - an **upper gap** with its answer floating inside it,
   - the **question**, in large type, on the solid section between the gaps,
   - a **lower gap** with its answer floating inside it.
 
   All three sit together, so you can compare both answers without looking back at the brain. Each answer floats right in its own gap, so it's clear which gap it belongs to. The brain flies through the answer bubble; the bubble doesn't collide.
-- **Right opening:** +1 point. **Wrong opening:** lose a brain, and the game shows the right answer. **Hitting a solid part:** lose a brain. Each gate is judged only once.
-- You have 3 brains. After losing one, you get a short blink of safety. Each gate can cost at most one brain. Losing the last one shows **Brain dead**.
+- **Right opening:** +1 point. **Wrong opening:** a strike, and the game shows the right answer. **Bumping a solid part:** a strike. Each gate is judged only once and can give at most one strike.
+- **Three strikes and you're out.** After a strike the brain blinks for 2 seconds and can't be hit, which is long enough to fly clear of the gate it bumped. The HUD shows three strike slots, and each strike pops up "Strike 1 of 3" and so on. The third shows **Brain dead**.
 - Gates start slow so players can find the rhythm, then speed up slightly with every correct answer. Your best score is saved in the browser.
 - The start screen is the tutorial. The first real gate waits on screen with its question and answers labelled, and the brain hovers until your first flap.
 
@@ -56,7 +56,7 @@ npm run build      # typecheck + static build into happy-nerds/dist/
 
 | Setting | Value | Why |
 |---|---|---|
-| Brain hit circle | radius 23 px | Inside the 30 px body drawing. Wings and wing tips never collide. |
+| Brain hit circle | radius 23 px | Well inside the 35 px body drawing. Wings and wing tips never collide. |
 | Opening height | 170 px | More than 3× the hit circle, so there's room to be a bit off. |
 | Question section | 150 px | Fits a wrapped question of up to 3 lines. |
 | Gate speed | 115 px/s at the start, +4 per correct answer, up to 240 px/s | The slow start gives about 8 s from a gate appearing to reaching it. Even at top speed it takes over 3.5 s. |
@@ -69,13 +69,13 @@ All tuning is in `src/config.ts`.
 
 | File | What it does |
 |---|---|
-| `src/config.ts` | All tuning: brain flight, gate layout, speed, lives |
+| `src/config.ts` | All tuning: brain flight, gate layout, speed, strikes |
 | `src/questions.ts` | Question and near-miss answer generator, level definitions, seeded RNG |
 | `src/game.ts` | Pure game state and fixed-step simulation (no DOM), so it's easy to test |
-| `src/render.ts` | Canvas drawing: winged brain (flap animation, idle flutter, tilt), gates, tutorial, HUD |
+| `src/render.ts` | Canvas drawing: winged brain (two wings, glasses, flap animation, idle flutter, slight tilt), gates, tutorial, HUD with strikes |
 | `src/main.ts` | Loop, keyboard/mouse/touch input, screen fit, best-score storage |
 | `tests/` | Question correctness, flight and gate rules, judged-once checks, and a fairness check: an autopilot that flies like a careful player must keep scoring without losing a brain |
 
 ## Not built yet
 
-The design brief mentions combo/XP rewards, categories, level progression, an IQ Meter, achievements and category completion bonuses. None of these exist in this prototype yet. Score and lives are the only progress so far.
+The design brief mentions combo/XP rewards, categories, level progression, an IQ Meter, achievements and category completion bonuses. None of these exist in this prototype yet. Score and strikes are the only progress so far.

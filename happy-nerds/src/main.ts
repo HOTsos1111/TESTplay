@@ -1,4 +1,4 @@
-import { BRAIN, VIEW } from './config';
+import { BRAIN, LIVES, VIEW } from './config';
 import { flap, newGame, step, type GameEvent } from './game';
 import { COLORS, render, type Popup } from './render';
 
@@ -31,14 +31,16 @@ function saveBest() {
 
 function onEvent(e: GameEvent) {
   const at = { x: BRAIN.x + 80, y: state.brain.y - 50 };
+  const strike = `Strike ${LIVES - state.lives} of ${LIVES}`;
   if (e.type === 'correct') {
     popups.push({ text: '+1', color: COLORS.good, ...at, ttl: 0.8 });
   } else if (e.type === 'wrong') {
     const g = e.gate;
     const q = g.question.replace(' = ?', '');
     popups.push({ text: `Oops! ${q} = ${g.answers[g.correct]}`, color: COLORS.bad, x: VIEW.width / 2, y: 150, ttl: 1.8 });
+    if (state.lives > 0) popups.push({ text: strike, color: COLORS.bad, x: VIEW.width / 2, y: 196, ttl: 1.8 });
   } else if (e.type === 'crash') {
-    popups.push({ text: 'Bonk!', color: COLORS.bad, ...at, ttl: 0.8 });
+    popups.push({ text: state.lives > 0 ? `Bonk! ${strike}` : 'Bonk!', color: COLORS.bad, ...at, ttl: 1.2 });
   } else if (e.type === 'over' && state.score > best) {
     best = state.score;
     saveBest();

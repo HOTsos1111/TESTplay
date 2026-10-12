@@ -173,8 +173,7 @@ function stepBrain(s: GameState, dt: number) {
   }
   if (b.y + BRAIN.hitRadius > BRAIN.floor) {
     b.y = BRAIN.floor - BRAIN.hitRadius;
-    if (b.invuln <= 0) penalize(s, 'crash');
-    // Bounce back up so a dropped brain gets another go.
+    // A free bounce: only gates and wrong answers cost strikes.
     b.vy = -BRAIN.flapSpeed;
     b.sinceFlap = 0;
   }
@@ -218,7 +217,7 @@ export function step(s: GameState, dt: number): void {
   s.gates = s.gates.filter((g) => g.x > -GATE.width);
 }
 
-/** Lean into the climb or dive: radians, nose-down positive. */
+/** A slight lean into the climb or dive: radians, clockwise positive. Kept small because the brain faces the player. */
 export function brainTilt(b: Brain): number {
-  return clamp(b.vy / 900, -0.35, 0.55);
+  return clamp(b.vy / 2400, -0.12, 0.18);
 }

@@ -1,4 +1,4 @@
-import { BRAIN, GATE, VIEW } from './config';
+import { BRAIN, GATE, LIVES, VIEW } from './config';
 import { brainTilt, openings, type Brain, type GameState, type Gate } from './game';
 
 /** Placeholder look: flat shapes only. Real art from assets/ replaces these later. */
@@ -137,14 +137,13 @@ function wingAngle(b: Brain, time: number): number {
   return 0.15 + Math.sin(time * 5) * 0.22;
 }
 
-function drawWing(ctx: CanvasRenderingContext2D, angle: number, fill: string, scale: number) {
+/** One feathered wing reaching out to the left of its shoulder. Mirror it for the right side. */
+function drawWing(ctx: CanvasRenderingContext2D, angle: number) {
   ctx.save();
-  ctx.rotate(-0.6 + angle);
-  ctx.scale(scale, scale);
-  ctx.fillStyle = fill;
+  ctx.rotate(-0.2 + angle);
+  ctx.fillStyle = COLORS.wing;
   ctx.strokeStyle = COLORS.wingEdge;
   ctx.lineWidth = 2.5;
-  // A feathered wing reaching back and up from the shoulder, with three scalloped tips.
   ctx.beginPath();
   ctx.moveTo(0, 0);
   ctx.bezierCurveTo(-10, -30, -40, -52, -66, -50);
@@ -155,9 +154,18 @@ function drawWing(ctx: CanvasRenderingContext2D, angle: number, fill: string, sc
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
+  // Feather lines.
+  ctx.strokeStyle = COLORS.wingBack;
+  ctx.beginPath();
+  ctx.moveTo(-14, -6);
+  ctx.quadraticCurveTo(-36, -24, -56, -38);
+  ctx.moveTo(-14, -2);
+  ctx.quadraticCurveTo(-36, -10, -54, -18);
+  ctx.stroke();
   ctx.restore();
 }
 
+/** The hero: a front-facing brain with a wing on each side and big nerdy glasses. */
 export function drawBrain(ctx: CanvasRenderingContext2D, x: number, y: number, b: Brain, time: number) {
   const r = BRAIN.bodyRadius;
   const wing = wingAngle(b, time);
@@ -165,78 +173,98 @@ export function drawBrain(ctx: CanvasRenderingContext2D, x: number, y: number, b
   ctx.translate(x, y);
   ctx.rotate(brainTilt(b));
 
-  // Far wing, behind the body.
-  ctx.save();
-  ctx.translate(-4, -r * 0.55);
-  drawWing(ctx, wing * 0.8 - 0.15, COLORS.wingBack, 0.9);
-  ctx.restore();
+  // Wings behind the body, one per side, flapping together.
+  for (const side of [-1, 1]) {
+    ctx.save();
+    ctx.translate(side * r * 0.9, -r * 0.35);
+    ctx.scale(-side, 1);
+    drawWing(ctx, wing);
+    ctx.restore();
+  }
 
-  // Body: a rounded brain made of overlapping lobes.
+  // Body: two hemispheres made of overlapping lobes.
   ctx.fillStyle = COLORS.brain;
   ctx.strokeStyle = COLORS.brainEdge;
   ctx.lineWidth = 3;
-  const lobes: [number, number, number][] = [
-    [-r * 0.55, -r * 0.2, r * 0.62],
-    [0, -r * 0.42, r * 0.66],
-    [r * 0.55, -r * 0.18, r * 0.6],
-    [-r * 0.35, r * 0.28, r * 0.6],
-    [r * 0.4, r * 0.3, r * 0.58],
+  const lobes: [number, number][] = [
+    [-0.6, -0.25], [-0.22, -0.5], [0.22, -0.5], [0.6, -0.25],
+    [-0.55, 0.3], [0, 0.38], [0.55, 0.3],
   ];
   ctx.beginPath();
-  for (const [lx, ly, lr] of lobes) {
-    ctx.moveTo(lx + lr, ly);
-    ctx.arc(lx, ly, lr, 0, Math.PI * 2);
+  for (const [lx, ly] of lobes) {
+    ctx.moveTo(lx * r + r * 0.55, ly * r);
+    ctx.arc(lx * r, ly * r, r * 0.55, 0, Math.PI * 2);
   }
   ctx.stroke();
   ctx.fill();
-  // Folds.
+
+  // The split between the hemispheres, and a few folds on each side.
   ctx.strokeStyle = COLORS.brainFold;
   ctx.lineWidth = 2.5;
   ctx.lineCap = 'round';
-  const folds: [number, number, number, number, number, number][] = [
-    [-r * 0.9, -r * 0.1, -r * 0.6, -r * 0.6, -r * 0.2, -r * 0.3],
-    [-r * 0.1, -r * 0.85, r * 0.1, -r * 0.4, r * 0.5, -r * 0.6],
-    [-r * 0.7, r * 0.45, -r * 0.4, r * 0.1, -r * 0.05, r * 0.4],
-    [-r * 0.15, -r * 0.05, 0, r * 0.25, -r * 0.3, r * 0.65],
-  ];
-  for (const [x0, y0, cx, cy, x1, y1] of folds) {
-    ctx.beginPath();
-    ctx.moveTo(x0, y0);
-    ctx.quadraticCurveTo(cx, cy, x1, y1);
-    ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(0, -r * 0.98);
+  ctx.quadraticCurveTo(r * 0.08, -r * 0.6, 0, -r * 0.3);
+  for (const side of [-1, 1]) {
+    ctx.moveTo(side * r * 0.25, -r * 0.82);
+    ctx.quadraticCurveTo(side * r * 0.5, -r * 0.55, side * r * 0.35, -r * 0.35);
+    ctx.moveTo(side * r * 0.75, -r * 0.6);
+    ctx.quadraticCurveTo(side * r * 0.95, -r * 0.3, side * r * 0.9, r * 0.05);
+    ctx.moveTo(side * r * 0.85, r * 0.45);
+    ctx.quadraticCurveTo(side * r * 0.6, r * 0.7, side * r * 0.35, r * 0.62);
   }
+  ctx.stroke();
 
-  // Face on the front: nerdy glasses and a smile.
-  const ex = r * 0.62;
-  const ey = r * 0.02;
+  // Big nerdy glasses: thick round frames, tape on the bridge.
+  const gy = r * 0.08;
+  const lens = r * 0.38;
+  const gap = r * 0.47;
   ctx.fillStyle = '#FFFFFF';
   ctx.strokeStyle = COLORS.ink;
-  ctx.lineWidth = 2.5;
-  for (const dx of [-11, 11]) {
+  ctx.lineWidth = 4.5;
+  for (const side of [-1, 1]) {
     ctx.beginPath();
-    ctx.arc(ex + dx, ey, 9, 0, Math.PI * 2);
+    ctx.arc(side * gap, gy, lens, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
   }
+  ctx.lineWidth = 4;
   ctx.beginPath();
-  ctx.moveTo(ex - 2, ey);
-  ctx.lineTo(ex + 2, ey);
+  ctx.moveTo(-gap - lens, gy - 2);
+  ctx.lineTo(-r * 1.05, gy - 6);
+  ctx.moveTo(gap + lens, gy - 2);
+  ctx.lineTo(r * 1.05, gy - 6);
+  ctx.moveTo(-gap + lens - 1, gy - 2);
+  ctx.quadraticCurveTo(0, gy - 7, gap - lens + 1, gy - 2);
   ctx.stroke();
+  ctx.fillStyle = '#FFFFFF';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.rect(-4, gy - 9, 8, 9);
+  ctx.fill();
+  ctx.stroke();
+  // Pupils glance ahead, the way it's flying.
   ctx.fillStyle = COLORS.ink;
-  for (const dx of [-9, 13]) {
+  for (const side of [-1, 1]) {
     ctx.beginPath();
-    ctx.arc(ex + dx, ey + 1, 3.5, 0, Math.PI * 2);
+    ctx.arc(side * gap + 3, gy + 1, 4.5, 0, Math.PI * 2);
     ctx.fill();
   }
-  ctx.beginPath();
-  ctx.arc(ex + 2, ey + 14, 7, 0.15 * Math.PI, 0.85 * Math.PI);
-  ctx.stroke();
 
-  // Near wing, in front of the body.
-  ctx.save();
-  ctx.translate(-10, -r * 0.35);
-  drawWing(ctx, wing, COLORS.wing, 1);
-  ctx.restore();
+  // Cheeks and smile.
+  ctx.fillStyle = COLORS.brainEdge;
+  ctx.globalAlpha = 0.35;
+  for (const side of [-1, 1]) {
+    ctx.beginPath();
+    ctx.ellipse(side * r * 0.72, r * 0.5, 6, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = COLORS.ink;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(0, r * 0.46, 8, 0.15 * Math.PI, 0.85 * Math.PI);
+  ctx.stroke();
 
   ctx.restore();
 }
@@ -256,20 +284,30 @@ function drawHud(ctx: CanvasRenderingContext2D, s: GameState, best: number) {
   ctx.font = `19px ${FONT}`;
   ctx.fillText(`Best ${best}  ·  ${s.level.name.split(' · ')[0]}`, 30, 64);
 
-  // Lives as little pink brains.
-  for (let i = 0; i < s.lives; i++) {
-    const cx = 258 - i * 30;
-    ctx.fillStyle = COLORS.brain;
-    ctx.strokeStyle = COLORS.brainEdge;
-    ctx.lineWidth = 2;
+  // Strikes: three slots, crossed out as they are used.
+  const used = LIVES - s.lives;
+  for (let i = 0; i < LIVES; i++) {
+    const cx = 202 + i * 28;
+    const cy = 37;
+    ctx.lineWidth = 2.5;
     ctx.beginPath();
-    ctx.ellipse(cx, 37, 12, 10, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(cx, 28);
-    ctx.lineTo(cx, 46);
-    ctx.stroke();
+    ctx.arc(cx, cy, 11, 0, Math.PI * 2);
+    if (i < used) {
+      ctx.fillStyle = COLORS.bad;
+      ctx.fill();
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.moveTo(cx - 5, cy - 5);
+      ctx.lineTo(cx + 5, cy + 5);
+      ctx.moveTo(cx + 5, cy - 5);
+      ctx.lineTo(cx - 5, cy + 5);
+      ctx.stroke();
+    } else {
+      ctx.strokeStyle = COLORS.ink;
+      ctx.globalAlpha = 0.35;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
   }
 }
 
@@ -305,7 +343,7 @@ function drawTutorial(ctx: CanvasRenderingContext2D, s: GameState, time: number)
   }
 
   ctx.fillStyle = COLORS.panel;
-  roundRect(ctx, 40, 24, 640, 150, 22);
+  roundRect(ctx, 40, 24, 690, 150, 22);
   ctx.fill();
   ctx.fillStyle = COLORS.ink;
   ctx.textAlign = 'left';
@@ -317,7 +355,7 @@ function drawTutorial(ctx: CanvasRenderingContext2D, s: GameState, time: number)
   ctx.fillText('Flap your brain through that answer’s opening!', 68, 138);
 
   ctx.fillStyle = COLORS.panel;
-  roundRect(ctx, 40, 470, 640, 210, 22);
+  roundRect(ctx, 40, 470, 690, 210, 22);
   ctx.fill();
   ctx.fillStyle = COLORS.ink;
   ctx.font = `bold 28px ${FONT}`;
@@ -325,8 +363,8 @@ function drawTutorial(ctx: CanvasRenderingContext2D, s: GameState, time: number)
   ctx.font = `24px ${FONT}`;
   const steps = [
     'Tap, click or press Space to flap up.',
-    'Between flaps, gravity pulls you down.',
-    'Right answer: +1. Wrong one or a bump: lose a brain.',
+    'Fly through the gap with the right answer: +1.',
+    'A bump or a wrong answer is a strike. 3 strikes: out!',
   ];
   steps.forEach((t, i) => ctx.fillText(`${i + 1}.  ${t}`, 68, 534 + i * 36));
 
@@ -353,7 +391,7 @@ function drawGameOver(ctx: CanvasRenderingContext2D, s: GameState, best: number)
   ctx.font = `bold 56px ${FONT}`;
   ctx.fillText('Brain dead', VIEW.width / 2, y + 62);
   ctx.font = `28px ${FONT}`;
-  ctx.fillText(`You got ${s.score} right.`, VIEW.width / 2, y + 122);
+  ctx.fillText(`Three strikes! You got ${s.score} right.`, VIEW.width / 2, y + 122);
   ctx.fillText(best > 0 && s.score >= best ? 'New best!' : `Best: ${best}`, VIEW.width / 2, y + 160);
   ctx.font = `bold 28px ${FONT}`;
   ctx.fillText('Tap to try again', VIEW.width / 2, y + 208);

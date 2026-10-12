@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BRAIN, GATE, LIVES, RESTART_DELAY, VIEW } from '../src/config';
+import { BRAIN, GATE, INVULN, LIVES, RESTART_DELAY, VIEW } from '../src/config';
 import { flap, FIRST_GATE_X, newGame, nextGate, openingAt, openingCenter, openings, step, type Gate, type GameState } from '../src/game';
 import { mulberry32 } from '../src/questions';
 
@@ -89,10 +89,17 @@ describe('flight', () => {
     expect(s.lives).toBe(LIVES);
   });
 
-  it('dropping to the floor costs a life', () => {
+  it('the floor is a free bounce, not a strike', () => {
     const s = started();
-    for (let i = 0; i < 120 * 3 && s.lives === LIVES; i++) step(s, DT);
-    expect(s.lives).toBe(LIVES - 1);
+    let bounced = false;
+    for (let i = 0; i < 120 * 6; i++) {
+      step(s, DT);
+      s.gates = []; // keep gates out of the way
+      if (s.brain.vy < 0) bounced = true;
+    }
+    expect(bounced).toBe(true);
+    expect(s.lives).toBe(LIVES);
+    expect(s.brain.y).toBeLessThanOrEqual(BRAIN.floor - BRAIN.hitRadius);
   });
 
   it('the hit circle stays inside the drawn body, so wing tips never collide', () => {
@@ -178,6 +185,34 @@ describe('gates', () => {
     // From appearing at the right edge to reaching the brain, even at top speed.
     const seconds = (VIEW.width - BRAIN.x) / GATE.maxSpeed;
     expect(seconds).toBeGreaterThanOrEqual(3.5);
+  });
+});
+
+describe('three strikes', () => {
+  it('one bump is a strike, and play carries on', () => {
+    const s = started();
+    const g = s.gates[0];
+    holdAt(s, g, g.centerY);
+    expect(g.result).toBe('crash');
+    expect(s.lives).toBe(LIVES - 1);
+    expect(s.phase).toBe('playing');
+    // Recovery lasts long enough to get clear of the gate it hit.
+    expect(INVULN).toBeGreaterThanOrEqual((GATE.width + BRAIN.hitRadius * 2) / GATE.startSpeed);
+  });
+
+  it('a mix of bumps and wrong answers adds up to three strikes', () => {
+    const s = started();
+    const first = s.gates[0];
+    holdAt(s, first, first.centerY); // bump
+    s.brain.invuln = 0;
+    const second = nextGate(s)!;
+    holdAt(s, second, openingCenter(second, second.correct === 0 ? 1 : 0)); // wrong answer
+    expect(s.lives).toBe(LIVES - 2);
+    expect(s.phase).toBe('playing');
+    s.brain.invuln = 0;
+    const third = nextGate(s)!;
+    holdAt(s, third, third.centerY);
+    expect(s.phase).toBe('over');
   });
 });
 

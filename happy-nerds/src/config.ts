@@ -6,14 +6,14 @@ export const BRAIN = {
   /** The brain holds this x; the gates scroll toward it. */
   x: 360,
   /** Size of the drawn body (the wings stick out beyond it). */
-  bodyRadius: 30,
+  bodyRadius: 35,
   /** Collision circle around the main body only. Smaller than the drawing so grazes are forgiven. */
   hitRadius: 23,
   /** Small, steerable hops: each flap lifts the brain about 40 px. */
   gravity: 1250,
   flapSpeed: 320,
   maxFall: 520,
-  /** Touching the ceiling just stops the climb; touching the floor costs a life. */
+  /** Touching the ceiling or the floor just stops or bounces the brain; neither costs a strike. */
   ceiling: 40,
   floor: VIEW.height - 30,
 };
@@ -35,8 +35,9 @@ export const GATE = {
   maxSpeed: 240,
 };
 
+/** Strikes allowed: each bump or wrong answer is one; the last one ends the run. */
 export const LIVES = 3;
-/** Seconds of no-collision after losing a life. */
-export const INVULN = 1.4;
+/** Seconds of no-collision after a strike, long enough to fly clear of the gate. */
+export const INVULN = 2;
 /** Ignore taps for this long on the game-over screen so a panic tap doesn't restart. */
 export const RESTART_DELAY = 0.6;
