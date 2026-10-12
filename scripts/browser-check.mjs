@@ -390,9 +390,9 @@ try {
     await page.evaluate(() => {
       const p = JSON.parse(localStorage.getItem('homeward-hound.progress') ?? '{}');
       p.storySeen = true;
-      // The autopilot is clumsier than a player: give it the two sausage links a
-      // first-time player could buy with the bones from a practice run.
-      p.upgrades = { tail: 0, recharge: 0, bark: 0, health: 2 };
+      // The autopilot is clumsier than a player: give it the three sausage links a
+      // player could buy with the bones from a couple of practice runs.
+      p.upgrades = { tail: 0, recharge: 0, bark: 0, health: 3 };
       p.checkpoint = null;
       p.completedChapters = [];
       localStorage.setItem('homeward-hound.progress', JSON.stringify(p));
@@ -547,7 +547,7 @@ try {
     const bot = await page.evaluate(() => window.__bot);
     const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('homeward-hound.progress')));
     await page.screenshot({ path: 'screenshots/10-basestat-results.png' });
-    check('whole chapter + boss completed without god mode (2 bought links)', saved.completedChapters.includes(1) && saved.checkpoint === null, JSON.stringify(bot));
+    check('whole chapter + boss completed without god mode (3 bought links)', saved.completedChapters.includes(1) && saved.checkpoint === null, JSON.stringify(bot));
     await page.close();
   }
 

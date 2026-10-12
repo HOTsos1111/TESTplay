@@ -513,8 +513,10 @@ export class PatternBoss extends Entity implements Boss {
   constructor(private scene: Phaser.Scene, level: number, private makeDeck: (x: number, w: number, top: number) => Entity) {
     super();
     this.def = BOSSES[level];
-    this.maxHits = this.def.hp * HP_SCALE;
-    this.agg = Phaser.Math.Clamp(((level - 1) / 8) * 0.65 + upgradePower() * 0.55, 0, 1);
+    // A beefed-up pup (Double Bark, Bigger Bark...) faces a sturdier boss: up to +80% health.
+    const power = upgradePower();
+    this.maxHits = Math.round(this.def.hp * HP_SCALE * (1 + 0.8 * power));
+    this.agg = Phaser.Math.Clamp(((level - 1) / 8) * 0.65 + power * 0.75, 0, 1);
     this.title = this.def.name;
     const key = pieceKey(level, 'b1');
     this.icon = scene.textures.exists(key) ? key : 'boss_flex';
