@@ -24,6 +24,14 @@ export function missingSkills(ch: ChapterDef): 'Speed Burst'[] {
   return chapterNeeds(ch).burst && upgradeLevels().burst < 1 ? ['Speed Burst'] : [];
 }
 
+/** How far through the bone shop the pup is, 0 (nothing bought) .. 1 (everything maxed). */
+export function upgradePower(): number {
+  const u = upgradeLevels();
+  const have = UPGRADE_KEYS.reduce((n, k) => n + u[k], 0);
+  const all = UPGRADE_KEYS.reduce((n, k) => n + maxLevel(k), 0);
+  return all ? have / all : 0;
+}
+
 export function maxHearts(): number {
   return TUNING.maxHearts + upgradeLevels().health;
 }

@@ -1,3 +1,5 @@
+import { TUNING } from './config';
+
 /**
  * The bone shop: every skill the pup can buy, level by level. Each purchase
  * shows a pop-up explaining what it does and how to use it.
@@ -53,7 +55,7 @@ export const UPGRADES: UpgradeDef[] = [
     key: 'jump',
     name: 'Springy Paws',
     icon: 'hero_s_run',
-    prices: [40, 90, 160],
+    prices: [70, 140, 240],
     describe: (l) => (l ? `Jumps ${pct(UPGRADE_TUNING.jumpPerLevel * l * 2)} higher` : 'Jump higher'),
     intro: [1, 2, 3].map((l) => ({
       title: l === 3 ? 'Springiest Paws!' : 'Springy Paws!',
@@ -66,7 +68,7 @@ export const UPGRADES: UpgradeDef[] = [
     key: 'double',
     name: 'Double Jump+',
     icon: 'hero_s_leap',
-    prices: [100, 200],
+    prices: [160, 320],
     describe: (l) => ['Double jump (built in)', `Double jump ${pct(UPGRADE_TUNING.doublePerLevel)} higher`, 'TRIPLE jump!'][l],
     intro: [
       { title: 'Bigger Double Jump!', body: `Your second jump in mid-air goes ${pct(UPGRADE_TUNING.doublePerLevel)} higher.`, keys: 'SPACE / ↑ again in mid-air', touch: 'Push UP again in mid-air' },
@@ -82,7 +84,7 @@ export const UPGRADES: UpgradeDef[] = [
     key: 'tail',
     name: 'Tail Spin',
     icon: 'hero_s_prop',
-    prices: [50, 100, 175],
+    prices: [80, 160, 280],
     describe: (l) => `Hover ${(1 + UPGRADE_TUNING.tailPerLevel * l).toFixed(2)}x as long`,
     intro: [1, 2, 3].map(() => ({
       title: 'Longer Tail Spin!',
@@ -95,7 +97,7 @@ export const UPGRADES: UpgradeDef[] = [
     key: 'recharge',
     name: 'Zoomie Recharge',
     icon: 'icon_tail_empty',
-    prices: [40, 80, 140],
+    prices: [60, 120, 220],
     describe: (l) => `Tail recharge +${pct(UPGRADE_TUNING.rechargePerLevel * l)}`,
     intro: [1, 2, 3].map((l) => ({
       title: 'Zoomie Recharge!',
@@ -106,11 +108,11 @@ export const UPGRADES: UpgradeDef[] = [
     key: 'health',
     name: 'Sausage Links',
     icon: 'hp_link_full',
-    prices: [75, 150, 250],
-    describe: (l) => `${6 + l} sausage links of health`,
-    intro: [1, 2, 3].map((l) => ({
+    prices: [60, 110, 180, 270, 380],
+    describe: (l) => `${TUNING.maxHearts + l} sausage links of health`,
+    intro: [1, 2, 3, 4, 5].map((l) => ({
       title: 'Extra Sausage Link!',
-      body: `You now start every level with ${6 + l} links of health. One more hit before a detour!`,
+      body: `You now start every level with ${TUNING.maxHearts + l} links of health. One more hit before a detour!`,
     })),
   },
   {
@@ -118,7 +120,7 @@ export const UPGRADES: UpgradeDef[] = [
     name: 'Speed Burst',
     icon: 'icon_burst',
     unlock: true,
-    prices: [100, 120, 200],
+    prices: [140, 200, 320],
     describe: (l) => ['Locked: slingshot dash', 'Speed Burst', `Burst +${pct(UPGRADE_TUNING.burstFaster)} faster`, 'Faster, longer bursts'][l],
     intro: [
       {
@@ -135,7 +137,7 @@ export const UPGRADES: UpgradeDef[] = [
     key: 'bark',
     name: 'Bigger Bark',
     icon: 'icon_bark',
-    prices: [50, 100, 175],
+    prices: [80, 160, 280],
     describe: (l) => `Bark reach +${UPGRADE_TUNING.barkPerLevel * l} px`,
     intro: [1, 2, 3].map(() => ({
       title: 'Bigger Bark!',
@@ -149,7 +151,7 @@ export const UPGRADES: UpgradeDef[] = [
     name: 'Double Bark',
     icon: 'hero_s_bark',
     unlock: true,
-    prices: [150, 260],
+    prices: [240, 400],
     describe: (l) => ['Locked: bark twice', 'Double Bark', 'MEGA Bark'][l],
     intro: [
       {
@@ -171,12 +173,12 @@ export const UPGRADES: UpgradeDef[] = [
     name: 'Boomerang Bone',
     icon: 'hero_s_toy',
     unlock: true,
-    prices: [120, 150, 240],
+    prices: [200, 260, 380],
     describe: (l) => ['Locked: throw your squeaky toy', 'Boomerang Bone', 'Longer, faster throws', 'Double-back: hits going and coming'][l],
     intro: [
       {
         title: 'New skill: Boomerang Bone!',
-        body: 'The squeaky toy you rescued, slung at your side. Throw it: it flies out, hits whatever it meets (squirrels, nuts, bosses), fetches bones on the way and comes back to you.',
+        body: 'The squeaky toy you rescued, slung at your side. Throw it: it flies out, hits squirrels, nuts and bosses, fetches bones on the way and comes back to you. Big cardboard boxes are bark-only: it bounces off those.',
         keys: 'V or E to throw',
         touch: 'Tap the TOSS button',
       },

@@ -4,6 +4,7 @@ import { BOSSES, type Attack, type BossDef, type Lane } from '../data/bosses';
 import { pieceKey, type Piece } from '../data/levelArt';
 import { Audio } from '../systems/AudioManager';
 import { pieceTexture } from '../systems/LevelSkins';
+import { upgradePower } from '../systems/Skills';
 import type { Rect } from '../systems/PlayerController';
 import type { Boss, BossEvent } from './SquirrelSwarm';
 import { Entity, type GameContext } from './World';
@@ -501,6 +502,11 @@ export class PatternBoss extends Entity implements Boss {
   private aim: Phaser.GameObjects.Graphics;
   /** Set by the game each frame: the dog's bark would reach it right now. */
   inRange = false;
+  /**
+   * How hard it presses, 0..1: later levels and a more upgraded pup both make it
+   * throw more, faster and more often (Level 1 with no upgrades is 0).
+   */
+  readonly agg: number;
   /** Attack lists per tier: every round ends in a finisher that leaves it dazed. */
   private tiers: Attack[][];
 
@@ -508,6 +514,7 @@ export class PatternBoss extends Entity implements Boss {
     super();
     this.def = BOSSES[level];
     this.maxHits = this.def.hp * HP_SCALE;
+    this.agg = Phaser.Math.Clamp(((level - 1) / 8) * 0.65 + upgradePower() * 0.55, 0, 1);
     this.title = this.def.name;
     const key = pieceKey(level, 'b1');
     this.icon = scene.textures.exists(key) ? key : 'boss_flex';
@@ -596,7 +603,7 @@ export class PatternBoss extends Entity implements Boss {
   }
 
   private get warnTime(): number {
-    return this.enraged ? 0.55 : 0.75;
+    return Math.max(0.5, (this.enraged ? 0.55 : 0.75) * (1 - 0.2 * this.agg));
   }
 
   private go(p: Phase): void {
@@ -780,25 +787,30 @@ export class PatternBoss extends Entity implements Boss {
     const R = ctx.cameraRight - 90;
     switch (a.kind) {
       case 'volley': {
-        const n = a.n ?? 3;
+        // More shots, spread wider, as it gets more aggressive.
+        const n = Math.min(5, (a.n ?? 3) + Math.round(this.agg * 2));
         const tex = shotTexture(s, lv, a.shot, 34, 30);
-        const offs = n === 1 ? [0] : n === 2 ? [-60, 60] : [-110, 0, 110];
-        offs.forEach((o, i) => add(new LobShot(s, bx + d * 40, by, Phaser.Math.Clamp(this.targetX + o, L, R), tex, 1.0 + i * 0.12)));
+        const gap = n <= 2 ? 120 : 110;
+        for (let i = 0; i < n; i++) {
+          const o = (i - (n - 1) / 2) * gap;
+          add(new LobShot(s, bx + d * 40, by, Phaser.Math.Clamp(this.targetX + o, L, R), tex, 1.0 + i * 0.1));
+        }
         Audio.play('throw');
         break;
       }
       case 'roll':
-        add(new Roller(s, bx + d * 70, shotTexture(s, lv, a.shot, 48, 48), -d * (a.speed ?? 250), !!a.heavy));
+        add(new Roller(s, bx + d * 70, shotTexture(s, lv, a.shot, 48, 48), -d * (a.speed ?? 250) * (1 + 0.35 * this.agg), !!a.heavy));
         Audio.play('parcel');
         break;
       case 'sweep':
-        add(new Sweeper(s, bx + d * 80, shotTexture(s, lv, a.shot, 130, 70), a.height, -d * (a.speed ?? 430)));
+        add(new Sweeper(s, bx + d * 80, shotTexture(s, lv, a.shot, 130, 70), a.height, -d * (a.speed ?? 430) * (1 + 0.25 * this.agg)));
         Audio.play('throw');
         break;
       case 'drop': {
-        const n = a.n ?? 1;
+        // Extra drops fan out round the dog, always a dog-width apart.
+        const n = Math.min(4, (a.n ?? 1) + Math.round(this.agg * 1.5));
         const tex = shotTexture(s, lv, a.shot, 60, 56);
-        const xs = n === 1 ? [this.targetX] : [this.targetX - 70, this.targetX + 150 * d];
+        const xs = n === 1 ? [this.targetX] : Array.from({ length: n }, (_, i) => this.targetX + (i - (n - 1) / 2) * 175 + (n % 2 ? 0 : 40 * d));
         xs.forEach((x, i) => add(new Dropper(s, Phaser.Math.Clamp(x, L, R), tex, 0.7 + i * 0.35)));
         break;
       }
@@ -819,10 +831,13 @@ export class PatternBoss extends Entity implements Boss {
         Audio.play('jump');
         break;
       case 'barrage':
-        add(new Barrage(s, bx + d * 60, d, shotTexture(s, lv, a.shot, 110, 60), a.lanes, this.enraged ? 500 : 440, add));
+        {
+          const lanes = this.agg > 0.45 ? [...a.lanes, a.lanes[a.lanes.length - 1] === 'low' ? 'high' : 'low'] as Lane[] : a.lanes;
+          add(new Barrage(s, bx + d * 60, d, shotTexture(s, lv, a.shot, 110, 60), lanes, (this.enraged ? 500 : 440) * (1 + 0.15 * this.agg), add));
+        }
         break;
       case 'bounce': {
-        const n = a.n ?? 1;
+        const n = Math.min(4, (a.n ?? 1) + Math.round(this.agg * 1.5));
         const tex = shotTexture(s, lv, a.shot, 46, 46);
         const hops = [85, 170];
         for (let i = 0; i < n; i++) add(new Bouncer(s, bx + d * (60 + i * 170), by, tex, d * (190 + i * 25), hops[(this.round + i) % hops.length]));
@@ -921,14 +936,14 @@ export class PatternBoss extends Entity implements Boss {
         break;
       case 'idle':
         this.sy = this.perch + (this.def.flying ? Math.sin(this.t * 3) * 10 : Math.abs(Math.sin(this.t * 5)) * 4);
-        if (this.t >= (this.enraged ? 0.12 : 0.22)) this.beginWarn(ctx);
+        if (this.t >= (this.enraged ? 0.12 : 0.22) * (1 - 0.5 * this.agg)) this.beginWarn(ctx);
         break;
       case 'hop': {
         const T = this.def.flying ? 0.6 : 0.55;
         const k = Math.min(1, this.t / T);
         if (this.t < dt * 1.5) this.hopThrown = false;
         // Angry: it lobs a shot at the dog from the top of each hop.
-        if (!this.hopThrown && k >= 0.5 && this.enraged && this.hopShot) {
+        if (!this.hopThrown && k >= 0.5 && (this.enraged || this.agg > 0.65) && this.hopShot) {
           this.hopThrown = true;
           const tex = shotTexture(this.scene, this.def.level, this.hopShot, 34, 30);
           ctx.spawn(new LobShot(this.scene, wx, G - this.sy - this.img.displayHeight * 0.5, Phaser.Math.Clamp(ctx.heroX, ctx.cameraLeft + 90, ctx.cameraRight - 90), tex, 0.8));
@@ -1023,7 +1038,7 @@ export class PatternBoss extends Entity implements Boss {
         this.sy = this.perch + (this.def.flying ? Math.sin(this.t * 3) * 8 : 0);
         // In the opening third it waits for its shots to clear (learn its moves);
         // after that it presses on while they are still flying.
-        const overlap = this.tierIndex >= 1 && this.t > 1.0 && !this.kids.some((k) => k.alive && k instanceof Barrage);
+        const overlap = (this.tierIndex >= 1 || this.agg > 0.5) && this.t > 1.0 && !this.kids.some((k) => k.alive && k instanceof Barrage);
         if (this.kids.every((k) => !k.alive) || overlap) this.wander(ctx);
         break;
       }

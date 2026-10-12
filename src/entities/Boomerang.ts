@@ -35,8 +35,8 @@ export class Boomerang extends Entity {
     private speed: number,
     private doubleBack: boolean,
     private hero: () => { x: number; y: number },
-    /** Hits every bark target / fetches every pickup overlapping the rect (once per set). */
-    private sweep: (r: Rect, hit: Set<Entity>, self: Entity) => void,
+    /** Hits every bark target / fetches every pickup overlapping the rect (once per set); true if it struck a bark-only obstacle. */
+    private sweep: (r: Rect, hit: Set<Entity>, self: Entity) => boolean,
     private onCatch: () => void,
   ) {
     super();
@@ -88,7 +88,13 @@ export class Boomerang extends Entity {
       this.y += (dy / d) * Math.min(d, v * dt);
     }
     this.img.setPosition(this.x, this.y).setRotation(this.img.rotation + this.dir * 22 * dt);
-    this.sweep(this.rect, this.back && this.doubleBack ? this.hitBack : this.hitOut, this);
+    // Bark-only boxes stop it dead: it clunks off and heads straight back.
+    if (this.sweep(this.rect, this.back && this.doubleBack ? this.hitBack : this.hitOut, this) && !this.back) {
+      this.back = true;
+      this.t = 0;
+      ctx.fx.puff(this.x, this.y, 2, 0.5);
+      Audio.play('land');
+    }
     // A whooshing blur trail and the odd squeak.
     this.past.unshift({ x: this.x, y: this.y });
     this.past.length = Math.min(this.past.length, 8);

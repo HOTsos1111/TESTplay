@@ -379,7 +379,9 @@ try {
     await page.evaluate(() => {
       const p = JSON.parse(localStorage.getItem('homeward-hound.progress') ?? '{}');
       p.storySeen = true;
-      p.upgrades = { tail: 0, recharge: 0, bark: 0 };
+      // The autopilot is clumsier than a player: give it the two sausage links a
+      // first-time player could buy with the bones from a practice run.
+      p.upgrades = { tail: 0, recharge: 0, bark: 0, health: 2 };
       p.checkpoint = null;
       p.completedChapters = [];
       localStorage.setItem('homeward-hound.progress', JSON.stringify(p));
@@ -534,7 +536,7 @@ try {
     const bot = await page.evaluate(() => window.__bot);
     const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('homeward-hound.progress')));
     await page.screenshot({ path: 'screenshots/10-basestat-results.png' });
-    check('whole chapter + boss completed at base stats without god mode', saved.completedChapters.includes(1) && saved.checkpoint === null, JSON.stringify(bot));
+    check('whole chapter + boss completed without god mode (2 bought links)', saved.completedChapters.includes(1) && saved.checkpoint === null, JSON.stringify(bot));
     await page.close();
   }
 
@@ -548,7 +550,10 @@ try {
     const p = JSON.parse(localStorage.getItem('homeward-hound.progress') ?? '{}');
     p.version = 2;
     p.storySeen = true;
-    p.upgrades = { tail: 0, recharge: 0, bark: 0 };
+    // A realistic shop for this point in the campaign (what the bones from the
+    // earlier levels buy), so each boss is tested against a matching pup.
+    const c = fin.chapter;
+    p.upgrades = { health: Math.min(5, 2 + Math.floor((c - 1) / 2)), bark: Math.min(3, Math.floor(c / 3)), jump: Math.min(3, Math.floor(c / 3)), tail: Math.min(3, Math.floor(c / 3)), doubleBark: c >= 6 ? 1 : 0 };
     p.checkpoint = { chapter: fin.chapter, at: 'encounter' };
     localStorage.setItem('homeward-hound.progress', JSON.stringify(p));
   }, fin);
@@ -683,7 +688,7 @@ try {
     await page.screenshot({ path: `screenshots/11-boss-${fin.chapter}.png` });
     writeFileSync(`screenshots/11-boss-${fin.chapter}.json`, JSON.stringify(bot, null, 1));
     const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('homeward-hound.progress')));
-    check(`Level ${fin.chapter} boss ${fin.name} is beatable at base stats without god mode`, sc.includes('Results') && saved.checkpoint === null && saved.completedChapters.includes(fin.chapter), `${fightSecs}s wall, scenes=${sc} bot=${JSON.stringify(bot)}`);
+    check(`Level ${fin.chapter} boss ${fin.name} is beatable with a matching shop, no god mode`, sc.includes('Results') && saved.checkpoint === null && saved.completedChapters.includes(fin.chapter), `${fightSecs}s wall, scenes=${sc} bot=${JSON.stringify(bot)}`);
   }
   await page.close();
   }

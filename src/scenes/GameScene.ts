@@ -423,7 +423,7 @@ export class GameScene extends Phaser.Scene {
       case 'crate':
         return new Crate(this, it.x, it.top);
       case 'cardboard':
-        return new Cardboard(this, it.x, it.top, it.stack, (s) => this.burstStack(s));
+        return new Cardboard(this, it.x, it.top, it.stack, (s) => this.burstStack(s), it.count);
       case 'tyre':
         return new Tyre(this, it.x, it.bottom);
       case 'squirrel':
@@ -558,9 +558,15 @@ export class GameScene extends Phaser.Scene {
       lvl >= 3,
       () => ({ x: this.pc.x, y: this.pc.y }),
       (r, hit, self) => {
+        let blocked = false;
         for (const e of this.entities) {
           if (e === self || !e.alive || hit.has(e)) continue;
           const t = e.barkTarget();
+          if (t && overlaps(r, t) && e instanceof Cardboard) {
+            // Bark-only: the bone bounces off.
+            blocked = true;
+            continue;
+          }
           if (t && overlaps(r, t)) {
             hit.add(e);
             e.onBark(this.ctx);
@@ -569,6 +575,7 @@ export class GameScene extends Phaser.Scene {
           const p = e.pickup();
           if (p && overlaps(r, p)) e.onPickup(this.ctx);
         }
+        return blocked;
       },
       () => (this.boomerang = null),
     );

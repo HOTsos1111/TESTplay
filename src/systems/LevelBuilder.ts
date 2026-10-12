@@ -7,7 +7,7 @@ export type Spawnable =
   | { type: 'ground'; x: number; w: number; edgeLeft: boolean; edgeRight: boolean }
   | { type: 'platform'; x: number; w: number; top: number; floating?: boolean }
   | { type: 'crate'; x: number; top: number }
-  | { type: 'cardboard'; x: number; top: number; stack: string }
+  | { type: 'cardboard'; x: number; top: number; stack: string; count: number }
   | { type: 'tyre'; x: number; bottom: number }
   | { type: 'squirrel'; x: number; bottom: number }
   | { type: 'bone'; x: number; y: number; id: string }
@@ -180,9 +180,8 @@ export function buildLevel(chapter: ChapterDef, random: () => number = Math.rand
     }
     for (const cb of c.cardboard ?? []) {
       const base = cb.h ?? 0;
-      for (let i = 0; i < cb.stack; i++) {
-        items.push({ type: 'cardboard', x: o + cb.x, top: g - base - (i + 1) * OBJECT_SIZE.cardboard.h, stack: `${ci}:${cb.x}` });
-      }
+      // A stack is one big bark-only box (the Boomerang Bone bounces off it).
+      items.push({ type: 'cardboard', x: o + cb.x, top: g - base - cb.stack * OBJECT_SIZE.cardboard.h, stack: `${ci}:${cb.x}`, count: cb.stack });
     }
     for (const t of c.tyres ?? []) items.push({ type: 'tyre', x: o + t.x, bottom: g - (t.h ?? 0) });
     for (const s of c.squirrels ?? []) items.push({ type: 'squirrel', x: o + s.x, bottom: g - (s.h ?? 0) });

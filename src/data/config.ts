@@ -60,7 +60,8 @@ export const TUNING = {
   barkLifetime: 0.18,
   /** Vertical extent of the bark pulse, centred on the head. */
   barkHeight: 130,
-  maxHearts: 6,
+  /** Starting sausage links; the bone shop adds more. */
+  maxHearts: 4,
   invulnerability: 1.2,
   /** Upward kick applied when the hero is hit. */
   hitBounceVelocity: -480,

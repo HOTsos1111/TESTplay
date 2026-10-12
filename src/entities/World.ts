@@ -261,13 +261,27 @@ export class Cardboard extends Entity {
   private wobble = Math.random() * 6;
   private flat: Phaser.GameObjects.Image | null = null;
   private shadow: Phaser.GameObjects.Image | null = null;
-  constructor(scene: Phaser.Scene, private x: number, private top: number, readonly stack: string, private onStackBreak: (stack: string) => void) {
+  private stamp: Phaser.GameObjects.Image | null = null;
+  private badge: Phaser.GameObjects.Arc | null = null;
+  private h: number;
+  /** Only a bark breaks it: the Boomerang Bone bounces off. */
+  readonly barkOnly = true;
+  constructor(scene: Phaser.Scene, private x: number, private top: number, readonly stack: string, private onStackBreak: (stack: string) => void, count = 1) {
     super();
     const { w, h } = OBJECT_SIZE.cardboard;
+    this.h = h * count;
     this.skin = pickSkin(theme().cardboard, `${stack}:${top}`);
-    this.img = scene.add.image(x + w / 2, top + h, this.skin).setOrigin(0.5, 1).setScale(ART_SCALE).setDepth(DEPTH.prop);
-    this.solid = { x, y: top, w, h, oneWay: false, kind: 'cardboard', ref: this };
-    if (top + h >= WORLD.groundY - 1) this.shadow = groundShadow(scene, x + w / 2, w);
+    // One big box the height of the old stack, stamped with a bark sign.
+    this.img = scene.add.image(x + w / 2, top + this.h, this.skin).setOrigin(0.5, 1).setDepth(DEPTH.prop);
+    if (count > 1) this.img.setDisplaySize(w + 8, this.h);
+    else this.img.setScale(ART_SCALE);
+    // A white "BARK!" badge marks it: only a bark breaks it.
+    this.badge = scene.add.circle(x + w / 2, top + this.h / 2, 19, 0xfffbef, 0.95).setStrokeStyle(3, 0x302331).setDepth(DEPTH.prop);
+    if (scene.textures.exists('icon_bark')) {
+      this.stamp = scene.add.image(x + w / 2, top + this.h / 2, 'icon_bark').setDepth(DEPTH.prop).setScale(ART_SCALE * 0.75).setTint(0xc0573e);
+    }
+    this.solid = { x, y: top, w, h: this.h, oneWay: false, kind: 'cardboard', ref: this };
+    if (top + this.h >= WORLD.groundY - 1) this.shadow = groundShadow(scene, x + w / 2, w);
   }
   get right(): number {
     return this.x + OBJECT_SIZE.cardboard.w;
@@ -276,7 +290,7 @@ export class Cardboard extends Entity {
     return this.solid === null;
   }
   barkTarget(): Rect | null {
-    return this.solid ? { x: this.x, y: this.top, w: OBJECT_SIZE.cardboard.w, h: OBJECT_SIZE.cardboard.h } : null;
+    return this.solid ? { x: this.x, y: this.top, w: OBJECT_SIZE.cardboard.w, h: this.h } : null;
   }
   onBark(): void {
     this.onStackBreak(this.stack);
@@ -291,24 +305,28 @@ export class Cardboard extends Entity {
       // Idle jiggle: fragile objects are identifiable by motion, not colour alone.
       this.wobble += dt * 5;
       this.img.rotation = Math.sin(this.wobble) * 0.025;
+      this.stamp?.setRotation(this.img.rotation);
       return;
     }
     if (this.breakT >= 0) {
       this.breakT -= dt;
       if (this.breakT < 0.08 && this.img.texture.key === this.skin) {
-        if (this.skin === 'cardboard') this.img.setTexture('cardboard_breaking');
-        else this.img.setTint(0xffd6c8).setScale(ART_SCALE * 1.08, ART_SCALE * 0.85);
+        if (this.skin === 'cardboard' && this.h <= OBJECT_SIZE.cardboard.h) this.img.setTexture('cardboard_breaking');
+        else this.img.setTint(0xffd6c8).setScale(this.img.scaleX * 1.08, this.img.scaleY * 0.85);
       }
       if (this.breakT <= 0 && this.solid) {
         this.solid = null;
         this.img.setVisible(false);
+        this.stamp?.setVisible(false);
+        this.badge?.setVisible(false);
         this.shadow?.setVisible(false);
         const cx = this.x + OBJECT_SIZE.cardboard.w / 2;
-        const cy = this.top + OBJECT_SIZE.cardboard.h / 2;
-        ctx.fx.bits(cx, cy, 9);
-        ctx.fx.puff(cx, cy, 4, 0.8);
+        for (let y = this.top + 28; y < this.top + this.h; y += OBJECT_SIZE.cardboard.h) {
+          ctx.fx.bits(cx, y, 9);
+          ctx.fx.puff(cx, y, 4, 0.8);
+        }
         Audio.play('box_break');
-        if (this.skin === 'cardboard' && this.top + OBJECT_SIZE.cardboard.h >= WORLD.groundY - 1) {
+        if (this.skin === 'cardboard' && this.top + this.h >= WORLD.groundY - 1) {
           this.flat = ctx.scene.add.image(cx, WORLD.groundY, 'cardboard_flat').setOrigin(0.5, 1).setScale(ART_SCALE).setDepth(DEPTH.prop);
         }
       }
@@ -316,6 +334,8 @@ export class Cardboard extends Entity {
   }
   destroy(): void {
     this.img.destroy();
+    this.stamp?.destroy();
+    this.badge?.destroy();
     this.flat?.destroy();
     this.shadow?.destroy();
   }
