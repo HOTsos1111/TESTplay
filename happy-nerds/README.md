@@ -10,6 +10,12 @@ Happy Nerds is a standalone project. It shares nothing with the Homeward Hound g
 
 More previews: [tutorial](docs/previews/tutorial.png), [flap](docs/previews/flap.png), [wrong answer](docs/previews/wrong-answer.png), [phone](docs/previews/phone-tutorial.png).
 
+## Play the latest build
+
+Scan with your phone, or open https://claude.ai/artifact/FfBkJVJsA8hKCKUGRKwZtN. The link always shows the newest build. It's private, so sign in to claude.ai on the phone with the owner's account, or share the page from its Share menu.
+
+<img src="docs/play-qr.png" alt="QR code for the playable build" width="200" />
+
 ## Run it
 
 ```bash
