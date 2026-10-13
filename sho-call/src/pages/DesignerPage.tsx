@@ -38,6 +38,7 @@ export function DesignerPage({ showId }: { showId: string }) {
   const [busy, setBusy] = useState(false);
   const [conflict, setConflict] = useState<string | null>(null);
   const [awaitRevision, setAwaitRevision] = useState(0);
+  const [addingCue, setAddingCue] = useState<string | null>(null);
 
   // Load: an unpublished draft if present, else the published content.
   useEffect(() => {
@@ -108,7 +109,7 @@ export function DesignerPage({ showId }: { showId: string }) {
 
   if (!s || !content) {
     return (
-      <div className="app-root theme-director">
+      <div className="app-root theme-director theme-designer">
         <AppHeader />
         <main id="main" className="page" aria-busy="true">
           {live.error ? <div className="banner banner-error">{live.error}</div> : <p className="muted">Loading Show Designer…</p>}
@@ -144,16 +145,26 @@ export function DesignerPage({ showId }: { showId: string }) {
       toast('info', 'Add a segment first.');
       return;
     }
-    const dept = deptFilter[0] ?? content.departments[0]?.id;
-    if (!dept) {
+    if (!content.departments.length) {
       toast('info', 'Add a department first.');
       return;
     }
-    const id = localId('cue');
+    setAddingCue(segId);
+  };
+
+  const createCues = (segId: string, deptIds: string[], number: string, link: boolean) => {
+    const ids = deptIds.map(() => localId('cue'));
     update((c) => {
-      c.cues.push({ id, segmentId: segId, position: c.cues.length, number: nextNumber(c, dept), departmentId: dept, instruction: '', owner: '', offsetSec: 0, durationSec: 0, groupId: null, target: null });
+      const seg = c.segments.find((x) => x.id === segId);
+      const gid = link && deptIds.length > 1 ? localId('grp') : null;
+      if (gid) c.groups.push({ id: gid, label: `${number} ${seg?.title ?? 'Cue'}`.slice(0, 120), segmentId: segId });
+      deptIds.forEach((departmentId, i) => {
+        c.cues.push({ id: ids[i], segmentId: segId, position: c.cues.length, number, departmentId, instruction: '', owner: '', offsetSec: 0, durationSec: 0, groupId: gid, target: null });
+      });
     });
-    setSel({ kind: 'cue', id });
+    setAddingCue(null);
+    setSel({ kind: 'cue', id: ids[0] });
+    toast('info', `Added cue ${number} for ${deptIds.length} department${deptIds.length > 1 ? 's' : ''}. Fill in each instruction.`);
   };
 
   const moveSegment = (id: string, dir: -1 | 1) =>
@@ -291,7 +302,7 @@ export function DesignerPage({ showId }: { showId: string }) {
   const checkedCues = content.cues.filter((c) => checked.includes(c.id));
 
   return (
-    <div className="app-root theme-director">
+    <div className="app-root theme-director theme-designer">
       <AppHeader>
         <span className="header-divider hide-phone" />
         <div className="identity">
@@ -516,6 +527,9 @@ export function DesignerPage({ showId }: { showId: string }) {
         </div>
       </main>
 
+      {addingCue ? (
+        <AddCueDialog content={content} segmentId={addingCue} onClose={() => setAddingCue(null)} onCreate={createCues} />
+      ) : null}
       {linking ? (
         <QLinkDialog
           cues={checkedCues}
@@ -900,6 +914,104 @@ function DepartmentsDialog({ content, onClose, onChange }: { content: ShowConten
           </button>
         </div>
       </div>
+    </Dialog>
+  );
+}
+
+function AddCueDialog({
+  content,
+  segmentId,
+  onClose,
+  onCreate,
+}: {
+  content: ShowContent;
+  segmentId: string;
+  onClose: () => void;
+  onCreate: (segmentId: string, deptIds: string[], number: string, link: boolean) => void;
+}) {
+  const [segId, setSegId] = useState(segmentId);
+  const [chosen, setChosen] = useState<string[]>([]);
+  const [link, setLink] = useState(true);
+  const suggested = (ids: string[]) => {
+    const nums = content.cues.filter((c) => !ids.length || ids.includes(c.departmentId)).map((c) => parseInt(c.number, 10)).filter((n) => !Number.isNaN(n));
+    return String((nums.length ? Math.max(...nums) : 0) + 1).padStart(3, '0');
+  };
+  const [number, setNumber] = useState(() => suggested([]));
+  const [numberEdited, setNumberEdited] = useState(false);
+  const all = content.departments.map((d) => d.id);
+  const allOn = chosen.length === all.length;
+  const choose = (ids: string[]) => {
+    setChosen(ids);
+    if (!numberEdited) setNumber(suggested(ids));
+  };
+  const clash = chosen
+    .filter((id) => content.cues.some((c) => c.departmentId === id && c.number.toLowerCase() === number.trim().toLowerCase()))
+    .map((id) => content.departments.find((d) => d.id === id)?.name);
+  return (
+    <Dialog title="Add cue" onClose={onClose}>
+      <form
+        className="stack"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (chosen.length && number.trim() && !clash.length) onCreate(segId, all.filter((id) => chosen.includes(id)), number.trim(), link);
+        }}
+      >
+        <div className="spread">
+          <span className="field">Which departments are in this cue?</span>
+          <button type="button" className={`btn btn-sm ${allOn ? 'btn-primary' : ''}`} aria-pressed={allOn} onClick={() => choose(allOn ? [] : all)} data-autofocus>
+            ALL
+          </button>
+        </div>
+        <div className="dept-picker" role="group" aria-label="Departments in this cue">
+          {content.departments.map((d) => {
+            const on = chosen.includes(d.id);
+            return (
+              <button type="button" key={d.id} className="dept-toggle" aria-pressed={on} onClick={() => choose(on ? chosen.filter((x) => x !== d.id) : [...chosen, d.id])}>
+                <span className="tick" aria-hidden>
+                  {on ? '✓' : ''}
+                </span>
+                <DeptIcon icon={d.icon} /> {d.name}
+              </button>
+            );
+          })}
+        </div>
+        <div className="form-grid" style={{ gridTemplateColumns: '1fr 2fr' }}>
+          <Field label="Cue number" error={!number.trim() ? 'Required.' : clash.length ? `Already used in ${clash.join(', ')}.` : null}>
+            <input
+              className="input tabular"
+              value={number}
+              onChange={(e) => {
+                setNumber(e.target.value);
+                setNumberEdited(true);
+              }}
+              aria-invalid={!number.trim() || clash.length > 0}
+            />
+          </Field>
+          <Field label="Segment">
+            <select className="input" value={segId} onChange={(e) => setSegId(e.target.value)}>
+              {sortSegments(content.segments).map((sg) => (
+                <option key={sg.id} value={sg.id}>
+                  {sg.title}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
+        {chosen.length > 1 ? (
+          <label className="checkbox">
+            <input type="checkbox" checked={link} onChange={(e) => setLink(e.target.checked)} /> Link as one Q-Link call (the Director issues all {chosen.length} together)
+          </label>
+        ) : null}
+        <p className="small muted">One cue is created per department with the same number. You then write each department's instruction in the details panel.</p>
+        <div className="row" style={{ justifyContent: 'flex-end' }}>
+          <button type="button" className="btn btn-ghost" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="btn btn-primary" disabled={!chosen.length || !number.trim() || clash.length > 0}>
+            <Plus /> Add cue{chosen.length > 1 ? ` for ${chosen.length} departments` : ''}
+          </button>
+        </div>
+      </form>
     </Dialog>
   );
 }

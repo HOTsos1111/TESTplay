@@ -215,17 +215,7 @@ export async function createApp(overrides: Partial<Config> & { staticDir?: strin
         member(input.fromTemplateId, user);
         content = cloneContent(loadContent(db, input.fromTemplateId));
       } else {
-        content = {
-          departments: input.departments.map((name, i) => {
-            const std = STANDARD_DEPARTMENTS.find((d) => d.key === name);
-            return std
-              ? { id: newId('dep'), key: std.key, name: std.name, icon: std.icon, sort: i }
-              : { id: newId('dep'), key: name.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 32) || `dept-${i}`, name, icon: 'generic' as const, sort: i };
-          }),
-          segments: [],
-          cues: [],
-          groups: [],
-        };
+        content = defaultContent(input.departments);
       }
       writeContent(db, id, content);
       addEvent(db, id, { sessionId: null, type: 'show', actorId: user.id, actorName: user.name, summary: input.fromTemplateId ? 'Show created from template' : 'Show created' });
@@ -554,4 +544,33 @@ export async function createApp(overrides: Partial<Config> & { staticDir?: strin
 function ensureAnotherOwner(db: Db, showId: string, userId: string) {
   const others = get<{ n: number }>(db, `SELECT COUNT(*) AS n FROM show_members WHERE show_id = ? AND role = 'owner' AND user_id != ?`, showId, userId)!.n;
   if (others === 0) throw new HttpError(409, 'last_owner', 'A show needs at least one owner.');
+}
+
+/**
+ * A new blank show opens with one segment and one opening cue for every
+ * department chosen at setup, linked as a single Q-Link call.
+ */
+export function defaultContent(departmentNames: string[]): ShowContent {
+  const departments = departmentNames.map((name, i) => {
+    const std = STANDARD_DEPARTMENTS.find((d) => d.key === name);
+    return std
+      ? { id: newId('dep'), key: std.key, name: std.name, icon: std.icon, sort: i }
+      : { id: newId('dep'), key: name.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 32) || `dept-${i}`, name, icon: 'generic' as const, sort: i };
+  });
+  const segment = { id: newId('seg'), position: 0, title: 'Opening', performer: '', durationSec: 300, fixedTime: null, notes: '' };
+  const group = departments.length > 1 ? { id: newId('grp'), label: 'Opening cue', segmentId: segment.id } : null;
+  const cues = departments.map((d, i) => ({
+    id: newId('cue'),
+    segmentId: segment.id,
+    position: i,
+    number: '001',
+    departmentId: d.id,
+    instruction: `${d.name}: opening cue (edit this instruction)`,
+    owner: '',
+    offsetSec: 0,
+    durationSec: 0,
+    groupId: group?.id ?? null,
+    target: null,
+  }));
+  return { departments, segments: departments.length ? [segment] : [], cues, groups: group ? [group] : [] };
 }

@@ -328,3 +328,21 @@ describe('sessions', () => {
     expect((await director.req('POST', `/api/shows/${showId}/cue-actions`, { target: { kind: 'group', id: g.id }, action: 'standby', reason: '', idempotencyKey: key(), clientId: CONSOLE })).status).toBe(403);
   });
 });
+
+describe('new shows', () => {
+  it('open with a default opening cue for every department chosen at setup, linked as one call', async () => {
+    const producer = await new Client(env.app.url).login('producer@summit-live.example');
+    const r = await producer.req<{ showId: string }>('POST', '/api/shows', {
+      details: { title: 'Fresh show', eventDate: '2026-11-04', timezone: 'UTC', plannedStart: '19:00', venue: '', notes: '' },
+      departments: ['video', 'audio', 'lighting', 'Pyro'],
+    });
+    expect(r.status).toBe(200);
+    const s = await producer.snapshot(r.data.showId);
+    expect(s.content.departments.map((d) => d.name)).toEqual(['Video', 'Audio', 'Lighting', 'Pyro']);
+    expect(s.content.segments.map((x) => x.title)).toEqual(['Opening']);
+    expect(s.content.cues.length).toBe(4);
+    expect(new Set(s.content.cues.map((c) => c.departmentId)).size).toBe(4);
+    expect(s.content.cues.every((c) => c.number === '001' && c.groupId === s.content.groups[0].id)).toBe(true);
+    expect(deriveCalls(s.content).length).toBe(1);
+  });
+});

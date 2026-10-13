@@ -57,6 +57,18 @@
   --row-hover: rgba(244, 199, 107, 0.05);
 }
 
+/* Show Designer: a darker, near-black take on the Director palette. */
+.theme-designer {
+  --shell: #0b0a08;
+  --panel: rgba(22, 19, 14, 0.95);
+  --panel-solid: #16130e;
+  --raised: rgba(31, 27, 20, 0.96);
+  --raised-solid: #1f1b14;
+  --border: rgba(244, 199, 107, 0.12);
+  --row-hover: rgba(244, 199, 107, 0.04);
+}
+.theme-designer .designer-seg { background: #121009; }
+
 .theme-crew {
   --shell: var(--crew-shell);
   --panel: rgba(13, 38, 66, 0.92);

@@ -306,6 +306,20 @@ try {
     await d.screenshot({ path: `${OUT}/10-designer.png` });
   });
 
+  await step('Add cue asks for departments; ALL creates one linked cue per department', async () => {
+    const before = await d.locator('.dcue').count();
+    const depts = await d.locator('.toolbar .segmented button').count() - 1;
+    await d.getByRole('button', { name: 'Add cue' }).click();
+    const dlg = d.getByRole('dialog');
+    assert(await dlg.getByRole('button', { name: /^Add cue/ }).isDisabled(), 'Add enabled with no departments chosen');
+    await dlg.getByRole('button', { name: 'ALL', exact: true }).click();
+    await d.screenshot({ path: `${OUT}/12-designer-add-cue.png` });
+    await dlg.getByRole('button', { name: `Add cue for ${depts} departments` }).click();
+    await dlg.waitFor({ state: 'detached' });
+    const after = await d.locator('.dcue').count();
+    assert(after === before + depts, `expected ${depts} new cues, got ${after - before}`);
+  });
+
   await step('Import: sample CSV preview, mapping and review', async () => {
     await d.goto(`${BASE}/import`);
     const csv = await (await fetch(`${BASE}/sample-run-of-show.csv`)).text();
