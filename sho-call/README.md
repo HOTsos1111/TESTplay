@@ -56,6 +56,16 @@ Copy `.env.example` to `.env` if you need to change anything. No secrets are req
 | `COOKIE_SECURE` | `false` | Set `true` behind HTTPS |
 | `DEMO_LOGIN` | `true` | Show demo-account buttons and auto-seed an empty database |
 
+## Hosted prototype (Render)
+
+The repository root has a `render.yaml` Blueprint that deploys this app as one free Render web service. The service handles the API, the WebSocket and the built client on one HTTPS URL.
+
+1. Sign in at <https://dashboard.render.com> with GitHub and allow Render to access this repository.
+2. Choose **New → Blueprint** and pick the repository. Render reads `render.yaml`, which deploys the `claude/epic-fermat-fsrgla` branch from `sho-call/`. Click **Apply**.
+3. When the deploy is live, open the `https://sho-call-….onrender.com` URL. Use the demo-account buttons, with the Director on a laptop and a crew account on a phone or in a private window.
+
+Free-plan behaviour: the service sleeps after about 15 minutes idle, and the first visit after that takes up to a minute to wake it. The database lives on temporary disk, so every restart or redeploy resets to a freshly seeded Summit Live. That is fine for a prototype; keeping data would need a paid instance with a persistent disk. After merging to another branch, change `branch:` in `render.yaml`.
+
 ## Demo walkthrough
 
 About ten minutes, following the showcase in the UX spec. Every step is backed by server state; `npm run check:browser` automates it.

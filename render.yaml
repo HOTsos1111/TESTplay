@@ -1,0 +1,24 @@
+# Render Blueprint for the Sho Call prototype (sho-call/).
+# Render dashboard → New → Blueprint → connect this repository.
+services:
+  - type: web
+    name: sho-call
+    runtime: node
+    plan: free
+    rootDir: sho-call
+    branch: claude/epic-fermat-fsrgla
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_VERSION
+        value: 22.22.0
+      # Render serves the app over HTTPS, so the session cookie can be Secure.
+      - key: COOKIE_SECURE
+        value: "true"
+      # Prototype: demo accounts on the login page; an empty database seeds Summit Live.
+      - key: DEMO_LOGIN
+        value: "true"
+      # Free instances have no persistent disk: the demo resets on each restart/redeploy.
+      - key: DATABASE_PATH
+        value: ./data/sho-call.db
