@@ -1,0 +1,41 @@
+{
+  "name": "sho-call",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Sho Call \u2014 live show coordination (v1 preliminary build)",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "tsc --noEmit && vite build",
+    "start": "NODE_ENV=production node --disable-warning=ExperimentalWarning server/index.ts",
+    "db:migrate": "node --disable-warning=ExperimentalWarning server/migrate.ts",
+    "db:seed": "node --disable-warning=ExperimentalWarning server/seed.ts --reset",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "check:browser": "node scripts/browser-check.mjs",
+    "user:create": "node --disable-warning=ExperimentalWarning server/create-user.ts"
+  },
+  "dependencies": {
+    "lucide-react": "^1.56.0",
+    "mammoth": "^1.13.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "read-excel-file": "^9.3.12",
+    "ws": "^8.22.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/ws": "^8.18.2",
+    "@vitejs/plugin-react": "^6.1.2",
+    "playwright-core": "^1.64.0",
+    "typescript": "~5.9.3",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.4"
+  }
+}
