@@ -393,7 +393,7 @@ export function normalizeImport(table: string[][], mapping: ImportMapping, exist
       offsetSec: 0,
       durationSec: cueDur ?? 0,
       groupId: null,
-      target: null,
+      target: null, standbyScript: '', goScript: '',
       row: r,
       timeSec,
     });
@@ -429,13 +429,13 @@ export function normalizeImport(table: string[][], mapping: ImportMapping, exist
       const key = `${seg.id}|${groupLabel.toLowerCase()}`;
       let g = groupByKey.get(key);
       if (!g) {
-        g = { id: newId('grp'), label: groupLabel.slice(0, 120), segmentId: seg.id };
+        g = { id: newId('grp'), label: groupLabel.slice(0, 120), segmentId: seg.id, standbyScript: '', goScript: '' };
         groupByKey.set(key, g);
         groups.push(g);
       }
       for (const c of rowCues) c.groupId = g.id;
     } else if (wide && mapping.linkRows && rowCues.length > 1) {
-      const g: CueGroup = { id: newId('grp'), label: `${rowNumber} ${seg.title}`.slice(0, 120), segmentId: seg.id };
+      const g: CueGroup = { id: newId('grp'), label: `${rowNumber} ${seg.title}`.slice(0, 120), segmentId: seg.id, standbyScript: '', goScript: '' };
       groups.push(g);
       for (const c of rowCues) c.groupId = g.id;
     }

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, Copy, FileSpreadsheet, Link2, Plus, Save, Search, Send, Settings2, Trash2, Unlink } from 'lucide-react';
+import { usePrefs } from '../lib/prefs.ts';
+import { ArrowDown, ArrowUp, Columns3, Copy, FileSpreadsheet, Link2, Plus, Rows3, Save, Search, Send, Settings2, Trash2, Unlink } from 'lucide-react';
 import { api, ApiError, errorText } from '../lib/api.ts';
 import { linkTo } from '../lib/router.ts';
 import { localId } from '../lib/ids.ts';
@@ -7,11 +8,12 @@ import { useLiveShow, useTick } from '../lib/useLiveShow.ts';
 import { AppHeader } from '../components/AppHeader.tsx';
 import { ConnectionIndicator, DeptIcon, DeptLabel, Dialog, Field, ModeBadge, QLinkTag, StaleBanner, useToast } from '../components/ui.tsx';
 import { contentSchema, validateContent } from '../../shared/schemas.ts';
-import { ICON_KEYS, slugKey } from '../../shared/calls.ts';
+import { deriveCalls, ICON_KEYS, slugKey, type Call } from '../../shared/calls.ts';
+import { callScript } from '../../shared/script.ts';
 import { computeSchedule, formatClock, formatDuration, formatMinutes, parseClock, parseDuration, sortSegments } from '../../shared/timing.ts';
 import type { ChangePreview, Cue, Department, IconKey, Segment, ShowContent } from '../../shared/types.ts';
 
-type Selection = { kind: 'segment' | 'cue'; id: string } | null;
+type Selection = { kind: 'segment' | 'cue' | 'call'; id: string } | null;
 
 function nextNumber(content: ShowContent, departmentId: string): string {
   const nums = content.cues.filter((c) => c.departmentId === departmentId).map((c) => parseInt(c.number, 10)).filter((n) => !Number.isNaN(n));
@@ -39,6 +41,7 @@ export function DesignerPage({ showId }: { showId: string }) {
   const [conflict, setConflict] = useState<string | null>(null);
   const [awaitRevision, setAwaitRevision] = useState(0);
   const [addingCue, setAddingCue] = useState<string | null>(null);
+  const [prefs, setPrefs] = usePrefs(`designer:${showId}`, { layout: 'grid' as 'grid' | 'list' });
 
   // Load: an unpublished draft if present, else the published content.
   useEffect(() => {
@@ -157,9 +160,9 @@ export function DesignerPage({ showId }: { showId: string }) {
     update((c) => {
       const seg = c.segments.find((x) => x.id === segId);
       const gid = link && deptIds.length > 1 ? localId('grp') : null;
-      if (gid) c.groups.push({ id: gid, label: `${number} ${seg?.title ?? 'Cue'}`.slice(0, 120), segmentId: segId });
+      if (gid) c.groups.push({ id: gid, label: `${number} ${seg?.title ?? 'Cue'}`.slice(0, 120), segmentId: segId, standbyScript: '', goScript: '' });
       deptIds.forEach((departmentId, i) => {
-        c.cues.push({ id: ids[i], segmentId: segId, position: c.cues.length, number, departmentId, instruction: '', owner: '', offsetSec: 0, durationSec: 0, groupId: gid, target: null });
+        c.cues.push({ id: ids[i], segmentId: segId, position: c.cues.length, number, departmentId, instruction: '', owner: '', offsetSec: 0, durationSec: 0, groupId: gid, target: null, standbyScript: '', goScript: '' });
       });
     });
     setAddingCue(null);
@@ -202,7 +205,7 @@ export function DesignerPage({ showId }: { showId: string }) {
           gid = groupMap.get(cue.groupId) ?? localId('grp');
           if (!groupMap.has(cue.groupId)) {
             groupMap.set(cue.groupId, gid);
-            c.groups.push({ id: gid, label: `${c.groups.find((g) => g.id === cue.groupId)?.label ?? 'Q-Link'} (copy)`, segmentId: nid });
+            c.groups.push({ id: gid, label: `${c.groups.find((g) => g.id === cue.groupId)?.label ?? 'Q-Link'} (copy)`, segmentId: nid, standbyScript: '', goScript: '' });
           }
         }
         c.cues.push({ ...cue, id: localId('cue'), segmentId: nid, number: nextNumber(c, cue.departmentId), groupId: gid, position: c.cues.length });
@@ -300,6 +303,40 @@ export function DesignerPage({ showId }: { showId: string }) {
   const selCue = sel?.kind === 'cue' ? content.cues.find((c) => c.id === sel.id) : undefined;
   const selSeg = sel?.kind === 'segment' ? content.segments.find((x) => x.id === sel.id) : undefined;
   const checkedCues = content.cues.filter((c) => checked.includes(c.id));
+  const allCalls = deriveCalls(content);
+  const selCall = sel?.kind === 'call' ? allCalls.find((c) => c.id === sel.id) : undefined;
+  const callOfCue = (cue: Cue) => allCalls.find((c) => c.cueIds.includes(cue.id));
+
+  /** Store a call-script override on the Q-Link group or the independent cue. */
+  const setScript = (call: Call, patch: { standbyScript?: string; goScript?: string }) =>
+    update((c) => {
+      const target = call.kind === 'group' ? c.groups.find((g) => g.id === call.groupId) : c.cues.find((x) => x.id === call.cueIds[0]);
+      if (target) Object.assign(target, patch);
+    });
+
+  /** Grid "+" cell: add this department to a call, linking an independent cue into a new Q-Link. */
+  const addCell = (call: Call, departmentId: string) => {
+    const dept = deptById.get(departmentId);
+    if (content.cues.some((c) => c.departmentId === departmentId && c.number.toLowerCase() === call.number.toLowerCase())) {
+      toast('error', `Cue ${call.number} is already used in ${dept?.name}. Use Add cue with a different number.`);
+      return;
+    }
+    const nid = localId('cue');
+    update((c) => {
+      const first = c.cues.find((x) => x.id === call.cueIds[0])!;
+      let gid = call.groupId;
+      if (!gid) {
+        gid = localId('grp');
+        const seg = c.segments.find((x) => x.id === first.segmentId);
+        c.groups.push({ id: gid, label: `${call.number} ${seg?.title ?? 'Cue'}`.slice(0, 120), segmentId: first.segmentId, standbyScript: first.standbyScript, goScript: first.goScript });
+        first.groupId = gid;
+        first.standbyScript = '';
+        first.goScript = '';
+      }
+      c.cues.push({ id: nid, segmentId: first.segmentId, position: c.cues.length, number: call.number, departmentId, instruction: '', owner: '', offsetSec: first.offsetSec, durationSec: 0, groupId: gid, target: null, standbyScript: '', goScript: '' });
+    });
+    setSel({ kind: 'cue', id: nid });
+  };
 
   return (
     <div className="app-root theme-director theme-designer">
@@ -376,6 +413,14 @@ export function DesignerPage({ showId }: { showId: string }) {
           <button className="btn btn-sm btn-ghost" onClick={() => setManagingDepts(true)} disabled={!canEdit}>
             <Settings2 /> Departments
           </button>
+          <div className="segmented" role="group" aria-label="Layout">
+            <button aria-pressed={prefs.layout === 'grid'} onClick={() => setPrefs({ layout: 'grid' })}>
+              <Columns3 aria-hidden /> Grid
+            </button>
+            <button aria-pressed={prefs.layout === 'list'} onClick={() => setPrefs({ layout: 'list' })}>
+              <Rows3 aria-hidden /> List
+            </button>
+          </div>
           <span className="grow" />
           <button className="btn btn-sm" onClick={() => setLinking(true)} disabled={!canEdit || checkedCues.length < 1}>
             <Link2 /> Q-Link ({checkedCues.length})
@@ -443,7 +488,24 @@ export function DesignerPage({ showId }: { showId: string }) {
                     ) : null}
                   </header>
                   {cues.length === 0 ? <p className="muted small" style={{ padding: '8px 12px' }}>No cues yet.</p> : null}
-                  {cues.map((c) => {
+                  {prefs.layout === 'grid' && cues.length ? (
+                    <SegmentGrid
+                      seg={seg}
+                      cues={cues}
+                      content={content}
+                      columns={deptFilter.length ? content.departments.filter((d) => deptFilter.includes(d.id)) : content.departments}
+                      sel={sel}
+                      badCues={badCues}
+                      canEdit={canEdit}
+                      plannedOf={(id) => {
+                        const ct = schedule?.cues.get(id);
+                        return ct ? formatClock(ct.planned, tz, false) : '';
+                      }}
+                      onSelect={setSel}
+                      onAddCell={addCell}
+                    />
+                  ) : null}
+                  {prefs.layout === 'grid' ? null : cues.map((c) => {
                     const d = deptById.get(c.departmentId);
                     const g = c.groupId ? groupById.get(c.groupId) : null;
                     const ct = schedule?.cues.get(c.id);
@@ -497,7 +559,9 @@ export function DesignerPage({ showId }: { showId: string }) {
           </section>
 
           <aside className="designer-side panel pad stack" aria-label="Details">
-            {selCue ? (
+            {selCall ? (
+              <CallScriptEditor key={selCall.id} call={selCall} content={content} canEdit={canEdit} onChange={setScript} onSelectCue={(id) => setSel({ kind: 'cue', id })} />
+            ) : selCue ? (
               <CueEditor
                 key={selCue.id}
                 cue={selCue}
@@ -514,6 +578,9 @@ export function DesignerPage({ showId }: { showId: string }) {
                   })
                 }
               />
+            ) : null}
+            {selCue && !selCall && callOfCue(selCue) ? (
+              <CallScriptEditor key={`script-${selCue.id}`} call={callOfCue(selCue)!} content={content} canEdit={canEdit} onChange={setScript} compact />
             ) : selSeg ? (
               <SegmentEditor key={selSeg.id} seg={selSeg} canEdit={canEdit} onChange={(patch) => update((c) => Object.assign(c.segments.find((x) => x.id === selSeg.id)!, patch))} />
             ) : (
@@ -538,7 +605,7 @@ export function DesignerPage({ showId }: { showId: string }) {
           onLink={(label) => {
             const gid = localId('grp');
             update((c) => {
-              c.groups.push({ id: gid, label, segmentId: checkedCues[0]?.segmentId ?? null });
+              c.groups.push({ id: gid, label, segmentId: checkedCues[0]?.segmentId ?? null, standbyScript: '', goScript: '' });
               for (const cue of c.cues) if (checked.includes(cue.id)) cue.groupId = gid;
             });
             setChecked([]);
@@ -1013,5 +1080,175 @@ function AddCueDialog({
         </div>
       </form>
     </Dialog>
+  );
+}
+
+function ScriptBox({ standby, go, onClick, selected, size = 'md' }: { standby: string; go: string; onClick?: () => void; selected?: boolean; size?: 'md' | 'lg' }) {
+  const body = (
+    <>
+      <span className="script-line">
+        <span className="script-tag tag-sb">SB</span>
+        <span>{standby}</span>
+      </span>
+      <span className="script-line">
+        <span className="script-tag tag-go">GO</span>
+        <span>{go}</span>
+      </span>
+    </>
+  );
+  return onClick ? (
+    <button type="button" className={`script-box script-${size} ${selected ? 'is-selected' : ''}`} onClick={onClick} aria-label={`Call script: ${standby}. ${go}. Select to edit.`}>
+      {body}
+    </button>
+  ) : (
+    <div className={`script-box script-${size}`}>{body}</div>
+  );
+}
+
+function SegmentGrid({
+  seg,
+  cues,
+  content,
+  columns,
+  sel,
+  badCues,
+  canEdit,
+  plannedOf,
+  onSelect,
+  onAddCell,
+}: {
+  seg: Segment;
+  cues: Cue[];
+  content: ShowContent;
+  columns: Department[];
+  sel: Selection;
+  badCues: Set<string>;
+  canEdit: boolean;
+  plannedOf: (cueId: string) => string;
+  onSelect: (s: Selection) => void;
+  onAddCell: (call: Call, departmentId: string) => void;
+}) {
+  const calls = deriveCalls({ segments: [seg], cues, groups: content.groups }).map((call) => {
+    // Rows show every member of a Q-Link, even when a search hides some.
+    const all = call.groupId ? content.cues.filter((c) => c.groupId === call.groupId).map((c) => c.id) : call.cueIds;
+    return { ...call, cueIds: all };
+  });
+  return (
+    <div className="sheet-scroll">
+      <table className="sheet">
+        <thead>
+          <tr>
+            <th scope="col" className="sheet-script">Call script</th>
+            <th scope="col">Cue #</th>
+            <th scope="col">Time</th>
+            {columns.map((d) => (
+              <th key={d.id} scope="col">
+                <span className="row" style={{ gap: 6 }}>
+                  <DeptIcon icon={d.icon} size={16} /> {d.name}
+                </span>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {calls.map((call) => {
+            const script = callScript(call, content);
+            const members = call.cueIds.map((id) => content.cues.find((c) => c.id === id)!).filter(Boolean);
+            const group = call.groupId ? content.groups.find((g) => g.id === call.groupId) : null;
+            return (
+              <tr key={call.id} className={sel?.kind === 'call' && sel.id === call.id ? 'selected' : ''}>
+                <td className="sheet-script">
+                  <ScriptBox standby={script.standby} go={script.go} selected={sel?.kind === 'call' && sel.id === call.id} onClick={() => onSelect({ kind: 'call', id: call.id })} />
+                </td>
+                <td className="sheet-num">
+                  {call.number}
+                  {group ? (
+                    <span className="qlink" title={`Q-Link: ${group.label}`} style={{ display: 'flex', marginTop: 4 }}>
+                      <Link2 aria-hidden />
+                      <span className="sr-only">Q-Link {group.label}</span>
+                    </span>
+                  ) : null}
+                </td>
+                <td className="tabular">{plannedOf(call.cueIds[0])}</td>
+                {columns.map((d) => {
+                  const cue = members.find((m) => m.departmentId === d.id);
+                  if (!cue) {
+                    return (
+                      <td key={d.id} className="sheet-empty">
+                        {canEdit ? (
+                          <button type="button" className="sheet-add" onClick={() => onAddCell(call, d.id)} aria-label={`Add ${d.name} to cue ${call.number}`}>
+                            <Plus aria-hidden width={16} />
+                          </button>
+                        ) : null}
+                      </td>
+                    );
+                  }
+                  return (
+                    <td key={d.id} className={`${sel?.id === cue.id ? 'selected' : ''} ${badCues.has(cue.id) ? 'cell-err' : ''}`}>
+                      <button type="button" className="sheet-cell" onClick={() => onSelect({ kind: 'cue', id: cue.id })} aria-label={`Edit ${d.name} cue ${cue.number}`}>
+                        {cue.instruction || <i className="field-error">Instruction required</i>}
+                      </button>
+                    </td>
+                  );
+                })}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function CallScriptEditor({
+  call,
+  content,
+  canEdit,
+  onChange,
+  onSelectCue,
+  compact = false,
+}: {
+  call: Call;
+  content: ShowContent;
+  canEdit: boolean;
+  onChange: (call: Call, patch: { standbyScript?: string; goScript?: string }) => void;
+  onSelectCue?: (id: string) => void;
+  compact?: boolean;
+}) {
+  const script = callScript(call, content);
+  const source = call.kind === 'group' ? content.groups.find((g) => g.id === call.groupId) : content.cues.find((c) => c.id === call.cueIds[0]);
+  const def = script.defaults;
+  return (
+    <fieldset disabled={!canEdit} className={`stack ${compact ? 'raised pad-sm' : ''}`} style={{ border: compact ? undefined : 0, padding: compact ? undefined : 0, margin: 0 }}>
+      {compact ? <span className="field">Call script (what the Director reads)</span> : <h2>Call script — Cue {call.number}</h2>}
+      {!compact ? <ScriptBox standby={script.standby} go={script.go} size="lg" /> : null}
+      <Field label="Standby call" hint={script.standbyDefault ? 'Using the default. Type to replace it.' : undefined}>
+        <textarea className="input" rows={2} value={source?.standbyScript ?? ''} placeholder={def.standby} onChange={(e) => onChange(call, { standbyScript: e.target.value })} />
+      </Field>
+      <Field label="GO call" hint={script.goDefault ? 'Using the default. Type to replace it.' : undefined}>
+        <textarea className="input" rows={2} value={source?.goScript ?? ''} placeholder={def.go} onChange={(e) => onChange(call, { goScript: e.target.value })} />
+      </Field>
+      {!script.standbyDefault || !script.goDefault ? (
+        <div>
+          <button type="button" className="btn btn-sm" onClick={() => onChange(call, { standbyScript: '', goScript: '' })}>
+            Reset to default
+          </button>
+        </div>
+      ) : null}
+      {!compact && onSelectCue ? (
+        <div className="stack" style={{ gap: 6 }}>
+          <span className="field">Department cues in this call</span>
+          {call.cueIds.map((id) => {
+            const c = content.cues.find((x) => x.id === id);
+            const d = content.departments.find((x) => x.id === c?.departmentId);
+            return c ? (
+              <button key={id} type="button" className="btn btn-sm" style={{ justifyContent: 'flex-start', whiteSpace: 'normal', textAlign: 'left' }} onClick={() => onSelectCue(id)}>
+                <DeptIcon icon={d?.icon ?? 'generic'} size={16} /> {d?.name}: {c.instruction || 'instruction required'}
+              </button>
+            ) : null;
+          })}
+        </div>
+      ) : null}
+    </fieldset>
   );
 }

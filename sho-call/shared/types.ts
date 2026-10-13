@@ -80,12 +80,18 @@ export interface Cue {
   durationSec: number;
   groupId: string | null;
   target: CueTarget | null;
+  /** Director call script for an independent cue; '' = generated default. */
+  standbyScript: string;
+  goScript: string;
 }
 
 export interface CueGroup {
   id: string;
   label: string;
   segmentId: string | null;
+  /** Director call script for the Q-Link call; '' = generated default. */
+  standbyScript: string;
+  goScript: string;
 }
 
 export interface ShowContent {

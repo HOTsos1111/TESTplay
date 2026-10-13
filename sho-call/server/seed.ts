@@ -78,10 +78,10 @@ export function seedDemo(db: Db, opts: { timezone?: string; startInMinutes?: num
       return s;
     };
     const cue = (s: Segment, dept: string, number: string, instruction: string, offsetMin = 0, group: CueGroup | null = null, owner = '') => {
-      cues.push({ id: newId('cue'), segmentId: s.id, position: pos++, number, departmentId: D[dept], instruction, owner, offsetSec: Math.round(offsetMin * 60), durationSec: 0, groupId: group?.id ?? null, target: null });
+      cues.push({ id: newId('cue'), segmentId: s.id, position: pos++, number, departmentId: D[dept], instruction, owner, offsetSec: Math.round(offsetMin * 60), durationSec: 0, groupId: group?.id ?? null, target: null, standbyScript: '', goScript: '' });
     };
     const qlink = (s: Segment, label: string): CueGroup => {
-      const g: CueGroup = { id: newId('grp'), label, segmentId: s.id };
+      const g: CueGroup = { id: newId('grp'), label, segmentId: s.id, standbyScript: '', goScript: '' };
       groups.push(g);
       return g;
     };
@@ -96,6 +96,9 @@ export function seedDemo(db: Db, opts: { timezone?: string; startInMinutes?: num
 
     const opening = seg('Opening film', '', 4);
     const gOpen = qlink(opening, 'Show open');
+    // An edited call script (the rest use the generated defaults).
+    gOpen.standbyScript = 'Standby house to half, video and sound for the opening film — Cue 010';
+    gOpen.goScript = 'House to black… film… GO Cue 010';
     cue(opening, 'video', '010', 'Play opening film “Summit 2026” full screen on all outputs.', 0, gOpen);
     cue(opening, 'audio', '010', 'Fade walk-in music out over 3 s; film audio up to nominal.', 0, gOpen);
     cue(opening, 'lighting', '010', 'House to black over 5 s; stage to film look.', 0, gOpen);

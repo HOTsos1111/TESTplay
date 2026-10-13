@@ -64,11 +64,11 @@ describe('calls and aggregates', () => {
       { id: 's1', position: 0, title: 'A', performer: '', durationSec: 60, fixedTime: null, notes: '' },
     ],
     cues: [
-      { id: 'c3', segmentId: 's2', position: 2, number: '010', departmentId: 'd2', instruction: 'x', owner: '', offsetSec: 0, durationSec: 0, groupId: null, target: null },
-      { id: 'c1', segmentId: 's1', position: 0, number: '001', departmentId: 'd1', instruction: 'x', owner: '', offsetSec: 0, durationSec: 0, groupId: 'g1', target: null },
-      { id: 'c2', segmentId: 's1', position: 1, number: '001', departmentId: 'd2', instruction: 'x', owner: '', offsetSec: 0, durationSec: 0, groupId: 'g1', target: null },
+      { id: 'c3', segmentId: 's2', position: 2, number: '010', departmentId: 'd2', instruction: 'x', owner: '', offsetSec: 0, durationSec: 0, groupId: null, target: null, standbyScript: '', goScript: '' },
+      { id: 'c1', segmentId: 's1', position: 0, number: '001', departmentId: 'd1', instruction: 'x', owner: '', offsetSec: 0, durationSec: 0, groupId: 'g1', target: null, standbyScript: '', goScript: '' },
+      { id: 'c2', segmentId: 's1', position: 1, number: '001', departmentId: 'd2', instruction: 'x', owner: '', offsetSec: 0, durationSec: 0, groupId: 'g1', target: null, standbyScript: '', goScript: '' },
     ],
-    groups: [{ id: 'g1', label: 'Open', segmentId: 's1' }],
+    groups: [{ id: 'g1', label: 'Open', segmentId: 's1', standbyScript: '', goScript: '' }],
   };
 
   it('derives one call per Q-Link and per independent cue, in running order', () => {

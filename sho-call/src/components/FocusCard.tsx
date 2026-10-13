@@ -10,6 +10,8 @@ import { formatClock, formatDuration } from '../../shared/timing.ts';
 import type { CueAction, Snapshot } from '../../shared/types.ts';
 import { callTime, type ShowModel } from '../lib/model.ts';
 import { Dialog, DeptIcon, QLinkTag, ReadinessChip, StatusChip } from './ui.tsx';
+import { CallScriptCell } from './RunningOrder.tsx';
+import { callScript } from '../../shared/script.ts';
 
 export function availability(model: ShowModel, call: Call, action: CueAction): { ok: boolean; reason: string } {
   let reason = '';
@@ -91,7 +93,7 @@ export function FocusCard({
   const explain = blockedReason ?? (!goAvail.ok ? goAvail.reason.replace('Cannot Go', 'Go unavailable') : null);
 
   return (
-    <section className="focus-card stack" aria-labelledby="focus-h">
+    <section key={call.id} className="focus-card stack card-in" aria-labelledby="focus-h">
       <div className="spread">
         <p className="focus-label" id="focus-h">
           Armed call
@@ -107,6 +109,10 @@ export function FocusCard({
           <p className="focus-title">{call.kind === 'group' ? `${members.length} departments` : model.deptById.get(members[0]?.departmentId)?.name}</p>
           <p className="muted small">{model.segById.get(call.segmentId)?.title}</p>
         </div>
+      </div>
+      <div aria-label="Call script">
+        <p className="focus-label" style={{ marginBottom: 6 }}>Script</p>
+        <CallScriptCell {...callScript(call, s.content)} state={state} size="lg" />
       </div>
       <ul className="stack" style={{ listStyle: 'none', margin: 0, padding: 0, gap: 8 }}>
         {members.map((m) => {

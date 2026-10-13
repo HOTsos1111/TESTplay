@@ -49,7 +49,7 @@ async function step(name, fn) {
     results.push(`  ok   ${name}`);
   } catch (e) {
     failed++;
-    results.push(`  FAIL ${name}\n       ${String(e?.message ?? e).split('\n')[0]}`);
+    results.push(`  FAIL ${name}\n       ${String(e?.message ?? e).split("\n").slice(0, 12).join("\n       ")}`);
   }
 }
 const assert = (cond, msg) => {
@@ -300,15 +300,16 @@ try {
     await d.goto(`${BASE}/shows/${d.url().split('/')[4]}/designer`);
     await d.locator('.designer-seg').first().waitFor();
     await d.locator('.qlink').first().waitFor();
-    await d.locator('.dcue').nth(1).click();
+    await d.locator('table.sheet').first().waitFor();
+    await d.locator('.sheet-cell').nth(1).click();
     await d.getByLabel('Instruction').waitFor();
     await a11ySmoke(d, 'designer');
     await d.screenshot({ path: `${OUT}/10-designer.png` });
   });
 
   await step('Add cue asks for departments; ALL creates one linked cue per department', async () => {
-    const before = await d.locator('.dcue').count();
-    const depts = await d.locator('.toolbar .segmented button').count() - 1;
+    const before = await d.locator('.sheet-cell').count();
+    const depts = (await d.getByRole('group', { name: 'Department filter' }).getByRole('button').count()) - 1;
     await d.getByRole('button', { name: 'Add cue' }).click();
     const dlg = d.getByRole('dialog');
     assert(await dlg.getByRole('button', { name: /^Add cue/ }).isDisabled(), 'Add enabled with no departments chosen');
@@ -316,8 +317,32 @@ try {
     await d.screenshot({ path: `${OUT}/12-designer-add-cue.png` });
     await dlg.getByRole('button', { name: `Add cue for ${depts} departments` }).click();
     await dlg.waitFor({ state: 'detached' });
-    const after = await d.locator('.dcue').count();
+    const after = await d.locator('.sheet-cell').count();
     assert(after === before + depts, `expected ${depts} new cues, got ${after - before}`);
+  });
+
+  await step('Designer: edit a call script; List layout shows cues vertically', async () => {
+    await d.locator('button.script-box').first().click();
+    await d.getByRole('heading', { name: /Call script — Cue/ }).waitFor();
+    await d.getByLabel('GO call').fill('Doors… GO Cue 001');
+    await d.locator('button.script-box', { hasText: 'Doors… GO Cue 001' }).waitFor();
+    await d.screenshot({ path: `${OUT}/13-designer-script.png` });
+    await d.getByRole('button', { name: 'List', exact: true }).click();
+    await d.locator('.dcue').first().waitFor();
+    assert((await d.locator('table.sheet').count()) === 0, 'grid still shown in list layout');
+    await d.getByRole('button', { name: 'Grid', exact: true }).click();
+    await d.locator('table.sheet').first().waitFor();
+  });
+
+  await step('Director console shows the call script at the front of each row and in the focus card', async () => {
+    await d.goto(d.url().replace('/designer', '/console'));
+    await d.locator('.ro .col-script .script-box').first().waitFor();
+    await d.locator('.focus-card .script-lg').waitFor();
+    await d.locator('.ro .script-box', { hasText: 'GO Cue 010' }).first().waitFor();
+    await d.screenshot({ path: `${OUT}/14-director-script.png` });
+    await d.getByRole('button', { name: /Script on/ }).click();
+    assert((await d.locator('.ro .col-script').count()) === 0, 'script column still visible when off');
+    await d.getByRole('button', { name: /Script off/ }).click();
   });
 
   await step('Import: sample CSV preview, mapping and review', async () => {

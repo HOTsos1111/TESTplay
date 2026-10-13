@@ -81,9 +81,13 @@ About ten minutes, following the showcase in the UX spec. Every step is backed b
 9. On a crew device, toggle departments (e.g. Lighting only, then add Audio). The filter is personal and never changes the Director's view or grants access.
 10. Scroll the Director running order: follow pauses and **Return to Live (F)** appears.
 11. Put the crew device offline (airplane mode, or DevTools → Network → Offline). It shows **Offline — showing revision N, last synced …** with a STALE stamp, and readiness is disabled. Go back online: it reconnects, fetches the authoritative snapshot and replays nothing.
-12. Open **Show Designer** to see segments, department cues, Q-Links and the details drawer. Then use **Import → Sample CSV** to go through preview → mapping → review → confirm.
+12. Open **Show Designer**. The default **Grid** layout puts each call on one row with a column per department; **List** shows cues vertically. Click a call's script box to edit its Standby/GO call notes, a `+` cell to add a department to a call, or **Add cue** to pick departments (with **ALL**). It shows segments, department cues, Q-Links and the details drawer. Then use **Import → Sample CSV** to go through preview → mapping → review → confirm.
 
 The seed also includes a speaker change (published revision 2), a held cue (Lighting 060, “waiting for the award result”), estimated timings, a fixed-time item and a reusable template.
+
+## Director call script
+
+Every call has a **call script**: what the show caller reads aloud. It defaults to the standard form, for example *“Standby Video, Audio and Lighting for Cue 023”* and *“Video, Audio and Lighting — GO Cue 023”*. It appears as a large bold box at the front of each running-order row in the Director console, with the line to read next highlighted, and large in the armed-call card. **Script on/off** toggles the column. Call notes are edited in Show Designer and saved with the show's revisions. Clearing a field returns it to the default. A Q-Link call stores its script on the group; an independent cue stores it on the cue.
 
 ## Architecture
 
@@ -120,8 +124,8 @@ Two sheet shapes are handled. In *one row per cue* the sheet has a Department co
 ## Checks run for this build
 
 - `npm run typecheck`: clean.
-- `npm test`: 48 tests across 4 files. They cover the cue state machine, Q-Link aggregation, timezone/DST conversion, schedule shifts and projection, CSV/XLSX/DOCX import and validation, and a **cross-client integration suite**: two real clients over HTTP + WebSocket test atomic Q-Link Go, duplicate requests, an independent cue, hold/resume, permission rejections for HTTP and WebSocket, a CSRF header check, server-side department filtering, reorder + shift propagation, revision conflicts, undo, issued-cue deletion protection, reconnect recovery without replay, lost-acknowledgement lookup, stale readiness and session separation.
-- `npm run check:browser`: 24 steps in headless Chromium with a Director laptop context and an Audio phone context. It covers the walkthrough above plus no horizontal scrolling at phone/tablet/desktop sizes, keyboard shortcuts ignored while typing, viewer has no enabled controls, and a basic accessibility pass (named buttons and links, labelled inputs, image alt text, main landmark).
+- `npm test`: 52 tests across 5 files. They cover the cue state machine, Q-Link aggregation, timezone/DST conversion, schedule shifts and projection, CSV/XLSX/DOCX import and validation, and a **cross-client integration suite**: two real clients over HTTP + WebSocket test atomic Q-Link Go, duplicate requests, an independent cue, hold/resume, permission rejections for HTTP and WebSocket, a CSRF header check, server-side department filtering, reorder + shift propagation, revision conflicts, undo, issued-cue deletion protection, reconnect recovery without replay, lost-acknowledgement lookup, stale readiness and session separation.
+- `npm run check:browser`: 26 steps in headless Chromium with a Director laptop context and an Audio phone context. It covers the walkthrough above plus no horizontal scrolling at phone/tablet/desktop sizes, keyboard shortcuts ignored while typing, viewer has no enabled controls, and a basic accessibility pass (named buttons and links, labelled inputs, image alt text, main landmark).
 
 ## Known limitations
 

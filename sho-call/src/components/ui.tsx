@@ -55,8 +55,8 @@ export function DeptLabel({ dept, size = 18 }: { dept: Department | undefined; s
   );
 }
 
-export function Logo({ variant = 'white', small = false }: { variant?: 'white' | 'color' | 'black'; small?: boolean }) {
-  return <img className={`logo ${small ? 'logo-sm' : ''}`} src={`/brand/sho-call-${variant}.png`} alt="Sho Call" width={small ? 72 : 90} height={small ? 24 : 30} />;
+export function Logo({ variant = 'color', small = false }: { variant?: 'white' | 'color' | 'black'; small?: boolean }) {
+  return <img className={`logo ${small ? 'logo-sm' : ''}`} src={`/brand/sho-call-${variant}.png`} alt="Sho Call" width={small ? 96 : 120} height={small ? 32 : 40} />;
 }
 
 const STATE_META: Record<CallState, { label: string; Icon: LucideIcon }> = {
@@ -73,7 +73,7 @@ const STATE_META: Record<CallState, { label: string; Icon: LucideIcon }> = {
 export function StatusChip({ state, at }: { state: CallState; at?: string }) {
   const m = STATE_META[state];
   return (
-    <span className={`chip chip-${state}`}>
+    <span key={state} className={`chip chip-${state} chip-anim`}>
       <m.Icon aria-hidden />
       {m.label}
       {at ? <span className="tabular" style={{ fontWeight: 600 }}>{at}</span> : null}
@@ -91,7 +91,7 @@ const READY_META: Record<AggregateReadiness, { label: string; Icon: LucideIcon }
 export function ReadinessChip({ value, prefix = 'Crew' }: { value: AggregateReadiness; prefix?: string }) {
   const m = READY_META[value];
   return (
-    <span className={`chip chip-${value}`} title={`${prefix} readiness: ${m.label}`}>
+    <span key={value} className={`chip chip-${value} chip-anim`} title={`${prefix} readiness: ${m.label}`}>
       <m.Icon aria-hidden />
       <span className="sr-only">{prefix} readiness: </span>
       {m.label}

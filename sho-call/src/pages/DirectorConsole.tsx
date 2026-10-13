@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CircleHelp, Crosshair, Home, Layers, LayoutList, ListOrdered, Maximize2, PencilLine, Play, Rows3, ShieldAlert } from 'lucide-react';
+import { CircleHelp, Crosshair, ScrollText, Home, Layers, LayoutList, ListOrdered, Maximize2, PencilLine, Play, Rows3, ShieldAlert } from 'lucide-react';
 import { api, errorText, NetworkError } from '../lib/api.ts';
 import { clientId, requestKey } from '../lib/ids.ts';
 import { linkTo } from '../lib/router.ts';
@@ -40,7 +40,7 @@ export function DirectorConsole({ showId }: { showId: string }) {
   void tick;
   const s = live.snapshot;
   const model = useShowModel(s, now);
-  const [prefs, setPrefs] = usePrefs(`director:${user?.id}:${showId}`, { preset: 'full' as Preset, depts: [] as string[], follow: true });
+  const [prefs, setPrefs] = usePrefs(`director:${user?.id}:${showId}`, { preset: 'full' as Preset, depts: [] as string[], follow: true, script: true });
   const [armedId, setArmedId] = useState<string | null>(null);
   const [pending, setPending] = useState<CueAction | null>(null);
   const [uncertain, setUncertain] = useState<Uncertain | null>(null);
@@ -306,6 +306,9 @@ export function DirectorConsole({ showId }: { showId: string }) {
               </button>
             ))}
           </div>
+          <button className="btn btn-sm" aria-pressed={prefs.script} onClick={() => setPrefs({ script: !prefs.script })} style={prefs.script ? { borderColor: 'var(--accent)', color: 'var(--accent)' } : undefined}>
+            <ScrollText /> Script {prefs.script ? 'on' : 'off'}
+          </button>
           <span className="grow" />
           <button className="btn btn-sm" onClick={() => setEditing(true)} disabled={!session || !canDirect}>
             <PencilLine /> Live edit
@@ -324,7 +327,7 @@ export function DirectorConsole({ showId }: { showId: string }) {
                     Showing {prefs.depts.map((id) => model.deptById.get(id)?.name).join(', ')} only. Filtering never changes the armed call.
                   </p>
                 ) : null}
-                <RunningOrder s={s} model={model} calls={calls} preset={prefs.preset} deptFilter={prefs.depts} armedId={armed?.id ?? null} onArm={setArmedId} changed={changed} />
+                <RunningOrder s={s} model={model} calls={calls} preset={prefs.preset} deptFilter={prefs.depts} armedId={armed?.id ?? null} onArm={setArmedId} changed={changed} showScript={prefs.script} />
               </div>
               {!prefs.follow ? (
                 <div className="return-live">

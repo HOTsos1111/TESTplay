@@ -558,7 +558,7 @@ export function defaultContent(departmentNames: string[]): ShowContent {
       : { id: newId('dep'), key: name.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 32) || `dept-${i}`, name, icon: 'generic' as const, sort: i };
   });
   const segment = { id: newId('seg'), position: 0, title: 'Opening', performer: '', durationSec: 300, fixedTime: null, notes: '' };
-  const group = departments.length > 1 ? { id: newId('grp'), label: 'Opening cue', segmentId: segment.id } : null;
+  const group = departments.length > 1 ? { id: newId('grp'), label: 'Opening cue', segmentId: segment.id, standbyScript: '', goScript: '' } : null;
   const cues = departments.map((d, i) => ({
     id: newId('cue'),
     segmentId: segment.id,
@@ -570,7 +570,7 @@ export function defaultContent(departmentNames: string[]): ShowContent {
     offsetSec: 0,
     durationSec: 0,
     groupId: group?.id ?? null,
-    target: null,
+    target: null, standbyScript: '', goScript: '',
   }));
   return { departments, segments: departments.length ? [segment] : [], cues, groups: group ? [group] : [] };
 }

@@ -57,12 +57,16 @@ export const cueSchema = z.object({
   durationSec: z.number().int().min(0).max(24 * 3600),
   groupId: id.nullable(),
   target: z.object({ kind: z.string().max(40), ref: z.string().max(200) }).nullable(),
+  standbyScript: z.string().max(500).default(''),
+  goScript: z.string().max(500).default(''),
 });
 
 export const groupSchema = z.object({
   id,
   label: z.string().trim().min(1, 'Q-Link label is required.').max(120),
   segmentId: id.nullable(),
+  standbyScript: z.string().max(500).default(''),
+  goScript: z.string().max(500).default(''),
 });
 
 export const contentSchema = z.object({

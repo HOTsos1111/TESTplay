@@ -158,7 +158,7 @@ export function loadContent(db: Db, showId: string): ShowContent {
   const segments = all<{ id: string; position: number; title: string; performer: string; duration_sec: number; fixed_time: string | null; notes: string }>(
     db, 'SELECT * FROM segments WHERE show_id = ? ORDER BY position', showId,
   ).map<Segment>((s) => ({ id: s.id, position: s.position, title: s.title, performer: s.performer, durationSec: s.duration_sec, fixedTime: s.fixed_time, notes: s.notes }));
-  const cues = all<{ id: string; segment_id: string; position: number; number: string; department_id: string; instruction: string; owner: string; offset_sec: number; duration_sec: number; group_id: string | null; target: string | null }>(
+  const cues = all<{ id: string; segment_id: string; position: number; number: string; department_id: string; instruction: string; owner: string; offset_sec: number; duration_sec: number; group_id: string | null; target: string | null; standby_script: string; go_script: string }>(
     db, 'SELECT * FROM cues WHERE show_id = ? ORDER BY position', showId,
   ).map<Cue>((c) => ({
     id: c.id,
@@ -172,9 +172,11 @@ export function loadContent(db: Db, showId: string): ShowContent {
     durationSec: c.duration_sec,
     groupId: c.group_id,
     target: c.target ? (JSON.parse(c.target) as Cue['target']) : null,
+    standbyScript: c.standby_script,
+    goScript: c.go_script,
   }));
-  const groups = all<{ id: string; label: string; segment_id: string | null }>(db, 'SELECT * FROM cue_groups WHERE show_id = ?', showId)
-    .map<CueGroup>((g) => ({ id: g.id, label: g.label, segmentId: g.segment_id }));
+  const groups = all<{ id: string; label: string; segment_id: string | null; standby_script: string; go_script: string }>(db, 'SELECT * FROM cue_groups WHERE show_id = ?', showId)
+    .map<CueGroup>((g) => ({ id: g.id, label: g.label, segmentId: g.segment_id, standbyScript: g.standby_script, goScript: g.go_script }));
   return { departments, segments, cues, groups };
 }
 
@@ -189,12 +191,12 @@ export function writeContent(db: Db, showId: string, content: ShowContent) {
       s.id, showId, s.position, s.title, s.performer, s.durationSec, s.fixedTime, s.notes);
   }
   for (const g of content.groups) {
-    run(db, 'INSERT INTO cue_groups (id, show_id, label, segment_id) VALUES (?, ?, ?, ?)', g.id, showId, g.label, g.segmentId);
+    run(db, 'INSERT INTO cue_groups (id, show_id, label, segment_id, standby_script, go_script) VALUES (?, ?, ?, ?, ?, ?)', g.id, showId, g.label, g.segmentId, g.standbyScript ?? '', g.goScript ?? '');
   }
   for (const c of content.cues) {
-    run(db, `INSERT INTO cues (id, show_id, segment_id, position, number, department_id, instruction, owner, offset_sec, duration_sec, group_id, target)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      c.id, showId, c.segmentId, c.position, c.number, c.departmentId, c.instruction, c.owner, c.offsetSec, c.durationSec, c.groupId, c.target ? JSON.stringify(c.target) : null);
+    run(db, `INSERT INTO cues (id, show_id, segment_id, position, number, department_id, instruction, owner, offset_sec, duration_sec, group_id, target, standby_script, go_script)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      c.id, showId, c.segmentId, c.position, c.number, c.departmentId, c.instruction, c.owner, c.offsetSec, c.durationSec, c.groupId, c.target ? JSON.stringify(c.target) : null, c.standbyScript ?? '', c.goScript ?? '');
   }
 }
 

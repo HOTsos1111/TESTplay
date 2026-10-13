@@ -27,7 +27,7 @@ describe('schedule projection', () => {
   const base = { eventDate: '2026-11-04', plannedStart: '10:00', timezone: 'UTC', cueStates: [] };
   const content = {
     segments: [seg('a', 0, 10), seg('b', 1, 20), seg('c', 2, 15), seg('d', 3, 10, '11:00')],
-    cues: [{ id: 'q', segmentId: 'c', position: 0, number: '1', departmentId: 'x', instruction: 'i', owner: '', offsetSec: 120, durationSec: 0, groupId: null, target: null }],
+    cues: [{ id: 'q', segmentId: 'c', position: 0, number: '1', departmentId: 'x', instruction: 'i', owner: '', offsetSec: 120, durationSec: 0, groupId: null, target: null, standbyScript: '', goScript: '' }],
   };
   const T = (hhmm: string) => Date.parse(`2026-11-04T${hhmm}:00Z`);
 

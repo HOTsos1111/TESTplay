@@ -8,6 +8,7 @@ import { formatClock, formatDelta } from '../../shared/timing.ts';
 import type { Snapshot } from '../../shared/types.ts';
 import { callTime, type ShowModel } from '../lib/model.ts';
 import { DeptIcon, QLinkTag, ReadinessChip, StatusChip } from './ui.tsx';
+import { callScript } from '../../shared/script.ts';
 
 export type Preset = 'full' | 'current' | 'compact' | 'expanded';
 
@@ -34,7 +35,9 @@ export function RunningOrder({
   armedId,
   onArm,
   changed,
+  showScript = true,
 }: {
+  showScript?: boolean;
   s: Snapshot;
   model: ShowModel;
   calls: Call[];
@@ -55,6 +58,7 @@ export function RunningOrder({
       <caption className="sr-only">Running order. Select a row to arm it as the calling target.</caption>
       <thead>
         <tr>
+          {showScript ? <th scope="col">Call script</th> : null}
           <th scope="col">Cue #</th>
           <th scope="col">Cue time</th>
           <th scope="col">Cue description</th>
@@ -69,7 +73,7 @@ export function RunningOrder({
           return (
             <Fragment key={seg.id}>
               <tr className={`seg-row ${changed.has(seg.id) ? 'changed' : ''}`}>
-                <td colSpan={4}>
+                <td colSpan={showScript ? 5 : 4}>
                   <div className="seg-head">
                     <span className="seg-title">
                       {segIdx + 1}. {seg.title}
@@ -107,6 +111,7 @@ export function RunningOrder({
                 const members = call.cueIds.map((id) => model.cueById.get(id)!).filter(Boolean);
                 const shownMembers = deptFilter.length ? members.filter((m) => deptFilter.includes(m.departmentId)) : members;
                 const ready = model.readinessOfCall(call);
+                const script = callScript(call, s.content);
                 return (
                   <tr
                     key={call.id}
@@ -114,6 +119,11 @@ export function RunningOrder({
                     onClick={() => onArm(call.id)}
                     data-call-id={call.id}
                   >
+                    {showScript ? (
+                      <td className="col-script">
+                        <CallScriptCell standby={script.standby} go={script.go} state={state} />
+                      </td>
+                    ) : null}
                     <td className="col-num">
                       <button
                         className="btn-ghost"
@@ -192,5 +202,22 @@ export function RunningOrder({
         })}
       </tbody>
     </table>
+  );
+}
+
+/** Large bold call-script box at the front of each row. The line the Director reads next is emphasised. */
+export function CallScriptCell({ standby, go, state, size = 'md' }: { standby: string; go: string; state: string; size?: 'md' | 'lg' }) {
+  const next = state === 'pending' || state === 'prepared' ? 'sb' : state === 'standby' || state === 'held' || state === 'mixed' ? 'go' : 'done';
+  return (
+    <div className={`script-box script-${size} script-${next}`}>
+      <span className={`script-line ${next === 'sb' ? 'is-next' : ''}`}>
+        <span className="script-tag tag-sb">SB</span>
+        <span>{standby}</span>
+      </span>
+      <span className={`script-line ${next === 'go' ? 'is-next' : ''}`}>
+        <span className="script-tag tag-go">GO</span>
+        <span>{go}</span>
+      </span>
+    </div>
   );
 }
