@@ -56,8 +56,8 @@ describe('cue state machine', () => {
 describe('calls and aggregates', () => {
   const content: ShowContent = {
     departments: [
-      { id: 'd1', key: 'video', name: 'Video', icon: 'video', sort: 0 },
-      { id: 'd2', key: 'audio', name: 'Audio', icon: 'audio', sort: 1 },
+      { id: 'd1', key: 'video', name: 'Video', icon: 'video', sort: 0, color: '' },
+      { id: 'd2', key: 'audio', name: 'Audio', icon: 'audio', sort: 1, color: '' },
     ],
     segments: [
       { id: 's2', position: 1, title: 'B', performer: '', durationSec: 60, fixedTime: null, notes: '' },

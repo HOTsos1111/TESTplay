@@ -33,6 +33,7 @@ export const departmentSchema = z.object({
   name: z.string().trim().min(1, 'Department name is required.').max(40),
   icon: iconSchema,
   sort: z.number().int(),
+  color: z.string().regex(/^(#[0-9a-fA-F]{6})?$/, 'Use a colour like #EF4444.').default(''),
 });
 
 export const segmentSchema = z.object({

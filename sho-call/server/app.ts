@@ -554,8 +554,8 @@ export function defaultContent(departmentNames: string[]): ShowContent {
   const departments = departmentNames.map((name, i) => {
     const std = STANDARD_DEPARTMENTS.find((d) => d.key === name);
     return std
-      ? { id: newId('dep'), key: std.key, name: std.name, icon: std.icon, sort: i }
-      : { id: newId('dep'), key: name.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 32) || `dept-${i}`, name, icon: 'generic' as const, sort: i };
+      ? { id: newId('dep'), key: std.key, name: std.name, icon: std.icon, sort: i, color: '' }
+      : { id: newId('dep'), key: name.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 32) || `dept-${i}`, name, icon: 'generic' as const, sort: i, color: '' };
   });
   const segment = { id: newId('seg'), position: 0, title: 'Opening', performer: '', durationSec: 300, fixedTime: null, notes: '' };
   const group = departments.length > 1 ? { id: newId('grp'), label: 'Opening cue', segmentId: segment.id, standbyScript: '', goScript: '' } : null;

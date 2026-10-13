@@ -7,7 +7,7 @@ import type { Call } from '../../shared/calls.ts';
 import { formatClock, formatDelta } from '../../shared/timing.ts';
 import type { Snapshot } from '../../shared/types.ts';
 import { callTime, type ShowModel } from '../lib/model.ts';
-import { DeptIcon, QLinkTag, ReadinessChip, StatusChip } from './ui.tsx';
+import { DeptIcon, deptVars, QLinkTag, ReadinessChip, StatusChip } from './ui.tsx';
 import { callScript } from '../../shared/script.ts';
 
 export type Preset = 'full' | 'current' | 'compact' | 'expanded';
@@ -36,8 +36,11 @@ export function RunningOrder({
   onArm,
   changed,
   showScript = true,
+  layout = 'consolidated',
 }: {
   showScript?: boolean;
+  /** consolidated: one description column; columns: one column per department. */
+  layout?: 'consolidated' | 'columns';
   s: Snapshot;
   model: ShowModel;
   calls: Call[];
@@ -52,16 +55,28 @@ export function RunningOrder({
   for (const c of calls) bySeg.set(c.segmentId, [...(bySeg.get(c.segmentId) ?? []), c]);
   const currentId = model.last && model.stateOfCall(model.last) === 'called' ? model.last.id : null;
   const nextId = model.next?.id ?? null;
+  const columns = layout === 'columns' ? s.content.departments.filter((d) => !deptFilter.length || deptFilter.includes(d.id)) : [];
+  const span = (showScript ? 1 : 0) + 3 + (layout === 'columns' ? columns.length : 1);
 
   return (
-    <table className="ro">
+    <table className={`ro ${layout === 'columns' ? 'ro-columns' : ''}`}>
       <caption className="sr-only">Running order. Select a row to arm it as the calling target.</caption>
       <thead>
         <tr>
           {showScript ? <th scope="col">Call script</th> : null}
           <th scope="col">Cue #</th>
           <th scope="col">Cue time</th>
-          <th scope="col">Cue description</th>
+          {layout === 'columns' ? (
+            columns.map((d) => (
+              <th key={d.id} scope="col" className="dept-col-head" style={deptVars(d)}>
+                <span className="row" style={{ gap: 6 }}>
+                  <DeptIcon icon={d.icon} size={16} /> {d.name}
+                </span>
+              </th>
+            ))
+          ) : (
+            <th scope="col">Cue description</th>
+          )}
           <th scope="col">Status</th>
         </tr>
       </thead>
@@ -73,7 +88,7 @@ export function RunningOrder({
           return (
             <Fragment key={seg.id}>
               <tr className={`seg-row ${changed.has(seg.id) ? 'changed' : ''}`}>
-                <td colSpan={showScript ? 5 : 4}>
+                <td colSpan={span}>
                   <div className="seg-head">
                     <span className="seg-title">
                       {segIdx + 1}. {seg.title}
@@ -136,6 +151,11 @@ export function RunningOrder({
                       >
                         {call.number}
                       </button>
+                      {layout === 'columns' && call.kind === 'group' ? (
+                        <div style={{ fontSize: 13 }}>
+                          <QLinkTag label={call.label} />
+                        </div>
+                      ) : null}
                     </td>
                     <td className="col-time">
                       {time.actual ? (
@@ -144,11 +164,32 @@ export function RunningOrder({
                         <span title={`Planned ${formatClock(time.planned, tz, false)}`}>{formatClock(time.estimated, tz, false)}</span>
                       )}
                     </td>
+                    {layout === 'columns' ? (
+                      columns.map((d) => {
+                        const m = members.find((x) => x.departmentId === d.id);
+                        return (
+                          <td key={d.id} className={`dept-col ${m ? 'has-cue' : 'no-cue'}`} style={deptVars(d)}>
+                            {m ? (
+                              <>
+                                {m.instruction}
+                                {call.kind === 'group' && model.states.get(m.id) && model.stateOfCall(call) === 'mixed' ? (
+                                  <div style={{ marginTop: 6 }}>
+                                    <StatusChip state={model.states.get(m.id)!.state} />
+                                  </div>
+                                ) : null}
+                              </>
+                            ) : (
+                              <span className="sr-only">No {d.name} cue</span>
+                            )}
+                          </td>
+                        );
+                      })
+                    ) : (
                     <td className="col-desc">
                       {call.kind === 'group' ? <QLinkTag label={call.label} /> : null}
                       {call.kind === 'cue' ? (
                         <div className="cue-title">
-                          <span className="dept-tag" style={{ marginRight: 8 }}>
+                          <span className="dept-tag" style={{ marginRight: 8, ...deptVars(model.deptById.get(members[0]?.departmentId)) }}>
                             <DeptIcon icon={model.deptById.get(members[0]?.departmentId)?.icon ?? 'generic'} size={14} />
                             {model.deptById.get(members[0]?.departmentId)?.name}
                           </span>
@@ -159,7 +200,7 @@ export function RunningOrder({
                           {shownMembers.map((m) => {
                             const d = model.deptById.get(m.departmentId);
                             return (
-                              <div key={m.id} className="dept-cell">
+                              <div key={m.id} className="dept-cell" style={deptVars(d)}>
                                 <DeptIcon icon={d?.icon ?? 'generic'} />
                                 <div>
                                   <div className="dept-name">{d?.name}</div>
@@ -175,7 +216,7 @@ export function RunningOrder({
                             {shownMembers.map((m) => {
                               const d = model.deptById.get(m.departmentId);
                               return (
-                                <span key={m.id} className="dept-tag">
+                                <span key={m.id} className="dept-tag" style={deptVars(d)}>
                                   <DeptIcon icon={d?.icon ?? 'generic'} size={14} />
                                   {d?.name}
                                 </span>
@@ -187,6 +228,7 @@ export function RunningOrder({
                       )}
                       {call.kind === 'cue' && preset !== 'compact' && members[0]?.owner ? <div className="cue-instr">Owner: {members[0].owner}</div> : null}
                     </td>
+                    )}
                     <td className="col-status">
                       <div className="stack" style={{ gap: 6 }}>
                         <StatusChip state={state} />

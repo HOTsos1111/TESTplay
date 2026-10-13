@@ -58,7 +58,7 @@ export function seedDemo(db: Db, opts: { timezone?: string; startInMinutes?: num
       notes: 'Fictional demonstration show. Names, venue and content are invented.',
     });
 
-    const dep = (key: string, name: string, icon: Department['icon'], sort: number): Department => ({ id: newId('dep'), key, name, icon, sort });
+    const dep = (key: string, name: string, icon: Department['icon'], sort: number): Department => ({ id: newId('dep'), key, name, icon, sort, color: '' });
     const departments = [
       dep('video', 'Video', 'video', 0),
       dep('audio', 'Audio', 'audio', 1),

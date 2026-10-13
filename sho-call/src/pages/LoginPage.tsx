@@ -3,7 +3,7 @@ import { LogIn } from 'lucide-react';
 import { api, errorText } from '../lib/api.ts';
 import { navigate } from '../lib/router.ts';
 import { useAuth } from '../auth.tsx';
-import { Attribution, Field } from '../components/ui.tsx';
+import { Attribution, Field, SHOCALL_URL } from '../components/ui.tsx';
 import type { User } from '../../shared/types.ts';
 
 interface DemoAccount {
@@ -75,7 +75,9 @@ export function LoginPage() {
     <main id="main" className="login-bg">
       <Ribbon />
       <div className="login-card panel glass">
-        <img className="logo" src="/brand/sho-call-color.png" alt="Sho Call" width={162} height={54} />
+        <a href={SHOCALL_URL} target="_blank" rel="noopener noreferrer" aria-label="Sho Call website, shocall.com (opens in a new tab)" style={{ alignSelf: 'center' }}>
+          <img className="logo" src="/brand/sho-call-white.png" alt="Sho Call" width={216} height={72} />
+        </a>
         <p className="muted" style={{ textAlign: 'center' }}>Live show coordination reimagined.</p>
         <form className="stack" onSubmit={submit} noValidate>
           <Field label="Email">

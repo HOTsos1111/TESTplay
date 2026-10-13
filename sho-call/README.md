@@ -85,6 +85,13 @@ About ten minutes, following the showcase in the UX spec. Every step is backed b
 
 The seed also includes a speaker change (published revision 2), a held cue (Lighting 060, “waiting for the award result”), estimated timings, a fixed-time item and a reusable template.
 
+## Views, colours and themes
+
+- **Dark and light mode** for every signed-in screen, from the sun/moon button in the header. Dark is the default; the choice is remembered per device. The login page always stays dark.
+- **Director console layouts:** *Consolidated* shows one description column with department tags. *Columns* gives each department its own column so every department's cue is side by side. **Script view** is an on/off switch.
+- **Department colours:** Video red, Audio blue, Lighting purple, Stage Manager green, Front of House teal. Other departments get further standard colours. Owners and Directors change them in **Show Designer → Departments**. Colours mark columns, tags and cards for the Director. Each crew screen takes its own department's colour as its accent, and departments an operator pulls in keep their own colours. Colour always comes with an icon and a name.
+- The **Sho Call logo** (white in dark mode, black in light mode) opens www.shocall.com in a new tab, so a live console is never navigated away. Use **Shows** in the header to get back to the show list.
+
 ## Director call script
 
 Every call has a **call script**: what the show caller reads aloud. It defaults to the standard form, for example *“Standby Video, Audio and Lighting for Cue 023”* and *“Video, Audio and Lighting — GO Cue 023”*. It appears as a large bold box at the front of each running-order row in the Director console, with the line to read next highlighted, and large in the armed-call card. **Script on/off** toggles the column. Call notes are edited in Show Designer and saved with the show's revisions. Clearing a field returns it to the default. A Q-Link call stores its script on the group; an independent cue stores it on the cue.
@@ -124,7 +131,7 @@ Two sheet shapes are handled. In *one row per cue* the sheet has a Department co
 ## Checks run for this build
 
 - `npm run typecheck`: clean.
-- `npm test`: 52 tests across 5 files. They cover the cue state machine, Q-Link aggregation, timezone/DST conversion, schedule shifts and projection, CSV/XLSX/DOCX import and validation, and a **cross-client integration suite**: two real clients over HTTP + WebSocket test atomic Q-Link Go, duplicate requests, an independent cue, hold/resume, permission rejections for HTTP and WebSocket, a CSRF header check, server-side department filtering, reorder + shift propagation, revision conflicts, undo, issued-cue deletion protection, reconnect recovery without replay, lost-acknowledgement lookup, stale readiness and session separation.
+- `npm test`: 53 tests across 5 files. They cover the cue state machine, Q-Link aggregation, timezone/DST conversion, schedule shifts and projection, CSV/XLSX/DOCX import and validation, and a **cross-client integration suite**: two real clients over HTTP + WebSocket test atomic Q-Link Go, duplicate requests, an independent cue, hold/resume, permission rejections for HTTP and WebSocket, a CSRF header check, server-side department filtering, reorder + shift propagation, revision conflicts, undo, issued-cue deletion protection, reconnect recovery without replay, lost-acknowledgement lookup, stale readiness and session separation.
 - `npm run check:browser`: 26 steps in headless Chromium with a Director laptop context and an Audio phone context. It covers the walkthrough above plus no horizontal scrolling at phone/tablet/desktop sizes, keyboard shortcuts ignored while typing, viewer has no enabled controls, and a basic accessibility pass (named buttons and links, labelled inputs, image alt text, main landmark).
 
 ## Known limitations

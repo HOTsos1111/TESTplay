@@ -1,5 +1,5 @@
 // Shared presentational components.
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import {
   Ban,
   Check,
@@ -12,12 +12,14 @@ import {
   Hand,
   Headphones,
   Lightbulb,
+  Moon,
   Link2,
   Pause,
   PersonStanding,
   Play,
   Square,
   SkipForward,
+  Sun,
   TriangleAlert,
   Users,
   Video,
@@ -25,6 +27,8 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import type { AggregateReadiness, Department, IconKey } from '../../shared/types.ts';
+import { useTheme } from '../lib/theme.ts';
+import { deptColor } from '../../shared/colors.ts';
 import type { CallState } from '../../shared/calls.ts';
 import type { ConnState } from '../lib/useLiveShow.ts';
 import { formatClock } from '../../shared/timing.ts';
@@ -44,19 +48,47 @@ export function DeptIcon({ icon, size = 18, title }: { icon: IconKey; size?: num
   return <I width={size} height={size} aria-hidden={title ? undefined : true} aria-label={title} focusable={false} />;
 }
 
-/** Department identity: always icon AND label. */
+/** CSS custom property carrying a department's colour (--dept). */
+export function deptVars(d: Department | undefined | null): CSSProperties {
+  return { '--dept': deptColor(d) } as CSSProperties;
+}
+
+/** Department identity: always icon AND label (colour is an extra cue, never the only one). */
 export function DeptLabel({ dept, size = 18 }: { dept: Department | undefined; size?: number }) {
   if (!dept) return <span className="dept-tag">Unknown department</span>;
   return (
-    <span className="dept-tag">
+    <span className="dept-tag" style={deptVars(dept)}>
       <DeptIcon icon={dept.icon} size={size} />
       {dept.name}
     </span>
   );
 }
 
-export function Logo({ variant = 'color', small = false }: { variant?: 'white' | 'color' | 'black'; small?: boolean }) {
-  return <img className={`logo ${small ? 'logo-sm' : ''}`} src={`/brand/sho-call-${variant}.png`} alt="Sho Call" width={small ? 96 : 120} height={small ? 32 : 40} />;
+export function Logo({ small = false }: { small?: boolean }) {
+  const [theme] = useTheme();
+  // White logo on dark surfaces, black on light (brand guide).
+  return <img className={`logo ${small ? 'logo-sm' : ''}`} src={`/brand/sho-call-${theme === 'light' ? 'black' : 'white'}.png`} alt="Sho Call" width={small ? 120 : 138} height={small ? 40 : 46} />;
+}
+
+export const SHOCALL_URL = 'https://www.shocall.com';
+
+/** The header logo: opens shocall.com in a new tab so a live console is never navigated away. */
+export function BrandLink({ small = false }: { small?: boolean }) {
+  return (
+    <a className="brand-link" href={SHOCALL_URL} target="_blank" rel="noopener noreferrer" aria-label="Sho Call website, shocall.com (opens in a new tab)">
+      <Logo small={small} />
+    </a>
+  );
+}
+
+export function ThemeToggle() {
+  const [theme, setTheme] = useTheme();
+  const next = theme === 'dark' ? 'light' : 'dark';
+  return (
+    <button className="btn btn-ghost btn-sm btn-icon theme-toggle" onClick={() => setTheme(next)} aria-label={`Switch to ${next} mode`} title={`Switch to ${next} mode`}>
+      {theme === 'dark' ? <Sun aria-hidden /> : <Moon aria-hidden />}
+    </button>
+  );
 }
 
 const STATE_META: Record<CallState, { label: string; Icon: LucideIcon }> = {

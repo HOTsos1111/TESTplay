@@ -152,8 +152,8 @@ export function listShowsForUser(db: Db, userId: string): ShowSummary[] {
 // ---------------------------------------------------------------- content
 
 export function loadContent(db: Db, showId: string): ShowContent {
-  const departments = all<{ id: string; key: string; name: string; icon: Department['icon']; sort: number }>(
-    db, 'SELECT id, key, name, icon, sort FROM departments WHERE show_id = ? ORDER BY sort, name', showId,
+  const departments = all<{ id: string; key: string; name: string; icon: Department['icon']; sort: number; color: string }>(
+    db, 'SELECT id, key, name, icon, sort, color FROM departments WHERE show_id = ? ORDER BY sort, name', showId,
   );
   const segments = all<{ id: string; position: number; title: string; performer: string; duration_sec: number; fixed_time: string | null; notes: string }>(
     db, 'SELECT * FROM segments WHERE show_id = ? ORDER BY position', showId,
@@ -184,7 +184,7 @@ export function loadContent(db: Db, showId: string): ShowContent {
 export function writeContent(db: Db, showId: string, content: ShowContent) {
   for (const t of ['cues', 'cue_groups', 'segments', 'departments']) run(db, `DELETE FROM ${t} WHERE show_id = ?`, showId);
   for (const d of content.departments) {
-    run(db, 'INSERT INTO departments (id, show_id, key, name, icon, sort) VALUES (?, ?, ?, ?, ?, ?)', d.id, showId, d.key, d.name, d.icon, d.sort);
+    run(db, 'INSERT INTO departments (id, show_id, key, name, icon, sort, color) VALUES (?, ?, ?, ?, ?, ?, ?)', d.id, showId, d.key, d.name, d.icon, d.sort, d.color ?? '');
   }
   for (const s of content.segments) {
     run(db, 'INSERT INTO segments (id, show_id, position, title, performer, duration_sec, fixed_time, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',

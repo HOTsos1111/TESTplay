@@ -296,6 +296,24 @@ try {
     await v.close();
   });
 
+  await step('logo links to shocall.com in a new tab; light/dark toggle switches theme and logo', async () => {
+    const brand = d.locator('a.brand-link').first();
+    assert((await brand.getAttribute('href')) === 'https://www.shocall.com', 'logo link');
+    assert((await brand.getAttribute('target')) === '_blank', 'logo opens in a new tab');
+    assert((await brand.locator('img').getAttribute('src')).includes('white'), 'white logo in dark mode');
+    assert((await d.evaluate(() => document.documentElement.dataset.theme)) === 'dark', 'dark by default');
+    await d.getByRole('button', { name: 'Switch to light mode' }).click();
+    assert((await d.evaluate(() => document.documentElement.dataset.theme)) === 'light', 'light mode applied');
+    assert((await brand.locator('img').getAttribute('src')).includes('black'), 'black logo in light mode');
+    await d.waitForTimeout(300);
+    await d.screenshot({ path: `${OUT}/15-director-light.png` });
+    await a11ySmoke(d, 'director light');
+    await d.reload();
+    await d.locator('.focus-card').waitFor();
+    assert((await d.evaluate(() => document.documentElement.dataset.theme)) === 'light', 'theme remembered after reload');
+    await d.getByRole('button', { name: 'Switch to dark mode' }).click();
+  });
+
   await step('Show Designer renders the running order with Q-Links', async () => {
     await d.goto(`${BASE}/shows/${d.url().split('/')[4]}/designer`);
     await d.locator('.designer-seg').first().waitFor();
@@ -334,15 +352,30 @@ try {
     await d.locator('table.sheet').first().waitFor();
   });
 
+  await step('Designer: department colours are editable', async () => {
+    await d.getByRole('button', { name: 'Departments', exact: true }).click();
+    const dlg = d.getByRole('dialog');
+    await dlg.getByLabel('Video colour').fill('#ff00aa');
+    await dlg.getByRole('button', { name: 'Done' }).click();
+    const head = d.locator('th.dept-col-head', { hasText: 'Video' }).first();
+    const color = await head.evaluate((el) => getComputedStyle(el).getPropertyValue('--dept').trim().toLowerCase());
+    assert(color === '#ff00aa', `video column colour ${color}`);
+  });
+
   await step('Director console shows the call script at the front of each row and in the focus card', async () => {
     await d.goto(d.url().replace('/designer', '/console'));
     await d.locator('.ro .col-script .script-box').first().waitFor();
     await d.locator('.focus-card .script-lg').waitFor();
     await d.locator('.ro .script-box', { hasText: 'GO Cue 010' }).first().waitFor();
     await d.screenshot({ path: `${OUT}/14-director-script.png` });
-    await d.getByRole('button', { name: /Script on/ }).click();
+    await d.getByRole('switch', { name: /Script view/ }).click();
     assert((await d.locator('.ro .col-script').count()) === 0, 'script column still visible when off');
-    await d.getByRole('button', { name: /Script off/ }).click();
+    await d.getByRole('switch', { name: /Script view/ }).click();
+    await d.getByRole('button', { name: 'Columns', exact: true }).click();
+    await d.locator('table.ro-columns th.dept-col-head', { hasText: 'Audio' }).waitFor();
+    await d.locator('.ro-columns td.dept-col.has-cue').first().waitFor();
+    await d.screenshot({ path: `${OUT}/16-director-columns.png` });
+    await d.getByRole('button', { name: 'Consolidated', exact: true }).click();
   });
 
   await step('Import: sample CSV preview, mapping and review', async () => {

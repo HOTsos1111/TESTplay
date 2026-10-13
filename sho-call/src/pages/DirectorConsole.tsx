@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CircleHelp, Crosshair, ScrollText, Home, Layers, LayoutList, ListOrdered, Maximize2, PencilLine, Play, Rows3, ShieldAlert } from 'lucide-react';
+import { CircleHelp, Columns3, Crosshair, ScrollText, Home, Layers, LayoutList, ListOrdered, Maximize2, PencilLine, Play, Rows3, ShieldAlert } from 'lucide-react';
 import { api, errorText, NetworkError } from '../lib/api.ts';
 import { clientId, requestKey } from '../lib/ids.ts';
 import { linkTo } from '../lib/router.ts';
@@ -8,7 +8,7 @@ import { useShowModel } from '../lib/model.ts';
 import { useChanges } from '../lib/useChanges.ts';
 import { usePrefs } from '../lib/prefs.ts';
 import { useAuth } from '../auth.tsx';
-import { ConnectionIndicator, DeptIcon, Dialog, Logo, ModeBadge, StaleBanner, useToast } from '../components/ui.tsx';
+import { ConnectionIndicator, DeptIcon, Dialog, BrandLink, ThemeToggle, deptVars, ModeBadge, StaleBanner, useToast } from '../components/ui.tsx';
 import { RunningOrder, visibleCalls, type Preset } from '../components/RunningOrder.tsx';
 import { availability, FocusCard } from '../components/FocusCard.tsx';
 import { ActivityPanel, CrewPanel, RevisionBanner } from '../components/LivePanels.tsx';
@@ -40,7 +40,7 @@ export function DirectorConsole({ showId }: { showId: string }) {
   void tick;
   const s = live.snapshot;
   const model = useShowModel(s, now);
-  const [prefs, setPrefs] = usePrefs(`director:${user?.id}:${showId}`, { preset: 'full' as Preset, depts: [] as string[], follow: true, script: true });
+  const [prefs, setPrefs] = usePrefs(`director:${user?.id}:${showId}`, { preset: 'full' as Preset, depts: [] as string[], follow: true, script: true, layout: 'consolidated' as 'consolidated' | 'columns' });
   const [armedId, setArmedId] = useState<string | null>(null);
   const [pending, setPending] = useState<CueAction | null>(null);
   const [uncertain, setUncertain] = useState<Uncertain | null>(null);
@@ -220,9 +220,7 @@ export function DirectorConsole({ showId }: { showId: string }) {
   return (
     <div className="app-root theme-director">
       <header className={`app-header ${live.conn !== 'connected' ? 'is-stale' : ''}`}>
-        <a href={`/shows/${showId}`} onClick={linkTo(`/shows/${showId}`)} aria-label="Show page">
-          <Logo small />
-        </a>
+        <BrandLink small />
         <span className="header-divider hide-phone" />
         <div className="identity">
           <DeptIcon icon="director" size={32} />
@@ -244,6 +242,7 @@ export function DirectorConsole({ showId }: { showId: string }) {
           </div>
         ) : null}
         <ConnectionIndicator conn={live.conn} lastSync={live.lastSync} revision={live.revision} tz={tz} now={Date.now()} />
+        <ThemeToggle />
         <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setHelp(true)} aria-label="Help and shortcuts">
           <CircleHelp />
         </button>
@@ -301,13 +300,24 @@ export function DirectorConsole({ showId }: { showId: string }) {
                 key={d.id}
                 aria-pressed={prefs.depts.includes(d.id)}
                 onClick={() => setPrefs({ depts: prefs.depts.includes(d.id) ? prefs.depts.filter((x) => x !== d.id) : [...prefs.depts, d.id] })}
+                style={deptVars(d)}
+                className="dept-seg"
               >
                 <DeptIcon icon={d.icon} size={16} /> {d.name}
               </button>
             ))}
           </div>
-          <button className="btn btn-sm" aria-pressed={prefs.script} onClick={() => setPrefs({ script: !prefs.script })} style={prefs.script ? { borderColor: 'var(--accent)', color: 'var(--accent)' } : undefined}>
-            <ScrollText /> Script {prefs.script ? 'on' : 'off'}
+          <div className="segmented" role="group" aria-label="Department layout">
+            <button aria-pressed={prefs.layout === 'consolidated'} onClick={() => setPrefs({ layout: 'consolidated' })}>
+              <Rows3 aria-hidden /> Consolidated
+            </button>
+            <button aria-pressed={prefs.layout === 'columns'} onClick={() => setPrefs({ layout: 'columns' })}>
+              <Columns3 aria-hidden /> Columns
+            </button>
+          </div>
+          <button className={`switch ${prefs.script ? 'is-on' : ''}`} role="switch" aria-checked={prefs.script} onClick={() => setPrefs({ script: !prefs.script })}>
+            <ScrollText aria-hidden /> Script view <span className="switch-track" aria-hidden><span className="switch-thumb" /></span>
+            <span className="switch-state">{prefs.script ? 'On' : 'Off'}</span>
           </button>
           <span className="grow" />
           <button className="btn btn-sm" onClick={() => setEditing(true)} disabled={!session || !canDirect}>
@@ -327,7 +337,7 @@ export function DirectorConsole({ showId }: { showId: string }) {
                     Showing {prefs.depts.map((id) => model.deptById.get(id)?.name).join(', ')} only. Filtering never changes the armed call.
                   </p>
                 ) : null}
-                <RunningOrder s={s} model={model} calls={calls} preset={prefs.preset} deptFilter={prefs.depts} armedId={armed?.id ?? null} onArm={setArmedId} changed={changed} showScript={prefs.script} />
+                <RunningOrder s={s} model={model} calls={calls} preset={prefs.preset} deptFilter={prefs.depts} armedId={armed?.id ?? null} onArm={setArmedId} changed={changed} showScript={prefs.script} layout={prefs.layout} />
               </div>
               {!prefs.follow ? (
                 <div className="return-live">

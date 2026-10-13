@@ -2,7 +2,7 @@ import { Bell, Undo2, X } from 'lucide-react';
 import { formatClock } from '../../shared/timing.ts';
 import type { ActivityEvent, Snapshot } from '../../shared/types.ts';
 import type { ShowModel } from '../lib/model.ts';
-import { DeptIcon, ReadinessChip } from './ui.tsx';
+import { DeptIcon, deptVars, ReadinessChip } from './ui.tsx';
 
 export function RevisionBanner({ event, onDismiss }: { event: ActivityEvent | null; onDismiss: () => void }) {
   if (!event) return null;
@@ -70,7 +70,7 @@ export function CrewPanel({ s, model }: { s: Snapshot; model: ShowModel }) {
           const ops = operators.filter((o) => o.operateDepartments.includes(d.id));
           const cueInNext = next?.cueIds.find((id) => model.cueById.get(id)?.departmentId === d.id);
           return (
-            <div key={d.id} className="ready-tile">
+            <div key={d.id} className="ready-tile" style={deptVars(d)}>
               <div className="row">
                 <DeptIcon icon={d.icon} />
                 {d.name}

@@ -6,10 +6,11 @@ import { linkTo } from '../lib/router.ts';
 import { localId } from '../lib/ids.ts';
 import { useLiveShow, useTick } from '../lib/useLiveShow.ts';
 import { AppHeader } from '../components/AppHeader.tsx';
-import { ConnectionIndicator, DeptIcon, DeptLabel, Dialog, Field, ModeBadge, QLinkTag, StaleBanner, useToast } from '../components/ui.tsx';
+import { ConnectionIndicator, DeptIcon, DeptLabel, Dialog, Field, ModeBadge, QLinkTag, StaleBanner, useToast, deptVars } from '../components/ui.tsx';
 import { contentSchema, validateContent } from '../../shared/schemas.ts';
 import { deriveCalls, ICON_KEYS, slugKey, type Call } from '../../shared/calls.ts';
 import { callScript } from '../../shared/script.ts';
+import { DEPT_PALETTE, deptColor } from '../../shared/colors.ts';
 import { computeSchedule, formatClock, formatDuration, formatMinutes, parseClock, parseDuration, sortSegments } from '../../shared/timing.ts';
 import type { ChangePreview, Cue, Department, IconKey, Segment, ShowContent } from '../../shared/types.ts';
 
@@ -405,7 +406,7 @@ export function DesignerPage({ showId }: { showId: string }) {
               All
             </button>
             {content.departments.map((d) => (
-              <button key={d.id} aria-pressed={deptFilter.includes(d.id)} onClick={() => setDeptFilter(deptFilter.includes(d.id) ? deptFilter.filter((x) => x !== d.id) : [...deptFilter, d.id])}>
+              <button key={d.id} className="dept-seg" style={deptVars(d)} aria-pressed={deptFilter.includes(d.id)} onClick={() => setDeptFilter(deptFilter.includes(d.id) ? deptFilter.filter((x) => x !== d.id) : [...deptFilter, d.id])}>
                 <DeptIcon icon={d.icon} size={16} /> {d.name}
               </button>
             ))}
@@ -928,8 +929,12 @@ function DepartmentsDialog({ content, onClose, onChange }: { content: ShowConten
     <Dialog title="Departments" onClose={onClose}>
       <div className="stack">
         {list.map((d, i) => (
-          <div key={d.id} className="row">
-            <DeptIcon icon={d.icon} />
+          <div key={d.id} className="row dept-edit-row" style={deptVars(d)}>
+            <span className="dept-ink"><DeptIcon icon={d.icon} /></span>
+            <label className="color-pick" title="Department colour">
+              <span className="sr-only">{d.name} colour</span>
+              <input type="color" value={deptColor(d)} onChange={(e) => set(i, { color: e.target.value.toUpperCase() })} />
+            </label>
             <input className="input input-sm grow" aria-label="Department name" value={d.name} onChange={(e) => set(i, { name: e.target.value })} />
             <select className="input input-sm" aria-label={`${d.name} icon`} value={d.icon} onChange={(e) => set(i, { icon: e.target.value as IconKey })}>
               {ICON_KEYS.map((k) => (
@@ -956,7 +961,7 @@ function DepartmentsDialog({ content, onClose, onChange }: { content: ShowConten
             if (!name.trim()) return;
             let key = slugKey(name);
             while (list.some((d) => d.key === key)) key = `${key}-2`;
-            setList([...list, { id: localId('dep'), key, name: name.trim(), icon: 'generic', sort: list.length }]);
+            setList([...list, { id: localId('dep'), key, name: name.trim(), icon: 'generic', sort: list.length, color: '' }]);
             setName('');
           }}
         >
@@ -965,7 +970,18 @@ function DepartmentsDialog({ content, onClose, onChange }: { content: ShowConten
             <Plus /> Add
           </button>
         </form>
-        <p className="small muted">Departments with cues cannot be removed. Changes are part of your draft until published.</p>
+        <div className="stack" style={{ gap: 6 }}>
+          <span className="field">Standard colours</span>
+          <div className="row-wrap">
+            {DEPT_PALETTE.map((c) => (
+              <span key={c} className="swatch" style={{ background: c }} title={c} aria-hidden />
+            ))}
+          </div>
+          <button type="button" className="btn btn-sm" style={{ alignSelf: 'flex-start' }} onClick={() => setList(list.map((d) => ({ ...d, color: '' })))}>
+            Reset all to standard colours
+          </button>
+        </div>
+        <p className="small muted">Each department's colour marks its cues for the Director and becomes the accent of that department's crew screen. Departments with cues cannot be removed. Changes are part of your draft until published.</p>
         <div className="row" style={{ justifyContent: 'flex-end' }}>
           <button className="btn btn-ghost" onClick={onClose}>
             Cancel
@@ -1033,7 +1049,7 @@ function AddCueDialog({
           {content.departments.map((d) => {
             const on = chosen.includes(d.id);
             return (
-              <button type="button" key={d.id} className="dept-toggle" aria-pressed={on} onClick={() => choose(on ? chosen.filter((x) => x !== d.id) : [...chosen, d.id])}>
+              <button type="button" key={d.id} className="dept-toggle" style={deptVars(d)} aria-pressed={on} onClick={() => choose(on ? chosen.filter((x) => x !== d.id) : [...chosen, d.id])}>
                 <span className="tick" aria-hidden>
                   {on ? '✓' : ''}
                 </span>
@@ -1142,7 +1158,7 @@ function SegmentGrid({
             <th scope="col">Cue #</th>
             <th scope="col">Time</th>
             {columns.map((d) => (
-              <th key={d.id} scope="col">
+              <th key={d.id} scope="col" className="dept-col-head" style={deptVars(d)}>
                 <span className="row" style={{ gap: 6 }}>
                   <DeptIcon icon={d.icon} size={16} /> {d.name}
                 </span>
@@ -1184,7 +1200,7 @@ function SegmentGrid({
                     );
                   }
                   return (
-                    <td key={d.id} className={`${sel?.id === cue.id ? 'selected' : ''} ${badCues.has(cue.id) ? 'cell-err' : ''}`}>
+                    <td key={d.id} className={`dept-col has-cue ${sel?.id === cue.id ? 'selected' : ''} ${badCues.has(cue.id) ? 'cell-err' : ''}`} style={deptVars(d)}>
                       <button type="button" className="sheet-cell" onClick={() => onSelect({ kind: 'cue', id: cue.id })} aria-label={`Edit ${d.name} cue ${cue.number}`}>
                         {cue.instruction || <i className="field-error">Instruction required</i>}
                       </button>

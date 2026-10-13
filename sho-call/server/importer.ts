@@ -272,7 +272,7 @@ export function normalizeImport(table: string[][], mapping: ImportMapping, exist
 
   const departments: Department[] = existing
     ? existing.departments.map((d) => ({ ...d }))
-    : STANDARD_DEPARTMENTS.map((d, i) => ({ id: newId('dep'), key: d.key, name: d.name, icon: d.icon, sort: i }));
+    : STANDARD_DEPARTMENTS.map((d, i) => ({ id: newId('dep'), key: d.key, name: d.name, icon: d.icon, sort: i, color: '' }));
   const newDepartments: string[] = [];
   const resolveDept = (name: string): Department | null => {
     const clean = name.trim();
@@ -281,7 +281,7 @@ export function normalizeImport(table: string[][], mapping: ImportMapping, exist
     if (hit) return hit;
     let key = slugKey(clean);
     while (departments.some((d) => d.key === key)) key = `${key}-2`;
-    const d: Department = { id: newId('dep'), key, name: clean.slice(0, 40), icon: iconFor(clean), sort: departments.length };
+    const d: Department = { id: newId('dep'), key, name: clean.slice(0, 40), icon: iconFor(clean), sort: departments.length, color: '' };
     departments.push(d);
     newDepartments.push(d.name);
     return d;

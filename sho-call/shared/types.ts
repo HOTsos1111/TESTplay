@@ -44,6 +44,8 @@ export interface Department {
   name: string;
   icon: IconKey;
   sort: number;
+  /** "#RRGGBB", or '' for the standard default colour. */
+  color: string;
 }
 
 export interface Segment {

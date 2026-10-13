@@ -9,7 +9,7 @@ import type { Call } from '../../shared/calls.ts';
 import { formatClock, formatDuration } from '../../shared/timing.ts';
 import type { CueAction, Snapshot } from '../../shared/types.ts';
 import { callTime, type ShowModel } from '../lib/model.ts';
-import { Dialog, DeptIcon, QLinkTag, ReadinessChip, StatusChip } from './ui.tsx';
+import { Dialog, DeptIcon, deptVars, QLinkTag, ReadinessChip, StatusChip } from './ui.tsx';
 import { CallScriptCell } from './RunningOrder.tsx';
 import { callScript } from '../../shared/script.ts';
 
@@ -119,7 +119,7 @@ export function FocusCard({
           const d = model.deptById.get(m.departmentId);
           const st = model.states.get(m.id);
           return (
-            <li key={m.id} className="dept-cell" style={{ background: 'rgba(0,0,0,0.22)' }}>
+            <li key={m.id} className="dept-cell" style={deptVars(d)}>
               <DeptIcon icon={d?.icon ?? 'generic'} />
               <div className="grow">
                 <div className="spread">

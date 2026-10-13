@@ -8,7 +8,7 @@ import { useChanges } from '../lib/useChanges.ts';
 import { usePrefs } from '../lib/prefs.ts';
 import { playTone, vibrate } from '../lib/sound.ts';
 import { useAuth } from '../auth.tsx';
-import { ConnectionIndicator, DeptIcon, Dialog, Logo, ModeBadge, ReadinessChip, Sheet, StaleBanner, StatusChip, useToast } from '../components/ui.tsx';
+import { ConnectionIndicator, DeptIcon, Dialog, BrandLink, ThemeToggle, ModeBadge, ReadinessChip, Sheet, StaleBanner, StatusChip, useToast, deptVars } from '../components/ui.tsx';
 import { ActivityPanel, RevisionBanner } from '../components/LivePanels.tsx';
 import { HelpDialog } from '../components/HelpDialog.tsx';
 import { formatClock, formatDuration } from '../../shared/timing.ts';
@@ -29,6 +29,7 @@ function DeptPicker({ departments, selected, onChange }: { departments: Departme
           <button
             key={d.id}
             className="dept-toggle"
+            style={deptVars(d)}
             aria-pressed={on}
             onClick={() => {
               const next = on ? selected.filter((x) => x !== d.id) : [...selected, d.id];
@@ -111,8 +112,12 @@ export function CrewView({ showId }: { showId: string }) {
   }, [model, s, selected]);
   const stateOf = (id: string) => model?.states.get(id)?.state ?? 'pending';
   const isOpen = (id: string) => ['pending', 'prepared', 'standby', 'held'].includes(stateOf(id));
-  const nextOpen = myCues.find((c) => isOpen(c.id)) ?? null;
-  const lastCalled = [...myCues]
+  // The big card follows the departments this person operates; other
+  // departments they pull in appear (colour-coded) in Upcoming and Timeline.
+  const ownCues = myCues.filter((c) => operate.includes(c.departmentId));
+  const focusPool = ownCues.length ? ownCues : myCues;
+  const nextOpen = focusPool.find((c) => isOpen(c.id)) ?? null;
+  const lastCalled = [...focusPool]
     .filter((c) => model?.states.get(c.id)?.calledAt)
     .sort((a, b) => (model!.states.get(b.id)!.calledAt! > model!.states.get(a.id)!.calledAt! ? 1 : -1))[0];
   const current = lastCalled && stateOf(lastCalled.id) === 'called' ? lastCalled : null;
@@ -193,15 +198,13 @@ export function CrewView({ showId }: { showId: string }) {
   };
 
   return (
-    <div className="app-root theme-crew">
+    <div className="app-root theme-crew dept-themed" style={deptVars(primary)}>
       <header className={`app-header ${live.conn !== 'connected' ? 'is-stale' : ''}`}>
-        <a href={`/shows/${showId}`} onClick={linkTo(`/shows/${showId}`)} aria-label="Show page">
-          <Logo small />
-        </a>
+        <BrandLink small />
         <div className="identity">
           {primary ? <DeptIcon icon={primary.icon} size={28} /> : null}
           <div style={{ minWidth: 0 }}>
-            <div className="identity-label" style={{ color: 'var(--crew-accent)' }}>
+            <div className="identity-label" style={{ color: 'var(--accent)' }}>
               {selected.map((id) => model.deptById.get(id)?.name).join(' + ') || 'Crew'}
             </div>
             <div className="identity-sub">{s.show.title}</div>
@@ -215,6 +218,7 @@ export function CrewView({ showId }: { showId: string }) {
           <span className="clock-value">{formatClock(now, tz)}</span>
         </div>
         <ConnectionIndicator conn={live.conn} lastSync={live.lastSync} revision={live.revision} tz={tz} now={Date.now()} />
+        <ThemeToggle />
         <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setHelp(true)} aria-label="Help">
           <CircleHelp />
         </button>
@@ -255,7 +259,7 @@ export function CrewView({ showId }: { showId: string }) {
           ) : null}
 
           {focusCue ? (
-            <article className="cue-card current stack" aria-labelledby="cur-h">
+            <article className="cue-card current dept-stripe stack" aria-labelledby="cur-h" style={deptVars(model.deptById.get(focusCue.departmentId))}>
               <div className="spread">
                 <span className="label" id="cur-h">
                   {current ? 'Current — called' : stateOf(focusCue.id) === 'standby' ? 'Standby' : stateOf(focusCue.id) === 'held' ? 'Held' : 'Next cue'}
@@ -264,7 +268,7 @@ export function CrewView({ showId }: { showId: string }) {
               </div>
               <div className="row" style={{ alignItems: 'flex-end', gap: 16 }}>
                 <span className="big-num">{focusCue.number}</span>
-                <span className="row" style={{ gap: 6 }}>
+                <span className="row dept-ink" style={{ gap: 6 }}>
                   <DeptIcon icon={model.deptById.get(focusCue.departmentId)?.icon ?? 'generic'} />
                   <b>{model.deptById.get(focusCue.departmentId)?.name}</b>
                 </span>
@@ -337,11 +341,11 @@ export function CrewView({ showId }: { showId: string }) {
             <h2 id="up-h" style={{ fontSize: 16 }}>Upcoming</h2>
             {upcoming.length === 0 ? <p className="muted">No further cues.</p> : null}
             {upcoming.map((c) => (
-              <article key={c.id} className="cue-card upcoming stack" style={{ gap: 6 }}>
+              <article key={c.id} className="cue-card upcoming dept-stripe stack" style={{ gap: 6, ...deptVars(model.deptById.get(c.departmentId)) }}>
                 <div className="spread">
                   <span className="row" style={{ gap: 10 }}>
                     <b className="tabular" style={{ fontSize: 24 }}>{c.number}</b>
-                    <span className="row small" style={{ gap: 6 }}>
+                    <span className="row small dept-ink" style={{ gap: 6 }}>
                       <DeptIcon icon={model.deptById.get(c.departmentId)?.icon ?? 'generic'} size={16} />
                       {model.deptById.get(c.departmentId)?.name}
                     </span>
@@ -486,11 +490,11 @@ function Timeline({
         return (
           <li key={c.id} data-cue-id={c.id} style={{ listStyle: 'none' }}>
             {segHeader ? <div className="tl-seg">{segHeader.title}</div> : null}
-            <div className={`tl-item ${operate.includes(c.departmentId) ? 'mine' : ''} ${directorIds.has(c.id) ? 'director-current' : ''} ${done ? 'done' : ''}`}>
+            <div className={`tl-item dept-stripe ${operate.includes(c.departmentId) ? 'mine' : ''} ${directorIds.has(c.id) ? 'director-current' : ''} ${done ? 'done' : ''}`} style={deptVars(d)}>
               <span className="t">{cueLine(c)}</span>
               <span className="n">{c.number}</span>
               <span className="instr">
-                <span className="dept-tag" style={{ marginRight: 6 }}>
+                <span className="dept-tag" style={{ marginRight: 6, ...deptVars(d) }}>
                   <DeptIcon icon={d?.icon ?? 'generic'} size={14} />
                   {d?.name}
                 </span>

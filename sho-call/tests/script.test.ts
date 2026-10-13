@@ -54,6 +54,29 @@ describe('call script storage', () => {
   });
 });
 
+describe('department colours', () => {
+  let env: TestEnv;
+  beforeAll(async () => (env = await startTestServer()));
+  afterAll(async () => env.close());
+
+  it('defaults to standard colours and saves an edited colour', async () => {
+    const { deptColor } = await import('../shared/colors.ts');
+    const producer = await new Client(env.app.url).login('producer@summit-live.example');
+    const s = await producer.snapshot(env.seed.showId);
+    const video = s.content.departments.find((d) => d.key === 'video')!;
+    expect(video.color).toBe('');
+    expect(deptColor(video)).toBe('#EF4444');
+    const content = structuredClone(s.content);
+    content.departments.find((d) => d.key === 'video')!.color = '#123456';
+    expect((await producer.req('PUT', `/api/shows/${env.seed.showId}/content`, { baseRevision: s.show.revision, content, dryRun: false })).status).toBe(200);
+    const after = await producer.snapshot(env.seed.showId);
+    expect(deptColor(after.content.departments.find((d) => d.key === 'video'))).toBe('#123456');
+    const bad = structuredClone(after.content);
+    bad.departments[0].color = 'red';
+    expect((await producer.req('PUT', `/api/shows/${env.seed.showId}/content`, { baseRevision: after.show.revision, content: bad, dryRun: false })).status).toBe(422);
+  });
+});
+
 describe('migration', () => {
   it('adds script columns to a database created before them', () => {
     const dir = mkdtempSync(join(tmpdir(), 'sho-mig-'));
@@ -66,6 +89,7 @@ describe('migration', () => {
     const db = openDb(path);
     const cols = (db.prepare('PRAGMA table_info(cue_groups)').all() as { name: string }[]).map((c) => c.name);
     expect(cols).toContain('standby_script');
+    expect((db.prepare('PRAGMA table_info(departments)').all() as { name: string }[]).map((c) => c.name)).toContain('color');
     db.close();
     rmSync(dir, { recursive: true, force: true });
   });
