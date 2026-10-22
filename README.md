@@ -95,3 +95,15 @@ Debug URL flags: `?debug=1` draws hitboxes (also in Settings), `?god=1` ignores 
 - Art and audio are procedural placeholders, not final assets. Fonts are system fonts (no web-font download).
 - The hero is a procedural rig, not the 384×256 frame atlas in the export contract.
 - Tuning is the handoff's starting values. The game has not been playtested with people; it has only been checked by the automated bot and by screenshots.
+
+## Packaging itch.io builds
+
+Each build is numbered (`build-number.txt`), shows "Build ###" on the title screen and is zipped for itch.io:
+
+```
+npm install
+node scripts/package-itch.mjs "G:\My Drive\PARODEE GAMES\GAMES\Homeward Hound\HH_BUILDS"
+```
+
+That writes `HomewardHound_Build_###.zip` (index.html at the zip root) into the folder, then bumps the counter;
+commit `build-number.txt` so the numbering carries on. With no folder given it writes to `releases/`.
