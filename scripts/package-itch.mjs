@@ -5,6 +5,7 @@
 import { execSync } from 'node:child_process';
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { zipDir } from './zip-dir.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 const counter = resolve(root, 'build-number.txt');
@@ -15,11 +16,6 @@ mkdirSync(outDir, { recursive: true });
 execSync('npx tsc --noEmit && npx vite build', { cwd: root, stdio: 'inherit', env: { ...process.env, HH_BUILD: tag } });
 const zip = resolve(outDir, `HomewardHound_Build_${tag}.zip`);
 rmSync(zip, { force: true });
-if (process.platform === 'win32') {
-  // Windows has no zip command: use PowerShell's built-in archiver (index.html stays at the zip root).
-  execSync(`powershell -NoProfile -Command "Compress-Archive -Path '${resolve(root, 'dist')}\\*' -DestinationPath '${zip}' -Force"`, { stdio: 'inherit' });
-} else {
-  execSync(`zip -qr "${zip}" .`, { cwd: resolve(root, 'dist'), stdio: 'inherit' });
-}
+zipDir(resolve(root, 'dist'), zip);
 writeFileSync(counter, `${n}\n`);
 console.log(zip);
