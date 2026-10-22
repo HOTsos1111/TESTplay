@@ -122,6 +122,7 @@ export class ChapterMapScene extends Phaser.Scene {
     this.shopBig = new Button(this, 845, 628, 'UPGRADES', shop, { width: 188, height: 68, fontSize: 24, color: COLOR.coral, icon: 'bone', iconScale: 0.3 });
     this.fixedButtons = [
       new Button(this, 84, 38, '◀ Menu', () => this.scene.start('Title'), { width: 140, height: 48, fontSize: 20, color: 0x6f86a8 }),
+      new Button(this, 190, 38, '', () => this.scene.start('Settings', { from: 'ChapterMap' }), { width: 56, height: 48, fontSize: 20, color: 0x6f86a8, icon: 'ui_gear', iconScale: 0.36 }),
       new Button(this, 1012, 38, 'Upgrades', shop, { width: 150, height: 48, fontSize: 19, icon: 'bone', iconScale: 0.26 }),
       this.shopBig,
     ];
