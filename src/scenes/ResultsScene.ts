@@ -3,6 +3,7 @@ import { chapterById } from '../data/chapters';
 import { DEPTH } from '../data/config';
 import { COPY } from '../data/copy';
 import { HeroView } from '../entities/HeroView';
+import { Ads } from '../systems/Ads';
 import { Audio } from '../systems/AudioManager';
 import { progress } from '../systems/ProgressStore';
 import { Backdrop, panel } from '../ui/Backdrop';
@@ -56,6 +57,13 @@ export class ResultsScene extends Phaser.Scene {
 
     this.hero = new HeroView(this, 1190, 600).setDepth(DEPTH.hud);
     this.hero.setMode(d.success ? 'victory' : 'idle');
+
+    // Play Store version: an advert plays by itself after every level that's beaten.
+    if (d.success && Ads.enabled) {
+      window.setTimeout(() => {
+        if (this.scene.isActive()) void Ads.showInterstitial();
+      }, 600);
+    }
   }
 
   update(_t: number, dms: number): void {

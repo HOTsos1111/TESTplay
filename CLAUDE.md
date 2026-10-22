@@ -19,6 +19,15 @@ bumps `build-number.txt`, builds with "Build ###" on the title screen and writes
 build so numbering carries on. Also add a line for each build to `Homeward Hound build log.txt` in HH_BUILDS.
 Builds 001–005 were made in the earlier cloud session; the next is 006.
 
+## Play Store adverts (placeholders)
+
+- `src/systems/Ads.ts` plays one of the owner's Parodee commercials (`public/ads/*.mp4`, copied from
+  `G:\My Drive\PARODEE GAMES\BRAND\COMMERCIALS`) as a stand-in advert. Swap its insides for AdMob later.
+- An advert plays by itself after every level that's beaten (Results scene, closable after 5 s); the bone shop
+  has "Watch an ad · +150 bones" (paid only if watched to the end).
+- Off unless `HH_ADS=1` at build time (Play Store builds) or `?ads=1` in the URL. Builds without it leave
+  `dist/ads/` out, so itch.io zips don't grow and never show adverts.
+
 ## Where things live
 
 - `src/data/` — levels (`chapters.ts`, `chunks.ts`), bosses (`bosses.ts`), bone shop (`upgrades.ts`),

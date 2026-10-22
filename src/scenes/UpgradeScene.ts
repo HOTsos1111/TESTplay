@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { DEPTH } from '../data/config';
 import { COPY } from '../data/copy';
 import { UPGRADES, maxLevel, type UpgradeDef, type UpgradeIntro } from '../data/upgrades';
+import { AD_BONE_REWARD, Ads } from '../systems/Ads';
 import { ART_SCALE } from '../systems/AssetRegistry';
 import { Audio } from '../systems/AudioManager';
 import { InputManager } from '../systems/InputManager';
@@ -62,12 +63,30 @@ export class UpgradeScene extends Phaser.Scene {
     const back = new Button(this, 110, 46, COPY.back, () => this.back(), { width: 170, height: 52, fontSize: 22, color: 0x6f86a8 });
     back.setDepth(DEPTH.hud);
     this.buttons.push(back);
+    if (Ads.enabled) {
+      // Play Store version: watch a reward advert for extra bones.
+      const ad = new Button(this, 640, 678, `▶ Watch an ad · +${AD_BONE_REWARD} bones`, () => void this.watchAd(), { width: 400, height: 50, fontSize: 20, color: COLOR.teal });
+      ad.setDepth(DEPTH.hud);
+      this.buttons.push(ad);
+    }
     this.nav = new MenuNav(this, this.buttons, () => (this.popup ? this.closePopup() : this.back()));
     this.refresh();
   }
 
   private back(): void {
     this.scene.start(this.from === 'ChapterMap' ? 'ChapterMap' : 'Title');
+  }
+
+  private async watchAd(): Promise<void> {
+    if (this.popup || Ads.showing) return;
+    const watched = await Ads.showRewarded();
+    if (!this.scene.isActive()) return;
+    if (watched) {
+      progress.addBones(AD_BONE_REWARD);
+      Audio.play('powerup');
+      this.cameras.main.flash(150, 255, 214, 110);
+    }
+    this.refresh();
   }
 
   private buy(def: UpgradeDef): void {
