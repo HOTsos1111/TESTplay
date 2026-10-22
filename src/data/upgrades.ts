@@ -55,7 +55,7 @@ export const UPGRADES: UpgradeDef[] = [
     key: 'jump',
     name: 'Springy Paws',
     icon: 'hero_s_run',
-    prices: [70, 140, 240],
+    prices: [120, 240, 400],
     describe: (l) => (l ? `Jumps ${pct(UPGRADE_TUNING.jumpPerLevel * l * 2)} higher` : 'Jump higher'),
     intro: [1, 2, 3].map((l) => ({
       title: l === 3 ? 'Springiest Paws!' : 'Springy Paws!',
@@ -68,7 +68,7 @@ export const UPGRADES: UpgradeDef[] = [
     key: 'double',
     name: 'Double Jump+',
     icon: 'hero_s_leap',
-    prices: [160, 320],
+    prices: [260, 520],
     describe: (l) => ['Double jump (built in)', `Double jump ${pct(UPGRADE_TUNING.doublePerLevel)} higher`, 'TRIPLE jump!'][l],
     intro: [
       { title: 'Bigger Double Jump!', body: `Your second jump in mid-air goes ${pct(UPGRADE_TUNING.doublePerLevel)} higher.`, keys: 'SPACE / ↑ again in mid-air', touch: 'Push UP again in mid-air' },
@@ -84,7 +84,7 @@ export const UPGRADES: UpgradeDef[] = [
     key: 'tail',
     name: 'Tail Spin',
     icon: 'hero_s_prop',
-    prices: [80, 160, 280],
+    prices: [130, 260, 450],
     describe: (l) => `Hover ${(1 + UPGRADE_TUNING.tailPerLevel * l).toFixed(2)}x as long`,
     intro: [1, 2, 3].map(() => ({
       title: 'Longer Tail Spin!',
@@ -97,7 +97,7 @@ export const UPGRADES: UpgradeDef[] = [
     key: 'recharge',
     name: 'Zoomie Recharge',
     icon: 'icon_tail_empty',
-    prices: [60, 120, 220],
+    prices: [100, 200, 360],
     describe: (l) => `Tail recharge +${pct(UPGRADE_TUNING.rechargePerLevel * l)}`,
     intro: [1, 2, 3].map((l) => ({
       title: 'Zoomie Recharge!',
@@ -108,7 +108,7 @@ export const UPGRADES: UpgradeDef[] = [
     key: 'health',
     name: 'Sausage Links',
     icon: 'hp_link_full',
-    prices: [60, 110, 180, 270, 380],
+    prices: [100, 180, 300, 450, 650],
     describe: (l) => `${TUNING.maxHearts + l} sausage links of health`,
     intro: [1, 2, 3, 4, 5].map((l) => ({
       title: 'Extra Sausage Link!',
@@ -120,7 +120,7 @@ export const UPGRADES: UpgradeDef[] = [
     name: 'Speed Burst',
     icon: 'icon_burst',
     unlock: true,
-    prices: [140, 200, 320],
+    prices: [220, 330, 520],
     describe: (l) => ['Locked: slingshot dash', 'Speed Burst', `Burst +${pct(UPGRADE_TUNING.burstFaster)} faster`, 'Faster, longer bursts'][l],
     intro: [
       {
@@ -137,7 +137,7 @@ export const UPGRADES: UpgradeDef[] = [
     key: 'bark',
     name: 'Bigger Bark',
     icon: 'icon_bark',
-    prices: [80, 160, 280],
+    prices: [130, 260, 450],
     describe: (l) => `Bark reach +${UPGRADE_TUNING.barkPerLevel * l} px`,
     intro: [1, 2, 3].map(() => ({
       title: 'Bigger Bark!',
@@ -151,7 +151,7 @@ export const UPGRADES: UpgradeDef[] = [
     name: 'Double Bark',
     icon: 'hero_s_bark',
     unlock: true,
-    prices: [240, 400],
+    prices: [400, 650],
     describe: (l) => ['Locked: bark twice', 'Double Bark', 'MEGA Bark'][l],
     intro: [
       {
@@ -173,7 +173,7 @@ export const UPGRADES: UpgradeDef[] = [
     name: 'Boomerang Bone',
     icon: 'hero_s_toy',
     unlock: true,
-    prices: [200, 260, 380],
+    prices: [320, 420, 620],
     describe: (l) => ['Locked: throw your squeaky toy', 'Boomerang Bone', 'Longer, faster throws', 'Double-back: hits going and coming'][l],
     intro: [
       {

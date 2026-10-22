@@ -45,17 +45,12 @@ export class ResultsScene extends Phaser.Scene {
     const buttons: Button[] = [];
     const y = 625;
     if (d.success) {
-      this.add.text(640, 512, 'Next landmark: the shopping street — coming soon.', textStyle(20, CSS.cream, 4)).setOrigin(0.5).setDepth(DEPTH.hud);
-      buttons.push(new Button(this, 640, y, COPY.nextStop, () => this.scene.start('ChapterMap'), { width: 280, color: COLOR.coral }));
-      buttons.push(new Button(this, 330, y, COPY.tryAgain, () => this.scene.start('Game', { chapter: d.chapter, startAt: 'start' }), { width: 260, height: 64, fontSize: 26 }));
-      buttons.push(new Button(this, 950, y, COPY.headHome, () => this.scene.start('Title'), { width: 260, height: 64, fontSize: 26, color: 0x6f86a8 }));
-    } else {
-      // Back to the level select (with this level's card open) so there is a
-      // chance to spend bones on upgrades before the next attempt.
-      buttons.push(new Button(this, 640, y, COPY.tryAgain, () => this.scene.start('ChapterMap', { open: d.chapter }), { width: 340, color: COLOR.coral }));
-      buttons.push(new Button(this, 290, y, COPY.shop, () => this.scene.start('Upgrade', { from: 'ChapterMap' }), { width: 300, height: 64, fontSize: 22 }));
-      buttons.push(new Button(this, 990, y, COPY.headHome, () => this.scene.start('Title'), { width: 260, height: 64, fontSize: 26, color: 0x6f86a8 }));
+      this.add.text(640, 512, 'Pick your next neighbourhood on the level select.', textStyle(20, CSS.cream, 4)).setOrigin(0.5).setDepth(DEPTH.hud);
     }
+    // Win or lose, it's back to the level select: spend bones, then pick the next run.
+    buttons.push(new Button(this, 640, y, 'Level Select', () => this.scene.start('ChapterMap'), { width: 300, color: COLOR.coral }));
+    buttons.push(new Button(this, 300, y, COPY.shop, () => this.scene.start('Upgrade', { from: 'ChapterMap' }), { width: 300, height: 64, fontSize: 22 }));
+    buttons.push(new Button(this, 980, y, COPY.headHome, () => this.scene.start('Title'), { width: 260, height: 64, fontSize: 26, color: 0x6f86a8 }));
     for (const b of buttons) b.setDepth(DEPTH.hud);
     new MenuNav(this, buttons, () => this.scene.start('Title'));
 

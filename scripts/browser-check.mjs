@@ -150,7 +150,9 @@ try {
   await waitScene(page, 'ChapterMap', 8000);
   await sleep(600);
   await page.screenshot({ path: 'screenshots/02e-level-select.png' });
-  // Enter opens the level card, Enter again presses Let's Go.
+  // Nothing starts selected: an arrow picks the pup's level, Enter opens its card, Enter again presses Let's Go.
+  await page.keyboard.press('ArrowRight');
+  await sleep(300);
   await page.keyboard.press('Enter');
   await sleep(500);
   await page.keyboard.press('Enter');
@@ -317,6 +319,8 @@ try {
     await page.keyboard.press('Enter');
     await waitScene(page, 'ChapterMap');
     await sleep(400);
+    await page.keyboard.press('ArrowRight');
+    await sleep(300);
     await page.keyboard.press('Enter');
     await sleep(500);
     await page.keyboard.press('Enter');

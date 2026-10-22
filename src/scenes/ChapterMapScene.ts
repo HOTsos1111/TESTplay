@@ -59,7 +59,7 @@ export class ChapterMapScene extends Phaser.Scene {
     return l.standIn === null ? 'soon' : 'open';
   }
 
-  create(data: { open?: number } = {}): void {
+  create(): void {
     this.t = 0;
     this.plaques = [];
     this.faces = [];
@@ -137,7 +137,9 @@ export class ChapterMapScene extends Phaser.Scene {
     // The hero waits on the furthest reachable level.
     const p = progress.state;
     const here = LEVELS.find((l) => this.stateOf(l) === 'open' && !p.completedChapters.includes(l.standIn ?? -1)) ?? LEVELS.filter((l) => this.stateOf(l) !== 'locked').pop() ?? LEVELS[0];
-    this.selected = here.id;
+    // Nothing starts selected: the player picks the next level (the pup marks the furthest one).
+    this.selected = 0;
+    this.here = here.id;
     if (this.textures.exists('hero_s_idle')) {
       this.marker = this.add.image(here.map.x - PLAQUE.w / 2 - 4, here.map.y + PLAQUE.dy + PLAQUE.h / 2 + 6, 'hero_s_idle').setOrigin(0.5, 1).setScale(0.32).setDepth(D + 2);
     }
@@ -145,36 +147,35 @@ export class ChapterMapScene extends Phaser.Scene {
     const kb = this.input.keyboard;
     const step = (d: number) => {
       if (this.popup) return;
-      this.select(Phaser.Math.Clamp(this.selected + d, 1, LEVELS.length));
+      if (!this.selected) this.select(this.here);
+      else this.select(Phaser.Math.Clamp(this.selected + d, 1, LEVELS.length));
     };
     kb?.on('keydown-RIGHT', () => step(1));
     kb?.on('keydown-DOWN', () => step(1));
     kb?.on('keydown-TAB', () => step(1));
     kb?.on('keydown-LEFT', () => step(-1));
     kb?.on('keydown-UP', () => step(-1));
-    kb?.on('keydown-ENTER', () => (this.tutorial ? this.goShop() : !this.popup && this.choose(this.selected)));
-    kb?.on('keydown-SPACE', () => (this.tutorial ? this.goShop() : !this.popup && this.choose(this.selected)));
+    kb?.on('keydown-ENTER', () => (this.tutorial ? this.goShop() : !this.popup && this.selected > 0 && this.choose(this.selected)));
+    kb?.on('keydown-SPACE', () => (this.tutorial ? this.goShop() : !this.popup && this.selected > 0 && this.choose(this.selected)));
     kb?.on('keydown-ESC', () => {
       if (this.tutorial) this.endTutorial();
       else if (this.popup) this.closePopup();
       else this.scene.start('Title');
     });
-    this.select(this.selected, true);
 
     // First time back after a round: freeze the map and point at the shop.
     const played = p.boneBalance > 0 || p.completedChapters.length > 0 || Object.keys(p.bestRunByChapter).length > 0;
-    this.reopen = data.open ?? null;
     if (played && !p.hintsSeen.includes('shop_tutorial')) {
       // Let the map finish appearing, then freeze it for the tip (see update).
       this.popup = this.add.container(0, 0);
       this.tutDelay = 0.9;
     }
-    else if (this.reopen) this.choose(this.reopen);
   }
 
   private tutorial: Phaser.GameObjects.Container | null = null;
   private tutArrow: Phaser.GameObjects.Image | Phaser.GameObjects.Graphics | null = null;
-  private reopen: number | null = null;
+  /** The furthest playable level (where the pup waits). */
+  private here = 1;
   private tutT = 0;
   private tutDelay = 0;
 
@@ -250,7 +251,6 @@ export class ChapterMapScene extends Phaser.Scene {
     this.popup = null;
     this.tweens.resumeAll();
     Audio.play('ui_back');
-    if (this.reopen) this.choose(this.reopen);
   }
 
   private goShop(): void {
