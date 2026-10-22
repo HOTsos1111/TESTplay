@@ -50,7 +50,7 @@ class AdService {
 
   private play(rewarded: boolean): Promise<boolean> {
     this.showing = true;
-    Audio.suspend();
+    Audio.hold(true);
     return new Promise((resolve) => {
       const el = document.createElement('div');
       el.id = 'ad-placeholder';
@@ -134,7 +134,7 @@ class AdService {
         video.pause();
         el.remove();
         this.showing = false;
-        Audio.resume();
+        Audio.hold(false);
         resolve(earned);
       };
       close.addEventListener('click', finish);

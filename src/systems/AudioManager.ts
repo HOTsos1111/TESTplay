@@ -57,6 +57,8 @@ class AudioManagerImpl {
   private nextTime = 0;
   private timer: number | null = null;
   private musicPaused = false;
+  /** True while an advert is on screen: nothing may restart game sound. */
+  private held = false;
   private barkVariant = 0;
   private boneCombo = 0;
   /** Squirrel-threat overlay: frantic xylophone runs in the current track's key. */
@@ -151,7 +153,7 @@ class AudioManagerImpl {
         this.sfxBus.connect(sfxSend).connect(this.reverbIn);
         this.applyVolumes();
       }
-      if (this.ctx.state === 'suspended') void this.ctx.resume();
+      if (this.ctx.state === 'suspended' && !this.held) void this.ctx.resume();
       if (this.trackKey && this.timer === null && !this.musicPaused) this.startScheduler();
     } catch {
       this.ctx = null;
@@ -183,7 +185,14 @@ class AudioManagerImpl {
   }
 
   resume(): void {
-    if (this.ctx && this.ctx.state === 'suspended') void this.ctx.resume();
+    if (this.ctx && this.ctx.state === 'suspended' && !this.held) void this.ctx.resume();
+  }
+
+  /** Silence all game sound until released, whatever taps or tab switches happen meanwhile (adverts). */
+  hold(on: boolean): void {
+    this.held = on;
+    if (on) this.suspend();
+    else if (!document.hidden) this.resume();
   }
 
   // ------------------------------------------------------------- music
