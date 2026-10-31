@@ -2,13 +2,13 @@
 
 The game's dachshund hero as a small, animated 3D model, made to be placed in AR in a web browser.
 
-| File | Size | Use |
-| --- | --- | --- |
-| `hound.glb` | ~78 KB | Main file. Meshopt + quantized (`EXT_meshopt_compression`, `KHR_mesh_quantization`). three.js, model-viewer, 8th Wall, Babylon, A-Frame (with the meshopt decoder). |
-| `hound-draco.glb` | ~57 KB | Fallback for viewers that only support Draco (`KHR_draco_mesh_compression`). |
-| `index.html` | | Viewer page with an AR button (model-viewer: WebXR, Android Scene Viewer, iOS Quick Look). |
+**`hound.glb` (~210 KB) is the whole thing:** one self-contained binary glTF 2.0 file. Geometry, materials and
+the animation are all embedded; there are no textures, no external `.bin` files and no extensions, so it needs
+no Draco or meshopt decoder. It passes the Khronos glTF Validator with 0 errors, warnings or notes.
 
-- About 11k triangles, 8 flat-colour materials (palette from `art-src/hero.png`), no textures.
+`index.html` is an optional viewer page with an AR button (model-viewer: WebXR, Android Scene Viewer, iOS Quick Look).
+
+- About 10k triangles, 5.5k vertices; vertices welded and cache-optimised, 8 flat-colour materials (palette from `art-src/hero.png`), no textures.
 - Real-world size: about 0.5 m nose to tail, standing on the floor at the origin, facing +Z.
 - One looping 4-second clip, **Idle**: breathing, a curious head tilt, ear sway, tail wag and a blink.
 

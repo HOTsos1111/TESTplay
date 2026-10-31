@@ -2,18 +2,15 @@
 //
 //   cd webar && npm install && node build-hound.mjs
 //
-// Writes:
-//   hound.glb        meshopt + quantized (smallest; three.js, model-viewer, 8th Wall, Babylon)
-//   hound-draco.glb  Draco geometry, animation uncompressed (for viewers without meshopt)
+// Writes hound.glb: one self-contained binary glTF 2.0 file (geometry, materials and animation embedded,
+// no textures, no extensions, so no Draco/meshopt decoder is needed by the viewer).
 //
 // Everything is procedural (no source art). Facing +Z, Y up, metres; the pup is ~0.5 m nose to tail.
 // One looping clip "Idle" (4 s): breathing, curious head tilt, ear sway, tail wag, a blink.
 
 import { Document, NodeIO } from '@gltf-transform/core';
-import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
-import { dedup, prune, weld, quantize, meshopt, draco, reorder } from '@gltf-transform/functions';
+import { dedup, prune, weld, reorder } from '@gltf-transform/functions';
 import { MeshoptEncoder } from 'meshoptimizer';
-import draco3d from 'draco3dgltf';
 
 // ---------- palette (from art-src/hero.png) ----------
 const srgb = (hex) => {
@@ -135,6 +132,12 @@ function finish(shape, m, opts = {}) {
   }
   if (vol < 0 && !opts.keepWinding) for (let i = 0; i < idx.length; i += 3) [idx[i + 1], idx[i + 2]] = [idx[i + 2], idx[i + 1]];
   const key = (p) => p.map((v) => Math.round(v * 1e5)).join(',');
+  // drop zero-area triangles (lathe poles)
+  idx = idx.filter((_, i, all) => {
+    const t = i - (i % 3);
+    const [ka, kb, kc] = [all[t], all[t + 1], all[t + 2]].map((v) => key(pos[v]));
+    return ka !== kb && kb !== kc && ka !== kc;
+  });
   const acc = new Map();
   for (let i = 0; i < idx.length; i += 3) {
     const [a, b, c] = [pos[idx[i]], pos[idx[i + 1]], pos[idx[i + 2]]];
@@ -300,25 +303,12 @@ const bt = [0, 2.55, 2.62, 2.66, 2.76, T];
 const bs = [1, 1, 0.08, 0.08, 1, 1].map((s) => [1, s, 1]);
 for (const eye of [eyeL, eyeR]) channel(eye, 'scale', bt, bs);
 
-// ---------- compress + write ----------
+// ---------- optimise + write ----------
+// Plain glTF 2.0: no extensions, no external files, no decoders needed.
 await MeshoptEncoder.ready;
-const io = new NodeIO()
-  .registerExtensions(ALL_EXTENSIONS)
-  .registerDependencies({
-    'meshopt.encoder': MeshoptEncoder,
-    'draco3d.encoder': await draco3d.createEncoderModule(),
-  });
+const io = new NodeIO();
+await doc.transform(prune(), dedup(), weld(), reorder({ encoder: MeshoptEncoder }));
+await io.write(new URL('./hound.glb', import.meta.url).pathname, doc);
 
-await doc.transform(prune(), dedup(), weld());
-const json = await io.writeJSON(doc); // snapshot before lossy steps
 const triCount = doc.getRoot().listMeshes().flatMap((m) => m.listPrimitives()).reduce((n, p) => n + p.getIndices().getCount() / 3, 0);
-
-const meshoptDoc = await io.readJSON(json);
-await meshoptDoc.transform(reorder({ encoder: MeshoptEncoder }), quantize(), meshopt({ encoder: MeshoptEncoder, level: 'high' }));
-await io.write(new URL('./hound.glb', import.meta.url).pathname, meshoptDoc);
-
-const dracoDoc = await io.readJSON(await io.writeJSON(doc));
-await dracoDoc.transform(draco({ method: 'edgebreaker' }));
-await io.write(new URL('./hound-draco.glb', import.meta.url).pathname, dracoDoc);
-
 console.log(`triangles: ${triCount}`);
