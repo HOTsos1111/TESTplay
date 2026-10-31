@@ -1,0 +1,14 @@
+{
+  "name": "homeward-hound-webar",
+  "private": true,
+  "type": "module",
+  "description": "Builds hound.glb, the animated 3D Homeward Hound pup for WebAR",
+  "scripts": { "build": "node build-hound.mjs" },
+  "devDependencies": {
+    "@gltf-transform/core": "^4.2.1",
+    "@gltf-transform/extensions": "^4.2.1",
+    "@gltf-transform/functions": "^4.2.1",
+    "draco3dgltf": "^1.5.7",
+    "meshoptimizer": "^0.22.0"
+  }
+}
