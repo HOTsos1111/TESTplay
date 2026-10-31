@@ -1,0 +1,12 @@
+{
+  "name": "pugatory-webar",
+  "private": true,
+  "type": "module",
+  "description": "Builds pugatory.glb, the animated 3D PUGATORY pug hero with demon cats",
+  "scripts": { "build": "node build-pugatory.mjs" },
+  "devDependencies": {
+    "@gltf-transform/core": "^4.2.1",
+    "@gltf-transform/functions": "^4.2.1",
+    "meshoptimizer": "^0.22.0"
+  }
+}
